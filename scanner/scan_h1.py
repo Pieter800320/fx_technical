@@ -62,7 +62,7 @@ def main():
             print(f"  {pair}: no data")
             continue
 
-        result = score_pair(df)
+        result = score_pair(df, timeframe="H1")
         if result is None:
             print(f"  {pair}: insufficient bars")
             continue
@@ -83,6 +83,12 @@ def main():
         print(f"  {display}: {result['score']:+d} → {label}")
 
         # ── Alert logic ──────────────────────────────────────────────────────
+        # Filter guard — ADX/ATR filters
+        if not result["filter_ok"]:
+            for r in result["filter_reasons"]:
+                print(f"    ↳ Suppressed: {r}")
+            continue
+
         if direction == "neutral":
             continue
 
