@@ -92,8 +92,8 @@ def main():
         h1_label = h1_data.get(pair, {}).get("label", "N/A")
         d1_label = d1_data.get(pair, {}).get("label", "N/A")
 
-        print(f"    ↳ H4 ALERT: {direction.upper()} — generating AI blurb...")
-        blurb = generate_blurb(pair, direction, h1_label, label, d1_label)
+        print(f"    ↳ H4 ALERT: {direction.upper()} — fetching news context...")
+        ctx = get_alert_context(pair)
 
         msg = build_message(
             pair=pair,
@@ -101,12 +101,13 @@ def main():
             h1_label=h1_label,
             h4_label=label,
             d1_label=d1_label,
-            ai_blurb=blurb,
             session_names=active_sessions,
+            headline=ctx["headline"],
+            events=ctx["events"],
         )
         send_telegram(msg)
         record_alert(f"h4_{pair}", direction)
-        log_alert(pair, direction, h1_label, label, d1_label, blurb)
+        log_alert(pair, direction, h1_label, label, d1_label, ctx["headline"])
 
     with open(H4_OUTPUT, "w") as f:
         json.dump(h4_results, f, indent=2)
