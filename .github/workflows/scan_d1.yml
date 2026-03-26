@@ -1,0 +1,75 @@
+name: D1 Scan + Deploy Dashboard
+
+on:
+  schedule:
+    - cron: "10 0 * * *"   # Daily at 00:10 UTC (after H4 run at 00:05)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages:    write
+  id-token: write
+
+jobs:
+  scan_d1:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run D1 scan
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+        run: python scanner/scan_d1.py
+
+      - name: Commit D1 data
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/d1_scores.json data/csm.json || true
+          git diff --cached --quiet || git commit -m "chore: D1 scan update $(date -u +%Y-%m-%dT%H:%M)"
+          git push
+
+  deploy_dashboard:
+    needs: scan_d1
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: main    # Get freshly committed data files
+
+      - name: Copy data files into dashboard folder
+        run: |
+          cp data/h1_scores.json  dashboard/
+          cp data/h4_scores.json  dashboard/
+          cp data/d1_scores.json  dashboard/
+          cp data/csm.json        dashboard/
+          cp data/alerts.json     dashboard/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

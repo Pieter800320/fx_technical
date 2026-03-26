@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FX Technical Dashboard</title>
+<style>
+  :root {
+    --bg:        #0d1117;
+    --surface:   #161b22;
+    --border:    #30363d;
+    --text:      #e6edf3;
+    --muted:     #8b949e;
+    --strong-buy:  #1a7f3c;
+    --buy:         #238636;
+    --neutral:     #30363d;
+    --sell:        #b62324;
+    --strong-sell: #8b0000;
+    --buy-text:    #3fb950;
+    --sell-text:   #f85149;
+    --neutral-text:#8b949e;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 14px;
+    padding: 16px;
+  }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  header h1 { font-size: 18px; font-weight: 600; }
+  #last-updated { color: var(--muted); font-size: 12px; }
+
+  /* ── Section headings ── */
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    margin: 20px 0 10px;
+  }
+
+  /* ── Currency Strength Bar ── */
+  #csm-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+
+  .csm-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .csm-label {
+    width: 36px;
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .csm-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .csm-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    background: linear-gradient(90deg, #1f6feb, #58a6ff);
+    transition: width 0.4s ease;
+  }
+
+  .csm-value {
+    width: 38px;
+    text-align: right;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* ── Signal Table ── */
+  .table-wrap {
+    overflow-x: auto;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th {
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+
+  td {
+    padding: 9px 12px;
+    border-bottom: 1px solid #21262d;
+    white-space: nowrap;
+  }
+
+  tr:last-child td { border-bottom: none; }
+
+  .pair-cell {
+    font-weight: 600;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+  }
+
+  .score-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .score-strong-buy  { background: var(--strong-buy); color: #7ee787; }
+  .score-buy         { background: var(--buy);         color: #7ee787; }
+  .score-neutral     { background: var(--neutral);     color: var(--muted); }
+  .score-sell        { background: var(--sell);        color: #ffa198; }
+  .score-strong-sell { background: var(--strong-sell); color: #ffa198; }
+
+  /* ── AI Blurb Panel ── */
+  #blurb-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 10px;
+  }
+
+  .blurb-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .blurb-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+
+  .blurb-pair {
+    font-weight: 700;
+    font-size: 13px;
+  }
+
+  .blurb-direction {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .blurb-direction.bull { background: var(--buy); color: #7ee787; }
+  .blurb-direction.bear { background: var(--sell); color: #ffa198; }
+
+  .blurb-text {
+    font-size: 12px;
+    line-height: 1.6;
+    color: #c9d1d9;
+  }
+
+  .blurb-time {
+    margin-top: 6px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .empty-blurb {
+    color: var(--muted);
+    font-style: italic;
+    font-size: 12px;
+  }
+
+  /* ── Loading / Error states ── */
+  .loading { color: var(--muted); padding: 20px; text-align: center; }
+  .error   { color: #f85149;  padding: 20px; text-align: center; }
+
+  /* ── Session badge ── */
+  #session-badge {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+
+  .session-chip {
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+  }
+
+  .session-chip.active {
+    border-color: #388bfd;
+    color: #58a6ff;
+    background: rgba(56,139,253,0.1);
+  }
+
+  @media (max-width: 480px) {
+    body { padding: 10px; }
+    th, td { padding: 7px 8px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ FX Technical Dashboard</h1>
+  <span id="last-updated">Loading...</span>
+</header>
+
+<!-- Session status -->
+<div id="session-badge">
+  <span class="session-chip" id="sess-sydney">Sydney</span>
+  <span class="session-chip" id="sess-tokyo">Tokyo</span>
+  <span class="session-chip" id="sess-london">London</span>
+  <span class="session-chip" id="sess-newyork">New York</span>
+</div>
+
+<!-- Currency Strength -->
+<div class="section-title">Currency Strength (D1)</div>
+<div id="csm-grid"><div class="loading">Loading...</div></div>
+
+<!-- Signal Table -->
+<div class="section-title">Technical Scores</div>
+<div class="table-wrap">
+  <table id="signal-table">
+    <thead>
+      <tr>
+        <th>Pair</th>
+        <th>H1</th>
+        <th>H4</th>
+        <th>D1</th>
+        <th>H1 Score</th>
+        <th>H4 Score</th>
+        <th>D1 Score</th>
+      </tr>
+    </thead>
+    <tbody id="signal-tbody">
+      <tr><td colspan="7" class="loading">Loading...</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- AI Blurb Panel -->
+<div class="section-title">Latest AI Opinions</div>
+<div id="blurb-grid"><div class="loading">No alerts fired yet.</div></div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const PAIRS = [
+  "EUR/USD","GBP/USD","USD/JPY","USD/CHF",
+  "AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY"
+];
+
+const SESSIONS = {
+  Sydney:   [21, 6],   // wraps midnight
+  Tokyo:    [0,  9],
+  London:   [7,  16],
+  "New York": [12, 21],
+};
+
+const SESSION_IDS = {
+  "Sydney":   "sess-sydney",
+  "Tokyo":    "sess-tokyo",
+  "London":   "sess-london",
+  "New York": "sess-newyork",
+};
+
+// ── Session detection ────────────────────────────────────────────────────────
+function getActiveSessions() {
+  const now = new Date();
+  const hour = now.getUTCHours();
+  return Object.entries(SESSIONS)
+    .filter(([, [s, e]]) => s > e ? (hour >= s || hour < e) : (hour >= s && hour < e))
+    .map(([name]) => name);
+}
+
+function renderSessions() {
+  const active = getActiveSessions();
+  Object.entries(SESSION_IDS).forEach(([name, id]) => {
+    const el = document.getElementById(id);
+    el.classList.toggle("active", active.includes(name));
+  });
+}
+
+// ── Score pill ───────────────────────────────────────────────────────────────
+function scorePill(label) {
+  if (!label || label === "N/A") return `<span class="score-pill score-neutral">N/A</span>`;
+  const cls = label.toLowerCase().replace(/ /g, "-");
+  return `<span class="score-pill score-${cls}">${label}</span>`;
+}
+
+function numCell(score) {
+  if (score == null) return `<span style="color:var(--muted)">—</span>`;
+  const col = score > 0 ? "var(--buy-text)" : score < 0 ? "var(--sell-text)" : "var(--muted)";
+  return `<span style="color:${col};font-weight:600">${score > 0 ? "+" : ""}${score}</span>`;
+}
+
+// ── Data loading ─────────────────────────────────────────────────────────────
+async function loadJSON(path) {
+  try {
+    const r = await fetch(path + "?t=" + Date.now());
+    if (!r.ok) return null;
+    return await r.json();
+  } catch { return null; }
+}
+
+// ── Render CSM ───────────────────────────────────────────────────────────────
+function renderCSM(csm) {
+  const el = document.getElementById("csm-grid");
+  if (!csm || !csm.rankings) {
+    el.innerHTML = `<div class="empty-blurb">Currency strength data unavailable.</div>`;
+    return;
+  }
+  const entries = Object.entries(csm.rankings); // already sorted by backend
+  el.innerHTML = entries.map(([ccy, val]) => `
+    <div class="csm-row">
+      <span class="csm-label">${ccy}</span>
+      <div class="csm-bar-track">
+        <div class="csm-bar-fill" style="width:${val}%"></div>
+      </div>
+      <span class="csm-value">${val.toFixed(1)}</span>
+    </div>
+  `).join("");
+}
+
+// ── Render signal table ───────────────────────────────────────────────────────
+function renderTable(h1, h4, d1) {
+  const tbody = document.getElementById("signal-tbody");
+  const rows = PAIRS.map(pair => {
+    const h1d = h1 && h1[pair];
+    const h4d = h4 && h4[pair];
+    const d1d = d1 && d1[pair];
+    return `
+      <tr>
+        <td class="pair-cell">${pair.replace("/","")}</td>
+        <td>${h1d ? scorePill(h1d.label) : scorePill(null)}</td>
+        <td>${h4d ? scorePill(h4d.label) : scorePill(null)}</td>
+        <td>${d1d ? scorePill(d1d.label) : scorePill(null)}</td>
+        <td>${h1d ? numCell(h1d.score) : "—"}</td>
+        <td>${h4d ? numCell(h4d.score) : "—"}</td>
+        <td>${d1d ? numCell(d1d.score) : "—"}</td>
+      </tr>
+    `;
+  });
+  tbody.innerHTML = rows.join("");
+}
+
+// ── Render AI blurbs ──────────────────────────────────────────────────────────
+function renderBlurbs(blurbs) {
+  const el = document.getElementById("blurb-grid");
+  if (!blurbs || !blurbs.alerts || blurbs.alerts.length === 0) {
+    el.innerHTML = `<div class="loading">No alerts have fired yet.</div>`;
+    return;
+  }
+  // Show latest alert per pair (most recent first)
+  const seen = new Set();
+  const latest = blurbs.alerts
+    .slice().reverse()
+    .filter(a => { const k = a.pair; if (seen.has(k)) return false; seen.add(k); return true; });
+
+  el.innerHTML = latest.map(a => {
+    const dirClass = a.direction === "bull" ? "bull" : "bear";
+    const dirLabel = a.direction === "bull" ? "BUY" : "SELL";
+    const time = a.timestamp ? new Date(a.timestamp).toLocaleString() : "";
+    return `
+      <div class="blurb-card">
+        <div class="blurb-header">
+          <span class="blurb-pair">${a.pair.replace("/","")}</span>
+          <span class="blurb-direction ${dirClass}">${dirLabel}</span>
+        </div>
+        <div class="blurb-text">${a.blurb || "<em>No opinion available.</em>"}</div>
+        <div class="blurb-time">${time}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+// ── Main ─────────────────────────────────────────────────────────────────────
+async function init() {
+  renderSessions();
+
+  const [h1, h4, d1, csm, blurbs] = await Promise.all([
+    loadJSON("h1_scores.json"),
+    loadJSON("h4_scores.json"),
+    loadJSON("d1_scores.json"),
+    loadJSON("csm.json"),
+    loadJSON("alerts.json"),
+  ]);
+
+  // Last updated — use the most recent timestamp from any dataset
+  const timestamps = [h1, h4, d1]
+    .flatMap(ds => ds ? Object.values(ds).map(v => v.updated) : [])
+    .filter(Boolean)
+    .sort();
+  if (timestamps.length) {
+    const latest = new Date(timestamps[timestamps.length - 1]);
+    document.getElementById("last-updated").textContent =
+      "Updated: " + latest.toLocaleString();
+  }
+
+  renderCSM(csm);
+  renderTable(h1, h4, d1);
+  renderBlurbs(blurbs);
+}
+
+init();
+// Auto-refresh every 5 minutes
+setInterval(init, 5 * 60 * 1000);
+</script>
+</body>
+</html>

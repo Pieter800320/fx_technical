@@ -1,0 +1,44 @@
+name: H4 Scan
+
+on:
+  schedule:
+    - cron: "5 0,4,8,12,16,20 * * *"   # Every 4 hours, offset 5 min to avoid clash with H1
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  scan_h4:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run H4 scan
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          DASHBOARD_URL:      ${{ secrets.DASHBOARD_URL }}
+        run: python scanner/scan_h4.py
+
+      - name: Commit updated data + cooldown state
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/h4_scores.json state/cooldown.json data/alerts.json || true
+          git diff --cached --quiet || git commit -m "chore: H4 scan update $(date -u +%Y-%m-%dT%H:%M)"
+          git push

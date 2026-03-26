@@ -1,0 +1,44 @@
+name: H1 Scan
+
+on:
+  schedule:
+    - cron: "0 * * * *"   # Every hour on the hour (UTC)
+  workflow_dispatch:       # Manual trigger for testing
+
+permissions:
+  contents: write          # Needed to commit cooldown state back
+
+jobs:
+  scan_h1:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run H1 scan
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+          ANTHROPIC_API_KEY:  ${{ secrets.ANTHROPIC_API_KEY }}
+          DASHBOARD_URL:      ${{ secrets.DASHBOARD_URL }}
+        run: python scanner/scan_h1.py
+
+      - name: Commit updated data + cooldown state
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/h1_scores.json state/cooldown.json data/alerts.json || true
+          git diff --cached --quiet || git commit -m "chore: H1 scan update $(date -u +%Y-%m-%dT%H:%M)"
+          git push
