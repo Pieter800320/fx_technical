@@ -36,7 +36,7 @@ def main():
             print(f"  {pair}: no data")
             continue
 
-        result = score_pair(df)
+        result = score_pair(df, timeframe="D1")
         if result is None:
             print(f"  {pair}: insufficient bars")
             continue
