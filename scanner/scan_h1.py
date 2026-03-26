@@ -106,8 +106,8 @@ def main():
         h4_label = h4_data.get(pair, {}).get("label", "N/A")
         d1_label = d1_data.get(pair, {}).get("label", "N/A")
 
-        print(f"    ↳ ALERT: {direction.upper()} — generating AI blurb...")
-        blurb = generate_blurb(pair, direction, label, h4_label, d1_label)
+        print(f"    ↳ ALERT: {direction.upper()} — fetching news context...")
+        ctx = get_alert_context(pair)
 
         msg = build_message(
             pair=pair,
@@ -115,12 +115,13 @@ def main():
             h1_label=label,
             h4_label=h4_label,
             d1_label=d1_label,
-            ai_blurb=blurb,
             session_names=active_sessions,
+            headline=ctx["headline"],
+            events=ctx["events"],
         )
         send_telegram(msg)
         record_alert(pair, direction)
-        log_alert(pair, direction, label, h4_label, d1_label, blurb)
+        log_alert(pair, direction, label, h4_label, d1_label, ctx["headline"])
 
     # ── Save H1 scores to JSON (for dashboard) ───────────────────────────────
     with open(H1_OUTPUT, "w") as f:
