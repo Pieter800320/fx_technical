@@ -1,9 +1,6 @@
 """
 scanner/scan_h4.py
-H4 scan: score all pairs, fire alerts. H4 is the primary trigger timeframe.
-
-H4 alerts fire independently — no override suppression here.
-Session guard and cooldown guard both apply.
+H4 scan: forex pairs + extra instruments.
 """
 
 import json
@@ -13,7 +10,7 @@ import datetime
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from config.pairs import PAIRS, pair_display, is_pair_active, get_active_sessions
+from config.pairs import PAIRS, EXTRA_INSTRUMENTS, pair_display, is_pair_active, get_active_sessions
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair
 from scanner.cooldown import is_on_cooldown, record_alert
@@ -26,8 +23,10 @@ H4_OUTPUT = os.path.join(DATA_DIR, "h4_scores.json")
 H1_SCORES = os.path.join(DATA_DIR, "h1_scores.json")
 D1_SCORES = os.path.join(DATA_DIR, "d1_scores.json")
 
+ALL_INSTRUMENTS = PAIRS + EXTRA_INSTRUMENTS
 
-def load_scores(path: str) -> dict:
+
+def load_scores(path):
     try:
         with open(path) as f:
             return json.load(f)
@@ -39,8 +38,7 @@ def main():
     print(f"\n=== H4 Scan — {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC ===")
     os.makedirs(DATA_DIR, exist_ok=True)
 
-    ohlcv = fetch_all_pairs(PAIRS, "H4")
-
+    ohlcv = fetch_all_pairs(ALL_INSTRUMENTS, "H4")
     h1_data = load_scores(H1_SCORES)
     d1_data = load_scores(D1_SCORES)
 
@@ -48,15 +46,15 @@ def main():
     now = datetime.datetime.utcnow()
     active_sessions = get_active_sessions(now)
 
-    for pair in PAIRS:
+    for pair in ALL_INSTRUMENTS:
         df = ohlcv.get(pair)
         if df is None:
-            print(f"  {pair}: no data")
+            print(f"  {pair_display(pair)}: no data")
             continue
 
         result = score_pair(df, timeframe="H4")
         if result is None:
-            print(f"  {pair}: insufficient bars")
+            print(f"  {pair_display(pair)}: insufficient bars")
             continue
 
         label     = result["label"]
@@ -69,6 +67,7 @@ def main():
             "direction": direction,
             "raw":       result["raw"],
             "signals":   result["signals"],
+            "filter_ok": result["filter_ok"],
             "updated":   now.isoformat(),
         }
 
@@ -85,16 +84,14 @@ def main():
 
         # Session guard
         if not is_pair_active(pair, now):
-            print(f"    ↳ Suppressed: {pair} not active in current session")
+            print(f"    ↳ Suppressed: {display} not active in current session")
             continue
 
-        # Cooldown guard — H4 has its own cooldown key (separate from H1)
-        cooldown_key = f"h4_{direction}"
+        # Cooldown
         if is_on_cooldown(f"h4_{pair}", direction):
             print(f"    ↳ Suppressed: H4 on cooldown")
             continue
 
-        # Fire alert
         h1_label = h1_data.get(pair, {}).get("label", "N/A")
         d1_label = d1_data.get(pair, {}).get("label", "N/A")
 
