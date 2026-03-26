@@ -17,7 +17,7 @@ from config.pairs import PAIRS, pair_display, is_pair_active, get_active_session
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair
 from scanner.cooldown import is_on_cooldown, record_alert
-from alerts.ai_blurb import generate_blurb
+from alerts.news import get_alert_context
 from alerts.telegram import build_message, send_telegram
 from alerts.log import log_alert
 
