@@ -403,24 +403,33 @@ function renderTable(h1, h4, d1) {
 }
 
 // ── Render AI blurbs ──────────────────────────────────────────────────────────
+const _prompts = {};
+
 function renderBlurbs(blurbs) {
   const el = document.getElementById("blurb-grid");
   if (!blurbs || !blurbs.alerts || blurbs.alerts.length === 0) {
     el.innerHTML = `<div class="loading">No alerts have fired yet.</div>`;
     return;
   }
-  // Show latest alert per pair (most recent first)
   const seen = new Set();
   const latest = blurbs.alerts
     .slice().reverse()
     .filter(a => { const k = a.pair; if (seen.has(k)) return false; seen.add(k); return true; });
 
-  el.innerHTML = latest.map((a, i) => {
+  const cards = latest.map((a, i) => {
     const dirClass = a.direction === "bull" ? "bull" : "bear";
     const dirLabel = a.direction === "bull" ? "BUY" : "SELL";
     const time = a.timestamp ? new Date(a.timestamp).toLocaleString() : "";
     const headline = Array.isArray(a.blurb) ? a.blurb[1] : (a.blurb || "");
-    const prompt = `Please analyse this forex trade recommendation using the most current fundamental and technical data available.\n\nPair: ${a.pair.replace("/","")} | Direction: ${dirLabel} | H1: ${a.h1_label || "N/A"} | H4: ${a.h4_label || "N/A"} | D1: ${a.d1_label || "N/A"}\nNews: "${headline}"\nTime: ${time}\n\nWhat is your view on this setup?`;
+    // Store prompt in JS object — avoids any HTML attribute escaping issues
+    _prompts[i] = "Please analyse this forex trade recommendation using the most current fundamental and technical data available.\n\n"
+      + "Pair: " + a.pair.replace("/","") + " | Direction: " + dirLabel
+      + " | H1: " + (a.h1_label || "N/A")
+      + " | H4: " + (a.h4_label || "N/A")
+      + " | D1: " + (a.d1_label || "N/A") + "\n"
+      + "News: \"" + headline + "\"\n"
+      + "Time: " + time + "\n\n"
+      + "What is your view on this setup?";
     return `
       <div class="blurb-card">
         <div class="blurb-header">
@@ -429,14 +438,17 @@ function renderBlurbs(blurbs) {
         </div>
         <div class="blurb-text">${headline || "<em>No news context available.</em>"}</div>
         <div class="blurb-time">${time}</div>
-        <button class="copy-btn" id="copybtn-${i}" onclick="copyPrompt(${i}, \`${prompt.replace(/`/g,"\`")}\`)">⎘ Copy AI Prompt</button>
+        <button class="copy-btn" id="copybtn-${i}" onclick="copyPrompt(${i})">⎘ Copy AI Prompt</button>
       </div>
     `;
-  }).join("");
+  });
+  el.innerHTML = cards.join("");
 }
 
 // ── Copy prompt ──────────────────────────────────────────────────────────────
-function copyPrompt(idx, text) {
+function copyPrompt(idx) {
+  const text = _prompts[idx];
+  if (!text) return;
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById("copybtn-" + idx);
     btn.textContent = "✓ Copied!";
