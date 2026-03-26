@@ -249,9 +249,20 @@
     background: rgba(56,139,253,0.1);
   }
 
+  .score-num {
+    font-size: 11px;
+    margin-top: 3px;
+    font-weight: 600;
+  }
+
+  td { vertical-align: top; }
+
   @media (max-width: 480px) {
     body { padding: 10px; }
-    th, td { padding: 7px 8px; }
+    th, td { padding: 7px 6px; }
+    .score-pill { padding: 2px 7px; font-size: 10px; }
+    .score-num  { font-size: 10px; }
+    .pair-cell  { font-size: 11px; }
   }
 </style>
 </head>
@@ -274,8 +285,8 @@
 <div class="section-title">Currency Strength (D1)</div>
 <div id="csm-grid"><div class="loading">Loading...</div></div>
 
-<!-- Signal Table — Forex -->
-<div class="section-title">Forex — Technical Scores</div>
+<!-- Signal Table -->
+<div class="section-title">Technical Scores</div>
 <div class="table-wrap">
   <table id="signal-table">
     <thead>
@@ -284,34 +295,10 @@
         <th>H1</th>
         <th>H4</th>
         <th>D1</th>
-        <th>H1 Score</th>
-        <th>H4 Score</th>
-        <th>D1 Score</th>
       </tr>
     </thead>
     <tbody id="signal-tbody">
-      <tr><td colspan="7" class="loading">Loading...</td></tr>
-    </tbody>
-  </table>
-</div>
-
-<!-- Signal Table — Commodities & Indices -->
-<div class="section-title">Commodities & Indices — Technical Scores</div>
-<div class="table-wrap">
-  <table id="extras-table">
-    <thead>
-      <tr>
-        <th>Instrument</th>
-        <th>H1</th>
-        <th>H4</th>
-        <th>D1</th>
-        <th>H1 Score</th>
-        <th>H4 Score</th>
-        <th>D1 Score</th>
-      </tr>
-    </thead>
-    <tbody id="extras-tbody">
-      <tr><td colspan="7" class="loading">Loading...</td></tr>
+      <tr><td colspan="4" class="loading">Loading...</td></tr>
     </tbody>
   </table>
 </div>
@@ -324,20 +311,11 @@
 // ── Config ──────────────────────────────────────────────────────────────────
 const PAIRS = [
   "EUR/USD","GBP/USD","USD/JPY","USD/CHF",
-  "AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY"
+  "AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","XAU/USD"
 ];
 
-const EXTRAS = ["XAU/USD","SPX","NAS100"];
-
-const DISPLAY = {
-  "XAU/USD": "GOLD",
-  "SPX":     "SPX",
-  "NAS100":  "NAS100",
-};
-
-function displayName(pair) {
-  return DISPLAY[pair] || pair.replace("/","");
-}
+const DISPLAY = { "XAU/USD": "XAUUSD" };
+function displayName(pair) { return DISPLAY[pair] || pair.replace("/",""); }
 
 const RAW_BASE = "https://raw.githubusercontent.com/Pieter800320/fx_technical/main/data";
 
@@ -414,28 +392,25 @@ function renderCSM(csm) {
 }
 
 // ── Render signal table ───────────────────────────────────────────────────────
-function makeRows(instruments, h1, h4, d1) {
-  return instruments.map(pair => {
-    const h1d = h1 && h1[pair];
-    const h4d = h4 && h4[pair];
-    const d1d = d1 && d1[pair];
-    return `
-      <tr>
-        <td class="pair-cell">${displayName(pair)}</td>
-        <td>${h1d ? scorePill(h1d.label) : scorePill(null)}</td>
-        <td>${h4d ? scorePill(h4d.label) : scorePill(null)}</td>
-        <td>${d1d ? scorePill(d1d.label) : scorePill(null)}</td>
-        <td>${h1d ? numCell(h1d.score) : "—"}</td>
-        <td>${h4d ? numCell(h4d.score) : "—"}</td>
-        <td>${d1d ? numCell(d1d.score) : "—"}</td>
-      </tr>
-    `;
-  }).join("");
+function tfCell(data) {
+  if (!data) return `<td><span class="score-pill score-neutral">N/A</span><div class="score-num" style="color:var(--muted)">—</div></td>`;
+  const num = data.score > 0 ? "+" + data.score : data.score;
+  const col = data.score > 0 ? "var(--buy-text)" : data.score < 0 ? "var(--sell-text)" : "var(--muted)";
+  return `<td>${scorePill(data.label)}<div class="score-num" style="color:${col}">${num}</div></td>`;
 }
 
 function renderTable(h1, h4, d1) {
-  document.getElementById("signal-tbody").innerHTML = makeRows(PAIRS, h1, h4, d1);
-  document.getElementById("extras-tbody").innerHTML = makeRows(EXTRAS, h1, h4, d1);
+  const rows = PAIRS.map(pair => {
+    return `
+      <tr>
+        <td class="pair-cell">${displayName(pair)}</td>
+        ${tfCell(h1 && h1[pair])}
+        ${tfCell(h4 && h4[pair])}
+        ${tfCell(d1 && d1[pair])}
+      </tr>
+    `;
+  });
+  document.getElementById("signal-tbody").innerHTML = rows.join("");
 }
 
 // ── Render AI blurbs ──────────────────────────────────────────────────────────
