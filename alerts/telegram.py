@@ -2,20 +2,16 @@
 alerts/telegram.py
 Build and send Telegram alert messages.
 
-Message format:
+Format:
   🟢 BUY EURUSD
 
-  Technical Summary
-  H1: Strong Buy  |  H4: Buy  |  D1: Buy
+  D1: Strong Buy  |  H4: Buy  |  H1: Buy
 
-  Session: London, New York
+  ADX: 28.4  |  ATR: Normal
+  Session: London
 
-  📰 Latest Analysis:
-  "EUR resilient despite weak PMI as ECB holds firm" — DailyFX
-
-  ⚠️ Upcoming High-Impact Events (UTC):
-  EUR — CPI Flash  10:00
-  USD — NFP        13:30
+  📰 "EUR supported by hawkish ECB tone" — DailyFX
+  ⚠️ USD — NFP  13:30 UTC
 
   📊 Dashboard → https://...
 """
@@ -32,57 +28,59 @@ DIRECTION_WORD  = {"bull": "BUY", "bear": "SELL"}
 
 
 def build_message(
-    pair: str,
-    direction: str,
-    h1_label: str,
-    h4_label: str,
-    d1_label: str,
-    session_names: list[str],
-    headline: tuple | None = None,
-    events: list[dict] = None,
-) -> str:
+    pair,
+    direction,
+    h1_label,
+    h4_label,
+    d1_label,
+    session_names,
+    adx_val=None,
+    atr_ok=True,
+    headline=None,
+    events=None,
+):
     emoji   = DIRECTION_EMOJI[direction]
     action  = DIRECTION_WORD[direction]
     display = pair.replace("/", "")
     session = ", ".join(session_names) if session_names else "Off-session"
     events  = events or []
 
+    # ATR status
+    atr_status = "Normal" if atr_ok else "Contracted"
+    adx_str    = f"{adx_val:.1f}" if adx_val is not None else "N/A"
+
     lines = [
         f"{emoji} <b>{action} {display}</b>",
         "",
-        "<b>Technical Summary</b>",
-        f"H1: {h1_label}  |  H4: {h4_label}  |  D1: {d1_label}",
+        f"D1: {d1_label}  |  H4: {h4_label}  |  H1: {h1_label}",
         "",
-        f"<b>Session:</b> {session}",
+        f"ADX: {adx_str}  |  ATR: {atr_status}",
+        f"Session: {session}",
     ]
 
+    # RSS headline
     if headline:
         source, title = headline
-        lines += [
-            "",
-            "📰 <b>Latest Analysis:</b>",
-            f'<i>"{title}"</i> — {source}',
-        ]
+        lines += ["", f'📰 <i>"{title}"</i> — {source}']
     else:
         lines += ["", "📰 <i>No recent analysis found.</i>"]
 
+    # Calendar events
     if events:
-        lines += ["", "⚠️ <b>Upcoming High-Impact Events (UTC):</b>"]
+        lines.append("")
         for ev in events:
-            lines.append(f"{ev['currency']} — {ev['event']}  {ev['time_utc']}")
+            lines.append(f"⚠️ {ev['currency']} — {ev['event']}  {ev['time_utc']} UTC")
     else:
         lines += ["", "✅ <i>No high-impact events in next 12h.</i>"]
 
     lines += ["", f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>']
-
     return "\n".join(lines)
 
 
-def send_telegram(message: str) -> bool:
+def send_telegram(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("  [TG] Missing bot token or chat ID — skipping send.")
+        print("  [TG] Missing credentials — skipping.")
         return False
-
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     payload = {
         "chat_id":    TELEGRAM_CHAT_ID,
@@ -96,5 +94,5 @@ def send_telegram(message: str) -> bool:
         print("  [TG] Alert sent.")
         return True
     except Exception as e:
-        print(f"  [TG] Failed to send: {e}")
+        print(f"  [TG] Failed: {e}")
         return False
