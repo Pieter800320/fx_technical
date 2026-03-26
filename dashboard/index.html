@@ -200,6 +200,23 @@
     color: var(--muted);
   }
 
+  .copy-btn {
+    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #21262d;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .copy-btn:hover { background: #30363d; color: var(--text); }
+  .copy-btn.copied { color: #3fb950; border-color: #3fb950; }
+
   .empty-blurb {
     color: var(--muted);
     font-style: italic;
@@ -279,7 +296,7 @@
 </div>
 
 <!-- AI Blurb Panel -->
-<div class="section-title">Latest News & Events</div>
+<div class="section-title">AI Prompt</div>
 <div id="blurb-grid"><div class="loading">No alerts fired yet.</div></div>
 
 <script>
@@ -398,21 +415,37 @@ function renderBlurbs(blurbs) {
     .slice().reverse()
     .filter(a => { const k = a.pair; if (seen.has(k)) return false; seen.add(k); return true; });
 
-  el.innerHTML = latest.map(a => {
+  el.innerHTML = latest.map((a, i) => {
     const dirClass = a.direction === "bull" ? "bull" : "bear";
     const dirLabel = a.direction === "bull" ? "BUY" : "SELL";
     const time = a.timestamp ? new Date(a.timestamp).toLocaleString() : "";
+    const headline = Array.isArray(a.blurb) ? a.blurb[1] : (a.blurb || "");
+    const prompt = `Please analyse this forex trade recommendation using the most current fundamental and technical data available.\n\nPair: ${a.pair.replace("/","")} | Direction: ${dirLabel} | H1: ${a.h1_label || "N/A"} | H4: ${a.h4_label || "N/A"} | D1: ${a.d1_label || "N/A"}\nNews: "${headline}"\nTime: ${time}\n\nWhat is your view on this setup?`;
     return `
       <div class="blurb-card">
         <div class="blurb-header">
           <span class="blurb-pair">${a.pair.replace("/","")}</span>
           <span class="blurb-direction ${dirClass}">${dirLabel}</span>
         </div>
-        <div class="blurb-text">${a.blurb || "<em>No news context available.</em>"}</div>
+        <div class="blurb-text">${headline || "<em>No news context available.</em>"}</div>
         <div class="blurb-time">${time}</div>
+        <button class="copy-btn" id="copybtn-${i}" onclick="copyPrompt(${i}, \`${prompt.replace(/`/g,"\`")}\`)">⎘ Copy AI Prompt</button>
       </div>
     `;
   }).join("");
+}
+
+// ── Copy prompt ──────────────────────────────────────────────────────────────
+function copyPrompt(idx, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("copybtn-" + idx);
+    btn.textContent = "✓ Copied!";
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.textContent = "⎘ Copy AI Prompt";
+      btn.classList.remove("copied");
+    }, 2000);
+  });
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
