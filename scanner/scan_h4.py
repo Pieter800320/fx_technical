@@ -54,7 +54,7 @@ def main():
             print(f"  {pair}: no data")
             continue
 
-        result = score_pair(df)
+        result = score_pair(df, timeframe="H4")
         if result is None:
             print(f"  {pair}: insufficient bars")
             continue
@@ -75,6 +75,12 @@ def main():
         print(f"  {display}: {result['score']:+d} → {label}")
 
         if direction == "neutral":
+            continue
+
+        # Filter guard
+        if not result["filter_ok"]:
+            for r in result["filter_reasons"]:
+                print(f"    ↳ Suppressed: {r}")
             continue
 
         # Session guard
