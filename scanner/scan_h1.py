@@ -19,6 +19,7 @@ from scanner.cooldown import is_on_cooldown, record_alert
 from alerts.news import get_alert_context
 from alerts.telegram import build_message, send_telegram
 from alerts.log import log_alert
+from scanner.levels import find_levels
 
 DATA_DIR  = os.path.join(os.path.dirname(__file__), "..", "data")
 H1_OUTPUT = os.path.join(DATA_DIR, "h1_scores.json")
@@ -61,6 +62,8 @@ def main():
         direction = result["direction"]
         display   = pair_display(pair)
 
+        levels = find_levels(df)
+
         h1_results[pair] = {
             "score":     result["score"],
             "label":     label,
@@ -68,6 +71,7 @@ def main():
             "raw":       result["raw"],
             "signals":   result["signals"],
             "filter_ok": result["filter_ok"],
+            "levels":    levels,
             "updated":   now.isoformat(),
         }
 
@@ -124,10 +128,11 @@ def main():
             atr_ok=atr_ok,
             headline=ctx["headline"],
             events=ctx["events"],
+            levels=levels,
         )
         send_telegram(msg)
         record_alert(pair, direction)
-        log_alert(pair, direction, label, h4_label, d1_label, ctx["headline"])
+        log_alert(pair, direction, label, h4_label, d1_label, ctx["headline"], levels=levels)
 
     with open(H1_OUTPUT, "w") as f:
         json.dump(h1_results, f, indent=2)
