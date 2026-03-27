@@ -39,6 +39,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add data/d1_scores.json data/csm.json || true
           git diff --cached --quiet || git commit -m "chore: D1 scan update $(date -u +%Y-%m-%dT%H:%M)"
+          git pull --rebase origin main
           git push
 
   deploy_dashboard:
