@@ -1,37 +1,23 @@
 """
 scanner/levels.py
-Support and Resistance level detection.
+Support and Resistance levels via swing high/low detection.
 
-Replicates the Pine Script 1212(-1) momentum shift logic:
-  - SMA(12) momentum = SMA[shift1] - SMA[shift2]
-  - CrossUp  (momentum flips positive) → support level at close[midShift]
-  - CrossDown (momentum flips negative) → resistance level at close[midShift]
+A swing high: bar where high[i] > high of N bars on each side
+A swing low:  bar where low[i]  < low  of N bars on each side
 
-Clustering:
-  - Levels within 0.3 × ATR of each other are merged
-  - Representative = level closest to current price in each cluster
+Levels above current price = resistance
+Levels below current price = support
 
-Output: 3 support levels below price, 3 resistance levels above price.
-Each level includes pip distance from current price.
+Clustering: levels within 0.3 × ATR merged, representative = closest to current price.
+Output: 3 resistance (nearest first), 3 support (nearest first).
 """
 
-import numpy as np
 import pandas as pd
+import numpy as np
 
-
-# ── Parameters (matching Pine Script defaults) ────────────────────────────────
-SMA_LEN      = 12
-SHIFT1       = 3
-SHIFT2       = 4
-MID_SHIFT    = round((SHIFT1 + SHIFT2) / 2)   # = 3
-LEVELS_EACH  = 3
-CLUSTER_ATR  = 0.3
-
-
-# ── Helpers ───────────────────────────────────────────────────────────────────
-
-def _sma(series: pd.Series, period: int) -> pd.Series:
-    return series.rolling(period).mean()
+SWING_LOOKBACK = 5     # bars each side to confirm a swing
+LEVELS_EACH    = 3
+CLUSTER_ATR    = 0.3
 
 
 def _atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) -> float:
@@ -40,127 +26,94 @@ def _atr(high: pd.Series, low: pd.Series, close: pd.Series, period: int = 14) ->
         (high - close.shift()).abs(),
         (low  - close.shift()).abs(),
     ], axis=1).max(axis=1)
-    return tr.rolling(period).mean().iloc[-1]
+    return float(tr.rolling(period).mean().iloc[-1])
 
 
 def _pip_size(price: float) -> float:
-    """Approximate pip size based on price magnitude."""
-    if price > 500:    return 1.0      # XAUUSD — 1 pip = $1
-    if price > 100:    return 0.01     # JPY pairs
-    return 0.0001                       # Standard forex
+    if price > 500:  return 1.0      # Gold
+    if price > 100:  return 0.01     # JPY pairs
+    return 0.0001                    # Standard forex
 
 
-def _pips(distance: float, price: float) -> float:
-    return round(distance / _pip_size(price), 1)
-
-
-def _cluster_levels(levels: list[float], threshold: float, current_price: float) -> list[float]:
-    """
-    Merge levels within `threshold` of each other.
-    Representative = level closest to current_price in each cluster.
-    """
+def _cluster(levels: list, threshold: float, current_price: float) -> list:
+    """Merge levels within threshold. Representative = closest to current price."""
     if not levels:
         return []
+    sorted_lvls = sorted(levels)
+    clusters    = []
+    group       = [sorted_lvls[0]]
 
-    sorted_levels = sorted(levels)
-    clusters = []
-    current_cluster = [sorted_levels[0]]
-
-    for i in range(1, len(sorted_levels)):
-        if sorted_levels[i] - sorted_levels[i - 1] <= threshold:
-            current_cluster.append(sorted_levels[i])
+    for i in range(1, len(sorted_lvls)):
+        if sorted_lvls[i] - sorted_lvls[i - 1] <= threshold:
+            group.append(sorted_lvls[i])
         else:
-            clusters.append(current_cluster)
-            current_cluster = [sorted_levels[i]]
-    clusters.append(current_cluster)
+            clusters.append(group)
+            group = [sorted_lvls[i]]
+    clusters.append(group)
 
-    # Pick level closest to current price as cluster representative
-    result = []
-    for cluster in clusters:
-        representative = min(cluster, key=lambda x: abs(x - current_price))
-        result.append(representative)
+    return [min(g, key=lambda x: abs(x - current_price)) for g in clusters]
 
-    return result
-
-
-# ── Main function ─────────────────────────────────────────────────────────────
 
 def find_levels(df: pd.DataFrame) -> dict:
     """
-    df: OHLCV DataFrame with columns open, high, low, close.
+    df: OHLCV DataFrame, columns: open, high, low, close.
     Returns {
-        "support":    [{"price": 1.0821, "pips": 34}, ...],  # below price, nearest first
-        "resistance": [{"price": 1.0876, "pips": 21}, ...],  # above price, nearest first
+        "support":       [{"price": 1.0821, "pips": 34}, ...],
+        "resistance":    [{"price": 1.0876, "pips": 21}, ...],
         "current_price": 1.0855,
     }
     """
-    close = df["close"].astype(float)
     high  = df["high"].astype(float)
     low   = df["low"].astype(float)
+    close = df["close"].astype(float)
 
-    current_price = close.iloc[-1]
+    current_price = float(close.iloc[-1])
     atr_val       = _atr(high, low, close)
     threshold     = CLUSTER_ATR * atr_val
+    pip           = _pip_size(current_price)
 
-    sma     = _sma(close, SMA_LEN)
-    momentum = sma.shift(SHIFT1) - sma.shift(SHIFT2)
+    n  = SWING_LOOKBACK
+    h  = high.values
+    l  = low.values
 
-    # Detect crossovers
-    sup_raw = []
-    res_raw = []
+    swing_highs = []
+    swing_lows  = []
 
-    for i in range(1, len(momentum)):
-        if pd.isna(momentum.iloc[i]) or pd.isna(momentum.iloc[i - 1]):
-            continue
+    # Detect swings — exclude last N bars (not confirmed yet)
+    for i in range(n, len(h) - n):
+        left_h  = h[i - n : i]
+        right_h = h[i + 1 : i + n + 1]
+        if h[i] > max(left_h) and h[i] > max(right_h):
+            swing_highs.append(float(h[i]))
 
-        # CrossUp → support
-        if momentum.iloc[i] > 0 and momentum.iloc[i - 1] <= 0:
-            idx = i - MID_SHIFT
-            if idx >= 0:
-                sup_raw.append(close.iloc[idx])
-
-        # CrossDown → resistance
-        if momentum.iloc[i] < 0 and momentum.iloc[i - 1] >= 0:
-            idx = i - MID_SHIFT
-            if idx >= 0:
-                res_raw.append(close.iloc[idx])
-
-    # Combine all levels — every momentum shift is a price memory point
-    all_levels = sup_raw + res_raw
+        left_l  = l[i - n : i]
+        right_l = l[i + 1 : i + n + 1]
+        if l[i] < min(left_l) and l[i] < min(right_l):
+            swing_lows.append(float(l[i]))
 
     # Split by position relative to current price
-    below = [p for p in all_levels if p < current_price]
-    above = [p for p in all_levels if p > current_price]
+    res_raw = [p for p in swing_highs if p > current_price]
+    sup_raw = [p for p in swing_lows  if p < current_price]
 
     # Cluster
-    sup_clustered = _cluster_levels(below, threshold, current_price)
-    res_clustered = _cluster_levels(above, threshold, current_price)
+    res_clustered = _cluster(res_raw, threshold, current_price)
+    sup_clustered = _cluster(sup_raw, threshold, current_price)
 
-    # Sort: support descending (nearest first), resistance ascending (nearest first)
-    sup_clustered.sort(reverse=True)
+    # Sort: resistance ascending (nearest first), support descending (nearest first)
     res_clustered.sort()
+    sup_clustered.sort(reverse=True)
 
     # Take top N
-    sup_final = sup_clustered[:LEVELS_EACH]
     res_final = res_clustered[:LEVELS_EACH]
-
-    # Format with pip distance
-    pip = _pip_size(current_price)
-
-    support = [
-        {
-            "price": round(p, 5),
-            "pips":  round((current_price - p) / pip, 1),
-        }
-        for p in sup_final
-    ]
+    sup_final = sup_clustered[:LEVELS_EACH]
 
     resistance = [
-        {
-            "price": round(p, 5),
-            "pips":  round((p - current_price) / pip, 1),
-        }
+        {"price": round(p, 5), "pips": round((p - current_price) / pip, 1)}
         for p in res_final
+    ]
+    support = [
+        {"price": round(p, 5), "pips": round((current_price - p) / pip, 1)}
+        for p in sup_final
     ]
 
     return {
