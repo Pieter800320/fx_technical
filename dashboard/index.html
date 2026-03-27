@@ -317,7 +317,7 @@ const PAIRS = [
 const DISPLAY = { "XAU/USD": "XAUUSD" };
 function displayName(pair) { return DISPLAY[pair] || pair.replace("/",""); }
 
-const RAW_BASE = "https://raw.githubusercontent.com/Pieter800320/fx_technical/main/data";
+const GITHUB_API = "https://api.github.com/repos/Pieter800320/fx_technical/contents/data";
 
 const SESSIONS = {
   Sydney:   [21, 6],   // wraps midnight
@@ -364,9 +364,11 @@ function numCell(score) {
 }
 
 // ── Data loading ─────────────────────────────────────────────────────────────
-async function loadJSON(path) {
+async function loadJSON(filename) {
   try {
-    const r = await fetch(path + "?t=" + Date.now());
+    const r = await fetch(`${GITHUB_API}/${filename}?t=${Date.now()}`, {
+      headers: { "Accept": "application/vnd.github.v3.raw" }
+    });
     if (!r.ok) return null;
     return await r.json();
   } catch { return null; }
@@ -476,11 +478,11 @@ async function init() {
   renderSessions();
 
   const [h1, h4, d1, csm, blurbs] = await Promise.all([
-    loadJSON(`${RAW_BASE}/h1_scores.json`),
-    loadJSON(`${RAW_BASE}/h4_scores.json`),
-    loadJSON(`${RAW_BASE}/d1_scores.json`),
-    loadJSON(`${RAW_BASE}/csm.json`),
-    loadJSON(`${RAW_BASE}/alerts.json`),
+    loadJSON("h1_scores.json"),
+    loadJSON("h4_scores.json"),
+    loadJSON("d1_scores.json"),
+    loadJSON("csm.json"),
+    loadJSON("alerts.json"),
   ]);
 
   // Last updated — use the most recent timestamp from any dataset
