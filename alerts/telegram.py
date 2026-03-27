@@ -38,6 +38,7 @@ def build_message(
     atr_ok=True,
     headline=None,
     events=None,
+    levels=None,
 ):
     emoji   = DIRECTION_EMOJI[direction]
     action  = DIRECTION_WORD[direction]
@@ -72,6 +73,19 @@ def build_message(
             lines.append(f"⚠️ {ev['currency']} — {ev['event']}  {ev['time_utc']} UTC")
     else:
         lines += ["", "✅ <i>No high-impact events in next 12h.</i>"]
+
+    # S/R levels
+    if levels:
+        sup = levels.get("support", [])
+        res = levels.get("resistance", [])
+        if res or sup:
+            lines.append("")
+            lines.append("📐 <b>H4 Levels:</b>")
+            for r in reversed(res[:3]):
+                lines.append(f"R  {r['price']}  (+{r['pips']:.0f} pips)")
+            lines.append(f"► {levels.get('current_price', '')}")
+            for s in sup[:3]:
+                lines.append(f"S  {s['price']}  (-{s['pips']:.0f} pips)")
 
     lines += ["", f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>']
     return "\n".join(lines)
