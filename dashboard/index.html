@@ -435,6 +435,17 @@ function renderBlurbs(blurbs) {
     const time = a.timestamp ? new Date(a.timestamp).toLocaleString() : "";
     const headline = Array.isArray(a.blurb) ? a.blurb[1] : (a.blurb || "");
     // Store prompt in JS object — avoids any HTML attribute escaping issues
+    // Build levels text
+    const lvl = a.levels || {};
+    const sup = (lvl.support || []).slice(0,3);
+    const res = (lvl.resistance || []).slice(0,3);
+    let levelsText = "";
+    if (res.length || sup.length) {
+      res.slice().reverse().forEach(r => { levelsText += "R  " + r.price + "  (+" + Math.round(r.pips) + " pips)\n"; });
+      levelsText += "► " + (lvl.current_price || "") + "\n";
+      sup.forEach(s => { levelsText += "S  " + s.price + "  (-" + Math.round(s.pips) + " pips)\n"; });
+    }
+
     _prompts[i] = "Please analyse this forex trade recommendation using the most current fundamental and technical data available in 50 words or less.\n\n"
       + "Pair: " + a.pair.replace("/","") + " | Direction: " + dirLabel
       + " | H1: " + (a.h1_label || "N/A")
@@ -442,8 +453,8 @@ function renderBlurbs(blurbs) {
       + " | D1: " + (a.d1_label || "N/A") + "\n"
       + "News: \"" + headline + "\"\n"
       + "Time: " + time + "\n"
-      + "Entry: \nTP: \nSL: \n\n"
-      + "What is your view on this setup?";
+      + (levelsText ? "\nH4 Levels (S/R):\n" + levelsText : "")
+      + "\nBased on these levels, which setup offers the best risk/reward and why?";
     return `
       <div class="blurb-card">
         <div class="blurb-header">
