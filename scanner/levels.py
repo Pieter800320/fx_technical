@@ -125,13 +125,16 @@ def find_levels(df: pd.DataFrame) -> dict:
             if idx >= 0:
                 res_raw.append(close.iloc[idx])
 
-    # Filter: support below price, resistance above price
-    sup_below = [p for p in sup_raw if p < current_price]
-    res_above = [p for p in res_raw if p > current_price]
+    # Combine all levels — every momentum shift is a price memory point
+    all_levels = sup_raw + res_raw
+
+    # Split by position relative to current price
+    below = [p for p in all_levels if p < current_price]
+    above = [p for p in all_levels if p > current_price]
 
     # Cluster
-    sup_clustered = _cluster_levels(sup_below, threshold, current_price)
-    res_clustered = _cluster_levels(res_above, threshold, current_price)
+    sup_clustered = _cluster_levels(below, threshold, current_price)
+    res_clustered = _cluster_levels(above, threshold, current_price)
 
     # Sort: support descending (nearest first), resistance ascending (nearest first)
     sup_clustered.sort(reverse=True)
