@@ -21,6 +21,7 @@ def log_alert(
     h4_label: str,
     d1_label: str,
     blurb: str,
+    levels: dict = None,
 ):
     """Append a new alert record to alerts.json."""
     try:
@@ -36,6 +37,7 @@ def log_alert(
         "h4_label":  h4_label,
         "d1_label":  d1_label,
         "blurb":     blurb,
+        "levels":    levels or {},
         "timestamp": datetime.datetime.utcnow().isoformat(),
     }
 
