@@ -38,7 +38,9 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/h4_scores.json state/cooldown.json data/alerts.json || true
+          cp data/h4_scores.json dashboard/
+          cp data/alerts.json    dashboard/ || true
+          git add data/h4_scores.json state/cooldown.json data/alerts.json dashboard/h4_scores.json dashboard/alerts.json || true
           git diff --cached --quiet || git commit -m "chore: H4 scan update $(date -u +%Y-%m-%dT%H:%M)"
           git pull --rebase origin main
           git push
