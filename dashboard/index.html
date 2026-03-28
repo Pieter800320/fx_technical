@@ -661,16 +661,15 @@ function toggleDrop(uid) {
   if (absL < 8)                              left += 8 - absL;
   if (absL + dropW > window.innerWidth - 8)  left -= (absL + dropW) - (window.innerWidth - 8);
 
-  // Vertical: prefer below, flip above if bottom clips viewport
-  const spaceBelow = window.innerHeight - pillRect.bottom - 8;
-  const spaceAbove = pillRect.top - 8;
+  // Vertical: open downward unless dropdown would clip the viewport bottom
+  const wouldClipBottom = pillRect.bottom + 4 + dropH > window.innerHeight - 8;
   let top;
-  if (spaceBelow >= dropH || spaceBelow >= spaceAbove) {
-    // Open downward — relative to wrap top
-    top = pillRect.bottom - wrapRect.top + 4;
-  } else {
+  if (wouldClipBottom) {
     // Open upward
     top = pillRect.top - wrapRect.top - dropH - 4;
+  } else {
+    // Open downward
+    top = pillRect.bottom - wrapRect.top + 4;
   }
 
   el.style.left = left + "px";
