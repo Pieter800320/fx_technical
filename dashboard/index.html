@@ -493,7 +493,7 @@ function sigVal(v) {
 
 let _openDrop = null;
 
-function tfCell(data, uid) {
+function tfCell(data, uid, pos) {
   if (!data) return `<td><span class="score-pill score-neutral">N/A</span><div class="score-num" style="color:var(--muted)">—</div></td>`;
   const num = data.score > 0 ? "+" + data.score : data.score;
   const col = data.score > 0 ? "var(--buy-text)" : data.score < 0 ? "var(--sell-text)" : "var(--muted)";
@@ -517,7 +517,7 @@ function tfCell(data, uid) {
   return `<td>
     <div class="pill-wrap">
       <span class="score-pill ${pillClass(data.label)}" onclick="toggleDrop('${uid}')">${data.label || "N/A"}</span>
-      <div class="signal-drop" id="drop-${uid}">${rows}</div>
+      <div class="signal-drop" id="drop-${uid}" style="${pos==='right'?'left:0':''}${pos==='center'?'left:50%;transform:translateX(-50%)':''}${pos==='left'?'right:0;left:auto':''}">${rows}</div>
     </div>
     <div class="score-num" style="color:${col}">${num}</div>
   </td>`;
@@ -551,9 +551,9 @@ function renderTable(h1, h4, d1) {
     return `
       <tr>
         <td class="pair-cell">${displayName(pair)}</td>
-        ${tfCell(h1 && h1[pair], slug + "-h1")}
-        ${tfCell(h4 && h4[pair], slug + "-h4")}
-        ${tfCell(d1 && d1[pair], slug + "-d1")}
+        ${tfCell(h1 && h1[pair], slug + "-h1", "right")}
+        ${tfCell(h4 && h4[pair], slug + "-h4", "center")}
+        ${tfCell(d1 && d1[pair], slug + "-d1", "left")}
       </tr>
     `;
   });
