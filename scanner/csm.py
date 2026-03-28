@@ -22,8 +22,14 @@ from config.pairs import CURRENCIES
 LOOKBACK  = 14   # bars for return calculation
 ATR_PERIOD = 14
 
-# Only the 7 major pairs — covers all 8 currencies with minimal redundancy
+# All 9 pairs — majors + crosses for complete per-currency breakdown
 MAJOR_PAIRS = [
+    "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
+    "AUD/USD", "USD/CAD", "NZD/USD", "EUR/JPY", "GBP/JPY",
+]
+
+# Pairs used for strength calculation (majors only — no double-counting via crosses)
+STRENGTH_PAIRS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD",
 ]
@@ -70,7 +76,8 @@ def compute_currency_strength(d1_ohlcv: dict, h4_ohlcv: dict = None) -> dict:
     raw_scores  = {c: [] for c in CURRENCIES}
     confidence  = {c: [] for c in CURRENCIES}  # list of +1/-1 per pair
 
-    for pair in MAJOR_PAIRS:
+    # Strength scores from major pairs only (no cross double-counting)
+    for pair in STRENGTH_PAIRS:
         base, quote = pair.split("/")
 
         d1_df = d1_ohlcv.get(pair)
@@ -82,14 +89,11 @@ def compute_currency_strength(d1_ohlcv: dict, h4_ohlcv: dict = None) -> dict:
         if d1_ret is None:
             continue
 
-        # Weighted combined return
         if h4_ret is not None:
             combined = D1_WEIGHT * d1_ret + H4_WEIGHT * h4_ret
         else:
             combined = d1_ret
 
-        # Base currency: positive return = strong base
-        # Quote currency: positive return = weak quote (need to invert)
         if base in raw_scores:
             raw_scores[base].append(combined)
             confidence[base].append(1 if combined > 0 else -1)
@@ -128,7 +132,7 @@ def compute_currency_strength(d1_ohlcv: dict, h4_ohlcv: dict = None) -> dict:
     # Sort strongest to weakest
     ranked = dict(sorted(normalized.items(), key=lambda x: x[1], reverse=True))
 
-    # Per-currency pair breakdown for dashboard drill-down
+    # Per-currency pair breakdown uses all 9 pairs
     breakdown = {c: [] for c in CURRENCIES}
     for pair in MAJOR_PAIRS:
         base, quote = pair.split("/")
