@@ -79,6 +79,7 @@ def main():
         json.dump({
             "rankings":   csm_result["rankings"],
             "confidence": csm_result["confidence"],
+            "breakdown":  csm_result.get("breakdown", {}),
             "updated":    now.isoformat(),
         }, f, indent=2)
 
