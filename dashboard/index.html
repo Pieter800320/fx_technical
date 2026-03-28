@@ -532,9 +532,29 @@ function toggleDrop(uid) {
   const el = document.getElementById("drop-" + uid);
   if (!el) return;
   const isOpen = el.classList.contains("open");
-  if (_openDrop && _openDrop !== el) _openDrop.classList.remove("open");
-  el.classList.toggle("open", !isOpen);
-  _openDrop = isOpen ? null : el;
+  if (_openDrop && _openDrop !== el) {
+    _openDrop.classList.remove("open");
+    _openDrop.style.top = "";
+    _openDrop.style.bottom = "";
+  }
+  if (!isOpen) {
+    // Reset position first, open, then check overflow
+    el.style.top = "100%";
+    el.style.bottom = "";
+    el.classList.add("open");
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight - 8) {
+      // Flip upward
+      el.style.top = "";
+      el.style.bottom = "100%";
+    }
+    _openDrop = el;
+  } else {
+    el.classList.remove("open");
+    el.style.top = "";
+    el.style.bottom = "";
+    _openDrop = null;
+  }
 }
 
 // Close dropdown when clicking outside
