@@ -262,6 +262,26 @@
     font-weight: 600;
   }
 
+  /* ── Market Brief button ── */
+  #market-brief-btn {
+    display: block;
+    width: 100%;
+    margin: 14px 0;
+    padding: 10px 16px;
+    background: #21262d;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    letter-spacing: 0.03em;
+  }
+  #market-brief-btn:hover { background: #30363d; color: var(--text); }
+  #market-brief-btn.copied { color: #3fb950; border-color: #3fb950; }
+
   /* ── Signal dropdown ── */
   .pill-wrap {
     position: relative;
@@ -377,6 +397,9 @@
 <!-- Currency Strength -->
 <div class="section-title">Currency Strength</div>
 <div id="csm-grid"><div class="loading">Loading...</div></div>
+
+<!-- Market Brief -->
+<button id="market-brief-btn" onclick="copyMarketBrief()">📋 Copy Market Brief</button>
 
 <!-- Signal Table -->
 <div class="section-title">Technical Scores</div>
@@ -758,6 +781,67 @@ function copyPrompt(idx) {
   });
 }
 
+// ── Market Brief ─────────────────────────────────────────────────────────────
+let _cachedData = {};
+
+function copyMarketBrief() {
+  const { h1, h4, d1, csm, blurbs } = _cachedData;
+  const now = new Date().toLocaleString();
+  let text = "";
+
+  text += "MARKET BRIEF — " + now + "\n\n";
+
+  // Currency strength
+  if (csm && csm.rankings) {
+    text += "CURRENCY STRENGTH (D1):\n";
+    Object.entries(csm.rankings).forEach(([ccy, val]) => {
+      text += ccy + " " + val.toFixed(0) + "  ";
+    });
+    text += "\n\n";
+  }
+
+  // Technical scores
+  text += "TECHNICAL SCORES:\n";
+  PAIRS.forEach(pair => {
+    const h1d = h1 && h1[pair];
+    const h4d = h4 && h4[pair];
+    const d1d = d1 && d1[pair];
+    if (!h1d && !h4d && !d1d) return;
+    const name = displayName(pair);
+    const h1l  = h1d ? h1d.label : "N/A";
+    const h4l  = h4d ? h4d.label : "N/A";
+    const d1l  = d1d ? d1d.label : "N/A";
+    // Only include if at least one TF is directional
+    if (h1l === "Neutral" && h4l === "Neutral" && d1l === "Neutral") return;
+    text += name + ": D1 " + d1l + " | H4 " + h4l + " | H1 " + h1l + "\n";
+  });
+  text += "\n";
+
+  // Upcoming events from latest alert
+  if (blurbs && blurbs.alerts && blurbs.alerts.length > 0) {
+    const latest = blurbs.alerts[blurbs.alerts.length - 1];
+    if (latest.events && latest.events.length > 0) {
+      text += "UPCOMING HIGH-IMPACT EVENTS:\n";
+      latest.events.forEach(ev => {
+        text += ev.currency + " — " + ev.event + "  " + ev.time_utc + " UTC\n";
+      });
+      text += "\n";
+    }
+  }
+
+  text += "In 100 words, what is the current global macro narrative implied by these figures, and what does it suggest for the week ahead?";
+
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById("market-brief-btn");
+    btn.textContent = "✓ Copied!";
+    btn.classList.add("copied");
+    setTimeout(() => {
+      btn.textContent = "📋 Copy Market Brief";
+      btn.classList.remove("copied");
+    }, 2000);
+  });
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function init() {
   renderSessions();
@@ -781,6 +865,7 @@ async function init() {
       "Updated: " + latest.toLocaleString();
   }
 
+  _cachedData = { h1, h4, d1, csm, blurbs };
   renderCSM(csm);
   renderTable(h1, h4, d1);
   renderBlurbs(blurbs);
