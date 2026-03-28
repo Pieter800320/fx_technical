@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config.pairs import PAIRS, pair_display
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair
-from scanner.csm import compute_currency_strength, MAJOR_PAIRS
+from scanner.csm import compute_currency_strength, MAJOR_PAIRS, STRENGTH_PAIRS
 
 DATA_DIR   = os.path.join(os.path.dirname(__file__), "..", "data")
 D1_OUTPUT  = os.path.join(DATA_DIR, "d1_scores.json")
