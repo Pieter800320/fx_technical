@@ -264,23 +264,31 @@
 
   /* ── Market Brief button ── */
   #market-brief-btn {
-    display: block;
-    width: 100%;
+    display: inline-flex;
+    flex-direction: column;
     margin: 14px 0;
-    padding: 10px 16px;
+    padding: 8px 14px;
     background: #21262d;
     border: 1px solid var(--border);
-    border-radius: 8px;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 600;
-    text-align: left;
+    border-radius: 6px;
+    color: var(--text);
     cursor: pointer;
     transition: background 0.15s, color 0.15s;
-    letter-spacing: 0.03em;
+    text-align: left;
   }
-  #market-brief-btn:hover { background: #30363d; color: var(--text); }
-  #market-brief-btn.copied { color: #3fb950; border-color: #3fb950; }
+  #market-brief-btn:hover { background: #30363d; }
+  #market-brief-btn.copied { border-color: #3fb950; }
+  #market-brief-btn .brief-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  #market-brief-btn.copied .brief-title { color: #3fb950; }
+  #market-brief-btn .brief-sub {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
 
   /* ── Signal dropdown ── */
   .pill-wrap {
@@ -296,7 +304,7 @@
 
   .signal-drop {
     display: none;
-    position: absolute;
+    position: fixed;
     z-index: 1000;
     background: #1c2128;
     border: 1px solid var(--border);
@@ -348,7 +356,7 @@
 
   .csm-drop {
     display: none;
-    position: absolute;
+    position: fixed;
     z-index: 1000;
     background: #1c2128;
     border: 1px solid var(--border);
@@ -399,7 +407,10 @@
 <div id="csm-grid"><div class="loading">Loading...</div></div>
 
 <!-- Market Brief -->
-<button id="market-brief-btn" onclick="copyMarketBrief()">📋 Copy Market Brief</button>
+<button id="market-brief-btn" onclick="copyMarketBrief()">
+  <span class="brief-title">Market Brief</span>
+  <span class="brief-sub">Copy AI Prompt</span>
+</button>
 
 <!-- Signal Table -->
 <div class="section-title">Technical Scores</div>
@@ -527,33 +538,11 @@ function toggleCsmDrop(ccy, rowEl) {
   const drop = document.getElementById("csm-drop-" + ccy);
   if (!drop) return;
   const isOpen = drop.classList.contains("open");
-
   if (_openCsmDrop && _openCsmDrop !== drop) _openCsmDrop.classList.remove("open");
-
   if (isOpen) { drop.classList.remove("open"); _openCsmDrop = null; return; }
 
-  // Position relative to csm-grid parent
-  const grid     = document.getElementById("csm-grid");
-  const gridRect = grid.getBoundingClientRect();
-  const rowRect  = rowEl.getBoundingClientRect();
-
-  drop.style.visibility = "hidden";
   drop.classList.add("open");
-  const dropW = drop.offsetWidth;
-  const dropH = drop.offsetHeight;
-  drop.style.visibility = "";
-
-  let left = 0;
-  const absLeft = gridRect.left + left;
-  if (absLeft + dropW > window.innerWidth - 8) left = window.innerWidth - 8 - dropW - gridRect.left;
-
-  const rowBottom = rowRect.bottom - gridRect.top + 4;
-  const rowTop    = rowRect.top    - gridRect.top - dropH - 4;
-  const absBottom = gridRect.top   + rowBottom + dropH;
-  const top = absBottom > window.innerHeight - 8 ? rowTop : rowBottom;
-
-  drop.style.left = left + "px";
-  drop.style.top  = top  + "px";
+  positionDrop(drop, rowEl.getBoundingClientRect(), "right");
   _openCsmDrop = drop;
 }
 
@@ -833,10 +822,12 @@ function copyMarketBrief() {
 
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById("market-brief-btn");
-    btn.textContent = "✓ Copied!";
+    btn.querySelector(".brief-title").textContent = "✓ Copied!";
+    btn.querySelector(".brief-sub").textContent = "";
     btn.classList.add("copied");
     setTimeout(() => {
-      btn.textContent = "📋 Copy Market Brief";
+      btn.querySelector(".brief-title").textContent = "Market Brief";
+      btn.querySelector(".brief-sub").textContent = "Copy AI Prompt";
       btn.classList.remove("copied");
     }, 2000);
   });
