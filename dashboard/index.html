@@ -632,38 +632,46 @@ function toggleDrop(uid) {
   const isOpen = el.classList.contains("open");
 
   if (_openDrop && _openDrop !== el) _openDrop.classList.remove("open");
-
   if (isOpen) { el.classList.remove("open"); _openDrop = null; return; }
 
   const pill = el.previousElementSibling;
   const pos  = el.dataset.pos || "right";
+  const wrap = el.parentElement;
 
-  // Position relative to pill-wrap parent
-  const wrap     = el.parentElement;
-  const wrapRect = wrap.getBoundingClientRect();
-  const pillRect = pill.getBoundingClientRect();
-
+  // Measure dropdown
   el.style.visibility = "hidden";
+  el.style.top  = "0px";
+  el.style.left = "0px";
   el.classList.add("open");
   const dropW = el.offsetWidth;
   const dropH = el.offsetHeight;
   el.style.visibility = "";
 
-  // Horizontal: relative to wrap
+  // Use getBoundingClientRect for accurate viewport positions
+  const wrapRect = wrap.getBoundingClientRect();
+  const pillRect = pill.getBoundingClientRect();
+
+  // Horizontal offset relative to wrap
   let left;
   if (pos === "right")  left = 0;
-  if (pos === "center") left = pillRect.width / 2 - dropW / 2;
+  if (pos === "center") left = (pillRect.width - dropW) / 2;
   if (pos === "left")   left = pillRect.width - dropW;
-  // Clamp to viewport
-  const absLeft = wrapRect.left + left;
-  if (absLeft < 8) left += (8 - absLeft);
-  if (absLeft + dropW > window.innerWidth - 8) left -= (absLeft + dropW - (window.innerWidth - 8));
+  // Clamp horizontally within viewport
+  const absL = wrapRect.left + left;
+  if (absL < 8)                              left += 8 - absL;
+  if (absL + dropW > window.innerWidth - 8)  left -= (absL + dropW) - (window.innerWidth - 8);
 
-  // Vertical: below pill, flip up if off viewport bottom
-  const pillBottom = pillRect.bottom - wrapRect.top + 4;
-  const pillTop    = pillRect.top    - wrapRect.top - dropH - 4;
-  const absBottom  = wrapRect.top + pillBottom + dropH;
-  const top = absBottom > window.innerHeight - 8 ? pillTop : pillBottom;
+  // Vertical: prefer below, flip above if bottom clips viewport
+  const spaceBelow = window.innerHeight - pillRect.bottom - 8;
+  const spaceAbove = pillRect.top - 8;
+  let top;
+  if (spaceBelow >= dropH || spaceBelow >= spaceAbove) {
+    // Open downward — relative to wrap top
+    top = pillRect.bottom - wrapRect.top + 4;
+  } else {
+    // Open upward
+    top = pillRect.top - wrapRect.top - dropH - 4;
+  }
 
   el.style.left = left + "px";
   el.style.top  = top  + "px";
