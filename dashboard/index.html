@@ -273,10 +273,8 @@
 
   .signal-drop {
     display: none;
-    position: absolute;
-    top: 100%;
-    left: 0;
-    z-index: 100;
+    position: fixed;
+    z-index: 1000;
     background: #1c2128;
     border: 1px solid var(--border);
     border-radius: 8px;
@@ -285,6 +283,16 @@
     font-size: 11px;
     white-space: nowrap;
     box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+
+  .drop-heading {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
   }
 
   .signal-drop.open { display: block; }
@@ -450,11 +458,18 @@ function numCell(score) {
 }
 
 // ── Data loading ─────────────────────────────────────────────────────────────
-async function loadJSON(filename) {
+async function loadJSON(filename, useAPI=false) {
   try {
-    const r = await fetch(`${GITHUB_API}/${filename}?t=${Date.now()}`, {
-      headers: { "Accept": "application/vnd.github.v3.raw" }
-    });
+    let r;
+    if (useAPI) {
+      // GitHub Contents API for files not in Pages deployment
+      r = await fetch(`${GITHUB_API}/${filename}?t=${Date.now()}`, {
+        headers: { "Accept": "application/vnd.github.v3.raw" }
+      });
+    } else {
+      // Same-origin fetch for files deployed with Pages (fast, no rate limit)
+      r = await fetch(filename + "?t=" + Date.now());
+    }
     if (!r.ok) return null;
     return await r.json();
   } catch { return null; }
@@ -501,7 +516,10 @@ function tfCell(data, uid, pos) {
   // Build signal rows
   const sigs = data.signals || {};
   const raw  = data.raw || {};
-  let rows = Object.entries(SIGNAL_LABELS).map(([k, label]) => {
+  const tfName = uid.split("-").pop().toUpperCase();
+  const pairName = uid.replace(/-h[14]$|-d1$/, "").toUpperCase();
+  let rows = `<div class="drop-heading">${pairName} ${tfName}</div>`;
+  rows += Object.entries(SIGNAL_LABELS).map(([k, label]) => {
     const v = sigs[k] !== undefined ? sigs[k] : null;
     return `<div class="sig-row"><span class="sig-name">${label}</span>${sigVal(v)}</div>`;
   }).join("");
@@ -517,7 +535,7 @@ function tfCell(data, uid, pos) {
   return `<td>
     <div class="pill-wrap">
       <span class="score-pill ${pillClass(data.label)}" onclick="toggleDrop('${uid}')">${data.label || "N/A"}</span>
-      <div class="signal-drop" id="drop-${uid}" style="${pos==='right'?'left:0':''}${pos==='center'?'left:50%;transform:translateX(-50%)':''}${pos==='left'?'right:0;left:auto':''}">${rows}</div>
+      <div class="signal-drop" id="drop-${uid}" data-pos="${pos}">${rows}</div>
     </div>
     <div class="score-num" style="color:${col}">${num}</div>
   </td>`;
@@ -532,29 +550,48 @@ function toggleDrop(uid) {
   const el = document.getElementById("drop-" + uid);
   if (!el) return;
   const isOpen = el.classList.contains("open");
+
+  // Close any open dropdown
   if (_openDrop && _openDrop !== el) {
     _openDrop.classList.remove("open");
-    _openDrop.style.top = "";
-    _openDrop.style.bottom = "";
   }
-  if (!isOpen) {
-    // Reset position first, open, then check overflow
-    el.style.top = "100%";
-    el.style.bottom = "";
-    el.classList.add("open");
-    const rect = el.getBoundingClientRect();
-    if (rect.bottom > window.innerHeight - 8) {
-      // Flip upward
-      el.style.top = "";
-      el.style.bottom = "100%";
-    }
-    _openDrop = el;
-  } else {
+
+  if (isOpen) {
     el.classList.remove("open");
-    el.style.top = "";
-    el.style.bottom = "";
     _openDrop = null;
+    return;
   }
+
+  // Find the pill that was clicked
+  const pill = el.previousElementSibling;
+  const pillRect = pill.getBoundingClientRect();
+  const pos = el.dataset.pos || "right";
+
+  // Show briefly to measure size
+  el.style.visibility = "hidden";
+  el.classList.add("open");
+  const dropW = el.offsetWidth;
+  const dropH = el.offsetHeight;
+  el.style.visibility = "";
+
+  // Horizontal position
+  let left;
+  if (pos === "right")  left = pillRect.left;
+  if (pos === "center") left = pillRect.left + pillRect.width / 2 - dropW / 2;
+  if (pos === "left")   left = pillRect.right - dropW;
+
+  // Keep within viewport horizontally
+  left = Math.max(8, Math.min(left, window.innerWidth - dropW - 8));
+
+  // Vertical: open downward, flip up if off-screen
+  let top = pillRect.bottom + 4;
+  if (top + dropH > window.innerHeight - 8) {
+    top = pillRect.top - dropH - 4;
+  }
+
+  el.style.left = left + "px";
+  el.style.top  = top  + "px";
+  _openDrop = el;
 }
 
 // Close dropdown when clicking outside
@@ -655,11 +692,11 @@ async function init() {
   renderSessions();
 
   const [h1, h4, d1, csm, blurbs] = await Promise.all([
-    loadJSON("h1_scores.json"),
-    loadJSON("h4_scores.json"),
-    loadJSON("d1_scores.json"),
-    loadJSON("csm.json"),
-    loadJSON("alerts.json"),
+    loadJSON("h1_scores.json", true),   // updated hourly — use API
+    loadJSON("h4_scores.json", true),   // updated 4-hourly — use API
+    loadJSON("d1_scores.json"),         // deployed with Pages — same-origin
+    loadJSON("csm.json"),               // deployed with Pages — same-origin
+    loadJSON("alerts.json"),            // deployed with Pages — same-origin
   ]);
 
   // Last updated — use the most recent timestamp from any dataset
