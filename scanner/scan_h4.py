@@ -39,6 +39,17 @@ def main():
     print(f"\n=== H4 Scan — {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC ===")
     os.makedirs(DATA_DIR, exist_ok=True)
 
+    # Weekend guard — no alerts when forex market is closed
+    now = datetime.datetime.utcnow()
+    day  = now.weekday()   # 0=Mon, 5=Sat, 6=Sun
+    hour = now.hour
+    market_closed = (
+        day == 5 or                        # Saturday all day
+        (day == 6 and hour < 22) or        # Sunday before 22:00 UTC
+        (day == 4 and hour >= 22)          # Friday after 22:00 UTC
+    )
+    if market_closed:
+        print("  Market closed (weekend) — no alerts will fire.")
     ohlcv    = fetch_all_pairs(PAIRS, "H4")
     h1_data  = load_scores(H1_SCORES)
     d1_data  = load_scores(D1_SCORES)
@@ -46,6 +57,8 @@ def main():
     h4_results = {}
     now             = datetime.datetime.utcnow()
     active_sessions = get_active_sessions(now)
+    if market_closed:
+        active_sessions = []
 
     for pair in PAIRS:
         df = ohlcv.get(pair)
