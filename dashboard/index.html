@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>FX Technical Dashboard</title>
+<title>Forex1212</title>
 <style>
   :root {
     --bg:        #0d1117;
@@ -62,6 +62,8 @@
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 14px;
+    position: relative;
+    overflow: visible;
   }
 
   .csm-row {
@@ -264,6 +266,7 @@
   .pill-wrap {
     position: relative;
     display: inline-block;
+    overflow: visible;
   }
 
   .score-pill {
@@ -273,7 +276,7 @@
 
   .signal-drop {
     display: none;
-    position: fixed;
+    position: absolute;
     z-index: 1000;
     background: #1c2128;
     border: 1px solid var(--border);
@@ -325,7 +328,7 @@
 
   .csm-drop {
     display: none;
-    position: fixed;
+    position: absolute;
     z-index: 1000;
     background: #1c2128;
     border: 1px solid var(--border);
@@ -358,7 +361,7 @@
 <body>
 
 <header>
-  <h1>FX Technical Dashboard</h1>
+  <h1>Forex1212</h1>
   <span id="last-updated">Loading...</span>
 </header>
 
@@ -368,11 +371,11 @@
   <span class="session-chip" id="sess-tokyo">Tokyo</span>
   <span class="session-chip" id="sess-london">London</span>
   <span class="session-chip" id="sess-newyork">New York</span>
-  <span id="market-closed">⛔ Market Closed</span>
+  <span id="market-closed">Market Closed</span>
 </div>
 
 <!-- Currency Strength -->
-<div class="section-title">Currency Strength (D1)</div>
+<div class="section-title">Currency Strength</div>
 <div id="csm-grid"><div class="loading">Loading...</div></div>
 
 <!-- Signal Table -->
@@ -497,32 +500,34 @@ async function loadJSON(filename, useAPI=false) {
 // ── Render CSM ───────────────────────────────────────────────────────────────
 let _openCsmDrop = null;
 
-function toggleCsmDrop(ccy, el) {
+function toggleCsmDrop(ccy, rowEl) {
   const drop = document.getElementById("csm-drop-" + ccy);
   if (!drop) return;
   const isOpen = drop.classList.contains("open");
 
-  if (_openCsmDrop && _openCsmDrop !== drop) {
-    _openCsmDrop.classList.remove("open");
-  }
+  if (_openCsmDrop && _openCsmDrop !== drop) _openCsmDrop.classList.remove("open");
 
-  if (isOpen) {
-    drop.classList.remove("open");
-    _openCsmDrop = null;
-    return;
-  }
+  if (isOpen) { drop.classList.remove("open"); _openCsmDrop = null; return; }
 
-  const rect = el.getBoundingClientRect();
+  // Position relative to csm-grid parent
+  const grid     = document.getElementById("csm-grid");
+  const gridRect = grid.getBoundingClientRect();
+  const rowRect  = rowEl.getBoundingClientRect();
+
   drop.style.visibility = "hidden";
   drop.classList.add("open");
   const dropW = drop.offsetWidth;
   const dropH = drop.offsetHeight;
   drop.style.visibility = "";
 
-  let left = rect.left;
-  left = Math.max(8, Math.min(left, window.innerWidth - dropW - 8));
-  let top = rect.bottom + 4;
-  if (top + dropH > window.innerHeight - 8) top = rect.top - dropH - 4;
+  let left = 0;
+  const absLeft = gridRect.left + left;
+  if (absLeft + dropW > window.innerWidth - 8) left = window.innerWidth - 8 - dropW - gridRect.left;
+
+  const rowBottom = rowRect.bottom - gridRect.top + 4;
+  const rowTop    = rowRect.top    - gridRect.top - dropH - 4;
+  const absBottom = gridRect.top   + rowBottom + dropH;
+  const top = absBottom > window.innerHeight - 8 ? rowTop : rowBottom;
 
   drop.style.left = left + "px";
   drop.style.top  = top  + "px";
@@ -540,9 +545,7 @@ function renderCSM(csm) {
   const entries   = Object.entries(csm.rankings);
 
   el.innerHTML = entries.map(([ccy, val]) => {
-    const c       = conf[ccy] !== undefined ? conf[ccy] : 1;
-    const confPct = Math.round(c * 100);
-    const confCol = c >= 0.8 ? "#3fb950" : c >= 0.6 ? "#e3b341" : "#8b949e";
+
 
     // Build dropdown rows for this currency
     const pairs = breakdown[ccy] || [];
@@ -566,7 +569,6 @@ function renderCSM(csm) {
         <div class="csm-bar-fill" style="width:${val}%"></div>
       </div>
       <span class="csm-value">${val.toFixed(1)}</span>
-      <span style="font-size:10px;color:${confCol};width:32px;text-align:right">${confPct}%</span>
     </div>
     <div class="csm-drop" id="csm-drop-${ccy}">${dropContent}</div>`;
   }).join("");
@@ -629,43 +631,39 @@ function toggleDrop(uid) {
   if (!el) return;
   const isOpen = el.classList.contains("open");
 
-  // Close any open dropdown
-  if (_openDrop && _openDrop !== el) {
-    _openDrop.classList.remove("open");
-  }
+  if (_openDrop && _openDrop !== el) _openDrop.classList.remove("open");
 
-  if (isOpen) {
-    el.classList.remove("open");
-    _openDrop = null;
-    return;
-  }
+  if (isOpen) { el.classList.remove("open"); _openDrop = null; return; }
 
-  // Find the pill that was clicked
   const pill = el.previousElementSibling;
-  const pillRect = pill.getBoundingClientRect();
-  const pos = el.dataset.pos || "right";
+  const pos  = el.dataset.pos || "right";
 
-  // Show briefly to measure size
+  // Position relative to pill-wrap parent
+  const wrap     = el.parentElement;
+  const wrapRect = wrap.getBoundingClientRect();
+  const pillRect = pill.getBoundingClientRect();
+
   el.style.visibility = "hidden";
   el.classList.add("open");
   const dropW = el.offsetWidth;
   const dropH = el.offsetHeight;
   el.style.visibility = "";
 
-  // Horizontal position
+  // Horizontal: relative to wrap
   let left;
-  if (pos === "right")  left = pillRect.left;
-  if (pos === "center") left = pillRect.left + pillRect.width / 2 - dropW / 2;
-  if (pos === "left")   left = pillRect.right - dropW;
+  if (pos === "right")  left = 0;
+  if (pos === "center") left = pillRect.width / 2 - dropW / 2;
+  if (pos === "left")   left = pillRect.width - dropW;
+  // Clamp to viewport
+  const absLeft = wrapRect.left + left;
+  if (absLeft < 8) left += (8 - absLeft);
+  if (absLeft + dropW > window.innerWidth - 8) left -= (absLeft + dropW - (window.innerWidth - 8));
 
-  // Keep within viewport horizontally
-  left = Math.max(8, Math.min(left, window.innerWidth - dropW - 8));
-
-  // Vertical: open downward, flip up if off-screen
-  let top = pillRect.bottom + 4;
-  if (top + dropH > window.innerHeight - 8) {
-    top = pillRect.top - dropH - 4;
-  }
+  // Vertical: below pill, flip up if off viewport bottom
+  const pillBottom = pillRect.bottom - wrapRect.top + 4;
+  const pillTop    = pillRect.top    - wrapRect.top - dropH - 4;
+  const absBottom  = wrapRect.top + pillBottom + dropH;
+  const top = absBottom > window.innerHeight - 8 ? pillTop : pillBottom;
 
   el.style.left = left + "px";
   el.style.top  = top  + "px";
@@ -715,26 +713,14 @@ function renderBlurbs(blurbs) {
     const time = a.timestamp ? new Date(a.timestamp).toLocaleString() : "";
     const headline = Array.isArray(a.blurb) ? a.blurb[1] : (a.blurb || "");
     // Store prompt in JS object — avoids any HTML attribute escaping issues
-    // Build levels text
-    const lvl = a.levels || {};
-    const sup = (lvl.support || []).slice(0,3);
-    const res = (lvl.resistance || []).slice(0,3);
-    let levelsText = "";
-    if (res.length || sup.length) {
-      res.slice().reverse().forEach(r => { levelsText += "R  " + r.price + "  (+" + Math.round(r.pips) + " pips)\n"; });
-      levelsText += "► " + (lvl.current_price || "") + "\n";
-      sup.forEach(s => { levelsText += "S  " + s.price + "  (-" + Math.round(s.pips) + " pips)\n"; });
-    }
-
     _prompts[i] = "Please analyse this forex trade recommendation using the most current fundamental and technical data available in 50 words or less.\n\n"
       + "Pair: " + a.pair.replace("/","") + " | Direction: " + dirLabel
       + " | H1: " + (a.h1_label || "N/A")
       + " | H4: " + (a.h4_label || "N/A")
       + " | D1: " + (a.d1_label || "N/A") + "\n"
       + "News: \"" + headline + "\"\n"
-      + "Time: " + time + "\n"
-      + (levelsText ? "\nH4 Levels (S/R):\n" + levelsText : "")
-      + "\nBased on these levels, which setup offers the best risk/reward and why?";
+      + "Time: " + time + "\n\n"
+      + "Based on current market structure, suggest a practical entry approach, stop loss placement, and take profit target for this " + dirLabel + " setup.";
     return `
       <div class="blurb-card">
         <div class="blurb-header">
