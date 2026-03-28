@@ -249,6 +249,68 @@
     background: rgba(56,139,253,0.1);
   }
 
+  #market-closed {
+    display: none;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    border: 1px solid #b62324;
+    color: #f85149;
+    background: rgba(182,35,36,0.1);
+    font-weight: 600;
+  }
+
+  /* ── Signal dropdown ── */
+  .pill-wrap {
+    position: relative;
+    display: inline-block;
+  }
+
+  .score-pill {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .signal-drop {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    background: #1c2128;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    min-width: 200px;
+    font-size: 11px;
+    white-space: nowrap;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+  }
+
+  .signal-drop.open { display: block; }
+
+  .sig-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 3px 0;
+    border-bottom: 1px solid #21262d;
+    gap: 16px;
+  }
+
+  .sig-row:last-child { border-bottom: none; }
+
+  .sig-name { color: var(--muted); }
+
+  .sig-val-bull { color: #3fb950; font-weight: 600; }
+  .sig-val-bear { color: #f85149; font-weight: 600; }
+  .sig-val-neu  { color: var(--muted); font-weight: 600; }
+
+  .sig-divider {
+    border-top: 1px solid #30363d;
+    margin: 6px 0;
+  }
+
   .score-num {
     font-size: 11px;
     margin-top: 3px;
@@ -279,6 +341,7 @@
   <span class="session-chip" id="sess-tokyo">Tokyo</span>
   <span class="session-chip" id="sess-london">London</span>
   <span class="session-chip" id="sess-newyork">New York</span>
+  <span id="market-closed">⛔ Market Closed</span>
 </div>
 
 <!-- Currency Strength -->
@@ -342,11 +405,34 @@ function getActiveSessions() {
     .map(([name]) => name);
 }
 
+function isMarketClosed() {
+  const now = new Date();
+  const day  = now.getUTCDay();    // 0=Sun, 6=Sat
+  const hour = now.getUTCHours();
+  // Closed: Saturday all day, Sunday before 22:00, Friday after 22:00
+  if (day === 6) return true;
+  if (day === 0 && hour < 22) return true;
+  if (day === 5 && hour >= 22) return true;
+  return false;
+}
+
 function renderSessions() {
+  const closed = isMarketClosed();
+  const badge  = document.getElementById("session-badge");
+  const closedEl = document.getElementById("market-closed");
+
+  if (closed) {
+    badge.style.opacity = "0.4";
+    closedEl.style.display = "inline-block";
+  } else {
+    badge.style.opacity = "1";
+    closedEl.style.display = "none";
+  }
+
   const active = getActiveSessions();
   Object.entries(SESSION_IDS).forEach(([name, id]) => {
     const el = document.getElementById(id);
-    el.classList.toggle("active", active.includes(name));
+    el.classList.toggle("active", active.includes(name) && !closed);
   });
 }
 
@@ -394,21 +480,80 @@ function renderCSM(csm) {
 }
 
 // ── Render signal table ───────────────────────────────────────────────────────
-function tfCell(data) {
+const SIGNAL_LABELS = {
+  EMA200: "EMA 200", EMA50: "EMA 50", RSI: "RSI > 50",
+  MACD: "MACD", DMI: "DMI+/DMI-", Structure: "Structure"
+};
+
+function sigVal(v) {
+  if (v === 1)  return `<span class="sig-val-bull">▲ Bull</span>`;
+  if (v === -1) return `<span class="sig-val-bear">▼ Bear</span>`;
+  return `<span class="sig-val-neu">→ Neutral</span>`;
+}
+
+let _openDrop = null;
+
+function tfCell(data, uid) {
   if (!data) return `<td><span class="score-pill score-neutral">N/A</span><div class="score-num" style="color:var(--muted)">—</div></td>`;
   const num = data.score > 0 ? "+" + data.score : data.score;
   const col = data.score > 0 ? "var(--buy-text)" : data.score < 0 ? "var(--sell-text)" : "var(--muted)";
-  return `<td>${scorePill(data.label)}<div class="score-num" style="color:${col}">${num}</div></td>`;
+
+  // Build signal rows
+  const sigs = data.signals || {};
+  const raw  = data.raw || {};
+  let rows = Object.entries(SIGNAL_LABELS).map(([k, label]) => {
+    const v = sigs[k] !== undefined ? sigs[k] : null;
+    return `<div class="sig-row"><span class="sig-name">${label}</span>${sigVal(v)}</div>`;
+  }).join("");
+
+  // ADX + ATR
+  const adx = raw.adx !== undefined ? raw.adx.toFixed(1) : "N/A";
+  const filterOk = data.filter_ok !== false;
+  const adxCol  = filterOk ? "var(--buy-text)" : "var(--sell-text)";
+  rows += `<div class="sig-divider"></div>`;
+  rows += `<div class="sig-row"><span class="sig-name">ADX</span><span style="color:${adxCol};font-weight:600">${adx}</span></div>`;
+  rows += `<div class="sig-row"><span class="sig-name">ATR</span><span style="color:${filterOk ? "var(--buy-text)" : "var(--sell-text)"};font-weight:600">${filterOk ? "Normal" : "Contracted"}</span></div>`;
+
+  return `<td>
+    <div class="pill-wrap">
+      <span class="score-pill ${pillClass(data.label)}" onclick="toggleDrop('${uid}')">${data.label || "N/A"}</span>
+      <div class="signal-drop" id="drop-${uid}">${rows}</div>
+    </div>
+    <div class="score-num" style="color:${col}">${num}</div>
+  </td>`;
 }
+
+function pillClass(label) {
+  if (!label || label === "N/A") return "score-neutral";
+  return "score-" + label.toLowerCase().replace(/ /g, "-");
+}
+
+function toggleDrop(uid) {
+  const el = document.getElementById("drop-" + uid);
+  if (!el) return;
+  const isOpen = el.classList.contains("open");
+  if (_openDrop && _openDrop !== el) _openDrop.classList.remove("open");
+  el.classList.toggle("open", !isOpen);
+  _openDrop = isOpen ? null : el;
+}
+
+// Close dropdown when clicking outside
+document.addEventListener("click", e => {
+  if (!e.target.classList.contains("score-pill") && _openDrop) {
+    _openDrop.classList.remove("open");
+    _openDrop = null;
+  }
+});
 
 function renderTable(h1, h4, d1) {
   const rows = PAIRS.map(pair => {
+    const slug = pair.replace("/","");
     return `
       <tr>
         <td class="pair-cell">${displayName(pair)}</td>
-        ${tfCell(h1 && h1[pair])}
-        ${tfCell(h4 && h4[pair])}
-        ${tfCell(d1 && d1[pair])}
+        ${tfCell(h1 && h1[pair], slug + "-h1")}
+        ${tfCell(h4 && h4[pair], slug + "-h4")}
+        ${tfCell(d1 && d1[pair], slug + "-d1")}
       </tr>
     `;
   });
