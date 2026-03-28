@@ -143,14 +143,14 @@ def compute_currency_strength(d1_ohlcv: dict, h4_ohlcv: dict = None) -> dict:
         if base in breakdown:
             breakdown[base].append({
                 "pair": display,
-                "score": round(combined, 3),
-                "bull":  combined > 0,
+                "score": round(float(combined), 3),
+                "bull":  bool(combined > 0),
             })
         if quote in breakdown:
             breakdown[quote].append({
                 "pair": display,
-                "score": round(-combined, 3),
-                "bull":  combined < 0,
+                "score": round(float(-combined), 3),
+                "bull":  bool(combined < 0),
             })
 
     return {
