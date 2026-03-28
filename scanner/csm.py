@@ -128,7 +128,33 @@ def compute_currency_strength(d1_ohlcv: dict, h4_ohlcv: dict = None) -> dict:
     # Sort strongest to weakest
     ranked = dict(sorted(normalized.items(), key=lambda x: x[1], reverse=True))
 
+    # Per-currency pair breakdown for dashboard drill-down
+    breakdown = {c: [] for c in CURRENCIES}
+    for pair in MAJOR_PAIRS:
+        base, quote = pair.split("/")
+        d1_df = d1_ohlcv.get(pair)
+        h4_df = h4_ohlcv.get(pair) if h4_ohlcv else None
+        d1_ret = _adj_return(d1_df)
+        h4_ret = _adj_return(h4_df)
+        if d1_ret is None:
+            continue
+        combined = D1_WEIGHT * d1_ret + H4_WEIGHT * h4_ret if h4_ret is not None else d1_ret
+        display  = pair.replace("/", "")
+        if base in breakdown:
+            breakdown[base].append({
+                "pair": display,
+                "score": round(combined, 3),
+                "bull":  combined > 0,
+            })
+        if quote in breakdown:
+            breakdown[quote].append({
+                "pair": display,
+                "score": round(-combined, 3),
+                "bull":  combined < 0,
+            })
+
     return {
         "rankings":   ranked,
         "confidence": {c: conf_scores[c] for c in ranked},
+        "breakdown":  breakdown,
     }
