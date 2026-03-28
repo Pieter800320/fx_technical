@@ -30,7 +30,11 @@ def main():
     d1_ohlcv = fetch_all_pairs(PAIRS, "D1")
 
     # Fetch H4 for major pairs only (CSM multi-TF weighting)
-    print("\n  Fetching H4 data for currency strength...")
+    # Pause to respect 8 requests/minute rate limit after D1 fetches
+    import time
+    print("\n  Rate limit pause before H4 fetch (62s)...")
+    time.sleep(62)
+    print("  Fetching H4 data for currency strength...")
     h4_ohlcv = fetch_all_pairs(MAJOR_PAIRS, "H4")
 
     d1_results = {}
