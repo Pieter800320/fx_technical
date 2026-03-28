@@ -1,24 +1,35 @@
-# FX Technical Dashboard
+# Forex1212
 
-A fully automated forex technical analysis system built on GitHub Actions, with Telegram alerts, a live GitHub Pages dashboard, and real-time news context.
+A fully automated forex technical analysis system. Telegram alerts fire only when D1, H4 and H1 all agree — the system tells you *which pairs are in play and in which direction*. You find the entry on your chart.
 
 ## Philosophy
 
 **D1 = Bias. H4 = Confirmation. H1 = Execution.**
 
-Alerts only fire when all relevant timeframes agree. The system tells you *which pairs are in play and in which direction* — you find the entry on your chart.
+No alert fires unless all relevant timeframes agree. Filters eliminate ranging and low-participation markets entirely.
+
+## Live Dashboard
+
+**https://Pieter800320.github.io/fx_technical/**
+
+Features:
+- Session badges (active market hours)
+- Currency Strength meter with per-pair breakdown (tap any currency)
+- Market Brief button — compiles everything into one AI prompt
+- Technical Scores table — tap any pill to see the 6-signal breakdown + ADX/ATR
+- Signals & Headlines — latest alert per pair with RSS headline and copy-to-AI prompt
 
 ## How It Works
 
-Three scheduled scans run automatically:
+Three scheduled scans run automatically via GitHub Actions:
 
 | Job | Schedule | Role |
 |---|---|---|
-| D1 Scan | Daily 00:10 UTC | Sets the bias. Scores all pairs. No alerts. |
+| D1 Scan | Daily 00:10 UTC | Sets the bias. Scores all pairs. No alerts. Computes currency strength. |
 | H4 Scan | Every 4 hours | Fires if D1 + H4 agree in direction. |
 | H1 Scan | Every hour | Fires if D1 + H4 + H1 all agree in direction. |
 
-H1 and H4 share a single 4-hour cooldown per pair — if either fires, both are blocked.
+H1 and H4 share a single 4-hour cooldown per pair. No alerts fire on weekends (Friday 22:00 – Sunday 22:00 UTC).
 
 ## Instruments
 
@@ -30,7 +41,7 @@ XAUUSD (Gold)
 
 ## Scoring Engine
 
-6 independent signals per timeframe, each voting +1 (bull) / -1 (bear):
+6 independent signals per timeframe — each votes +1 (bull) / -1 (bear):
 
 | Signal | Measures | Logic |
 |---|---|---|
@@ -55,75 +66,101 @@ XAUUSD (Gold)
 
 Two filters suppress alerts regardless of score:
 
-- **ADX < 20** — no trend present, not worth trading
-- **ATR contracted** — current ATR < 70% of 14-bar average, low participation
+| Filter | Logic |
+|---|---|
+| ADX < 20 | No trend present — market is ranging |
+| ATR contracted | Current ATR < 70% of 14-bar average — low participation |
+
+## Alert Logic
+
+An alert fires only when ALL of the following are true:
+
+1. Score reaches Buy/Strong Buy or Sell/Strong Sell
+2. D1 agrees with direction (bias gate)
+3. H4 agrees with direction (confirmation gate) — H1 alerts only
+4. ADX and ATR filters pass
+5. Pair is in its relevant trading session
+6. 4-hour cooldown has cleared
+7. Market is open (not weekend)
 
 ## Telegram Alert Format
 
 ```
-🟢 BUY AUDUSD
+🟢 BUY EURUSD
 
 D1: Buy  |  H4: Strong Buy  |  H1: Buy
 
 ADX: 26.3  |  ATR: Normal
-Session: New York
+Session: London, New York
 
-📰 "AUD holds gains as risk appetite recovers" — DailyFX
+📰 "EUR supported by hawkish ECB tone" — DailyFX
 ✅ No high-impact events in next 12h.
 
 📊 Dashboard → https://...
 ```
 
-## Dashboard
+## Currency Strength Model
 
-Live GitHub Pages dashboard showing:
-- **Session badges** — which sessions are currently active
-- **Currency Strength (D1)** — 8 currencies ranked strongest to weakest
-- **Technical Scores** — all 10 instruments × H1/H4/D1 with pill + score
-- **AI Prompt** — copy-ready prompt for each recent alert to paste into any AI
+ATR-adjusted, multi-timeframe weighted model using 7 major pairs.
+
+**Method:**
+- For each pair: compute % return over 14 bars on D1 and H4
+- Divide by ATR(14) to normalise for volatility
+- Weight: D1 × 0.7 + H4 × 0.3
+- Base currency adds the score; quote currency subtracts it
+- Normalize all 8 currencies to 0–100
+
+**Reading the pair breakdown dropdown:**
+- The number shown is the ATR-adjusted contribution of that pair to the currency's score
+- Positive = the pair is supporting the currency's strength ranking
+- Negative = the pair is contesting it
+- Larger absolute values = stronger driver
+
+**Crosses included in breakdown:**
+- EUR: EURUSD + EURJPY
+- GBP: GBPUSD + GBPJPY
+- JPY: USDJPY + EURJPY + GBPJPY
+
+## News Context
+
+Each alert includes:
+- Latest relevant RSS headline (DailyFX, MarketPulse, FXStreet)
+- Upcoming high-impact ForexFactory events for the pair's currencies (next 12h)
+
+## AI Integration
+
+**Per-alert prompt:** Tap "Copy AI Prompt" on any card in the Signals & Headlines section. Pastes a structured prompt into your clipboard ready for any AI — includes pair, direction, TF scores, news headline, and asks for entry/SL/TP guidance.
+
+**Market Brief:** Tap "Market Brief / Copy AI Prompt" above the signal table. Compiles currency strength rankings + all directional scores + upcoming events into one prompt asking for a 100-word global macro narrative.
 
 ## Setup
 
-### 1. Create a GitHub repo
+### 1. Create a GitHub repo and upload all files via GitHub Desktop
 
-Name it `fx_technical` (or anything — update `DASHBOARD_URL` accordingly).
-
-### 2. Upload all files
-
-Use GitHub Desktop to push the full project including the `.github/workflows/` folder.
-
-### 3. Add Repository Secrets
+### 2. Add Repository Secrets
 
 **Settings → Secrets and variables → Actions → New repository secret:**
 
 | Secret | Value |
-|---|---|
+|--------|-------|
 | `TWELVEDATA_API_KEY` | Twelvedata free tier API key |
 | `TELEGRAM_BOT_TOKEN` | Telegram bot token from @BotFather |
 | `TELEGRAM_CHAT_ID` | Your Telegram chat ID |
 | `DASHBOARD_URL` | `https://YOUR_USERNAME.github.io/fx_technical/` |
 
-### 4. Enable GitHub Actions write permissions
-
+### 3. Enable GitHub Actions write permissions
 **Settings → Actions → General → Workflow permissions → Read and write permissions ✓**
 
-### 5. Enable GitHub Pages
-
+### 4. Enable GitHub Pages
 **Settings → Pages → Source → GitHub Actions**
 
-### 6. Make repo public
-
-GitHub Pages requires a public repo on the free plan.
+### 5. Make repo public
 **Settings → Danger Zone → Change visibility → Make public**
 
-### 7. Seed the data with manual runs
-
-Trigger in this order:
-1. **Actions → D1 Scan + Deploy Dashboard → Run workflow**
-2. **Actions → H4 Scan → Run workflow**
-3. **Actions → H1 Scan → Run workflow**
-
-From this point the cron schedule takes over automatically.
+### 6. Seed the data with manual runs (in this order)
+1. Actions → D1 Scan + Deploy Dashboard → Run workflow
+2. Actions → H4 Scan → Run workflow
+3. Actions → H1 Scan → Run workflow
 
 ## File Structure
 
@@ -131,9 +168,10 @@ From this point the cron schedule takes over automatically.
 ├── config/
 │   └── pairs.py              # Instruments, sessions, display names
 ├── scanner/
-│   ├── fetch.py              # Twelvedata OHLCV fetcher (rate-limited)
+│   ├── fetch.py              # Twelvedata OHLCV fetcher
 │   ├── score.py              # 6-signal scoring engine + ADX/ATR filters
-│   ├── csm.py                # D1 currency strength calculation
+│   ├── csm.py                # ATR-adjusted currency strength model
+│   ├── levels.py             # Swing high/low S/R level detection
 │   ├── cooldown.py           # 4-hour alert cooldown guard
 │   ├── scan_h1.py            # H1 scan runner
 │   ├── scan_h4.py            # H4 scan runner
@@ -141,15 +179,10 @@ From this point the cron schedule takes over automatically.
 ├── alerts/
 │   ├── news.py               # RSS headlines + ForexFactory calendar
 │   ├── telegram.py           # Message builder + Telegram sender
-│   └── log.py                # alerts.json writer (dashboard AI prompts)
+│   └── log.py                # alerts.json writer (Signals & Headlines)
 ├── dashboard/
-│   └── index.html            # GitHub Pages dashboard
+│   └── index.html            # GitHub Pages dashboard (Forex1212)
 ├── data/                     # Auto-committed JSON outputs
-│   ├── h1_scores.json
-│   ├── h4_scores.json
-│   ├── d1_scores.json
-│   ├── csm.json
-│   └── alerts.json
 ├── state/
 │   └── cooldown.json         # Alert cooldown state
 ├── .github/workflows/
@@ -163,7 +196,7 @@ From this point the cron schedule takes over automatically.
 
 | Service | Cost |
 |---|---|
-| Twelvedata API | Free (800 req/day limit — ~330 used) |
+| Twelvedata API | Free (800 req/day limit — ~400 used) |
 | GitHub Actions | Free |
 | GitHub Pages | Free |
 | RSS + ForexFactory | Free |
