@@ -1,44 +1,101 @@
 """
 scanner/csm.py
-D1 currency strength calculation.
+Improved currency strength model.
 
 Method:
-  For each currency, find all pairs it appears in.
-  Compute the % return of each pair over the last N bars.
-  If the currency is the BASE  → add the return.
-  If the currency is the QUOTE → subtract the return.
-  Average across all pairs the currency appears in.
-  Normalize all 8 currencies to 0–100.
+  For each pair, compute ATR-adjusted return on D1 and H4.
+  Weighted combination: D1 × 0.7 + H4 × 0.3
+  Aggregate per currency (base adds, quote subtracts).
+  Normalize all 8 currencies to 0-100.
+  Also compute confidence: % of pairs agreeing on direction per currency.
+
+ATR adjustment:
+  adj_return = % return over LOOKBACK bars / ATR(14)
+  This normalises for volatility — a currency that moved 3 ATRs
+  is genuinely stronger than one that moved 1 ATR.
 """
 
 import numpy as np
-from config.pairs import PAIRS, CURRENCIES
+import pandas as pd
+from config.pairs import CURRENCIES
+
+LOOKBACK  = 14   # bars for return calculation
+ATR_PERIOD = 14
+
+# Only the 7 major pairs — covers all 8 currencies with minimal redundancy
+MAJOR_PAIRS = [
+    "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
+    "AUD/USD", "USD/CAD", "NZD/USD",
+]
+
+D1_WEIGHT = 0.7
+H4_WEIGHT = 0.3
 
 
-LOOKBACK = 14  # bars for strength calculation
+def _atr(df: pd.DataFrame, period: int = ATR_PERIOD) -> float:
+    high  = df["high"].astype(float)
+    low   = df["low"].astype(float)
+    close = df["close"].astype(float)
+    tr = pd.concat([
+        high - low,
+        (high - close.shift()).abs(),
+        (low  - close.shift()).abs(),
+    ], axis=1).max(axis=1)
+    val = tr.rolling(period).mean().iloc[-1]
+    return float(val) if not np.isnan(val) else 1.0
 
 
-def compute_currency_strength(ohlcv_map: dict) -> dict:
+def _adj_return(df: pd.DataFrame) -> float | None:
+    """ATR-adjusted % return over LOOKBACK bars."""
+    if df is None or len(df) < LOOKBACK + ATR_PERIOD + 1:
+        return None
+    close = df["close"].astype(float)
+    ret   = (close.iloc[-1] - close.iloc[-(LOOKBACK + 1)]) / close.iloc[-(LOOKBACK + 1)] * 100
+    atr   = _atr(df)
+    if atr == 0:
+        return None
+    return ret / atr
+
+
+def compute_currency_strength(d1_ohlcv: dict, h4_ohlcv: dict = None) -> dict:
     """
-    ohlcv_map: { "EUR/USD": pd.DataFrame, ... }
-                DataFrames must have a 'close' column.
+    d1_ohlcv: { "EUR/USD": pd.DataFrame, ... }
+    h4_ohlcv: { "EUR/USD": pd.DataFrame, ... } — optional, for multi-TF weighting
 
-    Returns: { "EUR": 72.3, "USD": 61.1, ... } — values 0–100, sorted desc.
+    Returns: {
+        "rankings": { "USD": 100.0, "EUR": 86.9, ... },  # sorted desc, 0-100
+        "confidence": { "USD": 0.86, "EUR": 0.71, ... }, # 0-1 agreement score
+    }
     """
-    raw_scores = {c: [] for c in CURRENCIES}
+    raw_scores  = {c: [] for c in CURRENCIES}
+    confidence  = {c: [] for c in CURRENCIES}  # list of +1/-1 per pair
 
-    for pair, df in ohlcv_map.items():
-        if df is None or len(df) < LOOKBACK + 1:
-            continue
-        close = df["close"].astype(float)
-        # % return over LOOKBACK bars
-        ret = (close.iloc[-1] - close.iloc[-(LOOKBACK + 1)]) / close.iloc[-(LOOKBACK + 1)] * 100
-
+    for pair in MAJOR_PAIRS:
         base, quote = pair.split("/")
+
+        d1_df = d1_ohlcv.get(pair)
+        h4_df = h4_ohlcv.get(pair) if h4_ohlcv else None
+
+        d1_ret = _adj_return(d1_df)
+        h4_ret = _adj_return(h4_df)
+
+        if d1_ret is None:
+            continue
+
+        # Weighted combined return
+        if h4_ret is not None:
+            combined = D1_WEIGHT * d1_ret + H4_WEIGHT * h4_ret
+        else:
+            combined = d1_ret
+
+        # Base currency: positive return = strong base
+        # Quote currency: positive return = weak quote (need to invert)
         if base in raw_scores:
-            raw_scores[base].append(ret)
+            raw_scores[base].append(combined)
+            confidence[base].append(1 if combined > 0 else -1)
         if quote in raw_scores:
-            raw_scores[quote].append(-ret)
+            raw_scores[quote].append(-combined)
+            confidence[quote].append(1 if combined < 0 else -1)
 
     # Average raw score per currency
     averages = {}
@@ -46,7 +103,7 @@ def compute_currency_strength(ohlcv_map: dict) -> dict:
         vals = raw_scores[c]
         averages[c] = float(np.mean(vals)) if vals else 0.0
 
-    # Normalize to 0–100
+    # Normalize to 0-100
     values = list(averages.values())
     min_v, max_v = min(values), max(values)
     spread = max_v - min_v if max_v != min_v else 1.0
@@ -56,5 +113,22 @@ def compute_currency_strength(ohlcv_map: dict) -> dict:
         for c, v in averages.items()
     }
 
-    # Sort strongest → weakest
-    return dict(sorted(normalized.items(), key=lambda x: x[1], reverse=True))
+    # Confidence: % of pairs agreeing on direction (0.0-1.0)
+    conf_scores = {}
+    for c in CURRENCIES:
+        votes = confidence[c]
+        if not votes:
+            conf_scores[c] = 0.0
+        else:
+            # Agreement = how many votes match the majority direction
+            majority = 1 if sum(votes) >= 0 else -1
+            agreeing = sum(1 for v in votes if v == majority)
+            conf_scores[c] = round(agreeing / len(votes), 2)
+
+    # Sort strongest to weakest
+    ranked = dict(sorted(normalized.items(), key=lambda x: x[1], reverse=True))
+
+    return {
+        "rankings":   ranked,
+        "confidence": {c: conf_scores[c] for c in ranked},
+    }
