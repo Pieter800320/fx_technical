@@ -537,12 +537,10 @@ let _openCsmDrop = null;
 function toggleCsmDrop(ccy, rowEl) {
   const drop = document.getElementById("csm-drop-" + ccy);
   if (!drop) return;
-  const isOpen = drop.classList.contains("open");
+  const open = drop.classList.contains("open");
   if (_openCsmDrop && _openCsmDrop !== drop) _openCsmDrop.classList.remove("open");
-  if (isOpen) { drop.classList.remove("open"); _openCsmDrop = null; return; }
-
-  drop.classList.add("open");
-  positionDrop(drop, rowEl.getBoundingClientRect(), "right");
+  if (open) { drop.classList.remove("open"); _openCsmDrop = null; return; }
+  openDrop(drop, rowEl, "left");
   _openCsmDrop = drop;
 }
 
@@ -638,54 +636,34 @@ function pillClass(label) {
   return "score-" + label.toLowerCase().replace(/ /g, "-");
 }
 
+function openDrop(drop, anchor, hAlign) {
+  drop.style.cssText = "display:block;visibility:hidden;position:fixed;top:-9999px;left:-9999px;";
+  const dW = drop.offsetWidth;
+  const dH = drop.offsetHeight;
+  const a  = anchor.getBoundingClientRect();
+  let left;
+  if (hAlign === "left")   left = a.left;
+  if (hAlign === "center") left = a.left + a.width / 2 - dW / 2;
+  if (hAlign === "right")  left = a.right - dW;
+  left = Math.max(8, Math.min(left, window.innerWidth - dW - 8));
+  const top = (a.bottom + 4 + dH > window.innerHeight - 8) ? a.top - dH - 4 : a.bottom + 4;
+  drop.style.cssText = "";
+  drop.style.position = "fixed";
+  drop.style.left = left + "px";
+  drop.style.top  = top  + "px";
+  drop.classList.add("open");
+}
+
 function toggleDrop(uid) {
   const el = document.getElementById("drop-" + uid);
   if (!el) return;
-  const isOpen = el.classList.contains("open");
-
+  const open = el.classList.contains("open");
   if (_openDrop && _openDrop !== el) _openDrop.classList.remove("open");
-  if (isOpen) { el.classList.remove("open"); _openDrop = null; return; }
-
-  const pill = el.previousElementSibling;
-  const pos  = el.dataset.pos || "right";
-  const wrap = el.parentElement;
-
-  // Measure dropdown
-  el.style.visibility = "hidden";
-  el.style.top  = "0px";
-  el.style.left = "0px";
-  el.classList.add("open");
-  const dropW = el.offsetWidth;
-  const dropH = el.offsetHeight;
-  el.style.visibility = "";
-
-  // Use getBoundingClientRect for accurate viewport positions
-  const wrapRect = wrap.getBoundingClientRect();
-  const pillRect = pill.getBoundingClientRect();
-
-  // Horizontal offset relative to wrap
-  let left;
-  if (pos === "right")  left = 0;
-  if (pos === "center") left = (pillRect.width - dropW) / 2;
-  if (pos === "left")   left = pillRect.width - dropW;
-  // Clamp horizontally within viewport
-  const absL = wrapRect.left + left;
-  if (absL < 8)                              left += 8 - absL;
-  if (absL + dropW > window.innerWidth - 8)  left -= (absL + dropW) - (window.innerWidth - 8);
-
-  // Vertical: open downward unless dropdown would clip the viewport bottom
-  const wouldClipBottom = pillRect.bottom + 4 + dropH > window.innerHeight - 8;
-  let top;
-  if (wouldClipBottom) {
-    // Open upward
-    top = pillRect.top - wrapRect.top - dropH - 4;
-  } else {
-    // Open downward
-    top = pillRect.bottom - wrapRect.top + 4;
-  }
-
-  el.style.left = left + "px";
-  el.style.top  = top  + "px";
+  if (open) { el.classList.remove("open"); _openDrop = null; return; }
+  const pill   = el.previousElementSibling;
+  const pos    = el.dataset.pos || "left";
+  const hAlign = pos === "right" ? "left" : pos === "left" ? "right" : "center";
+  openDrop(el, pill, hAlign);
   _openDrop = el;
 }
 
