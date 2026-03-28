@@ -482,16 +482,22 @@ function renderCSM(csm) {
     el.innerHTML = `<div class="empty-blurb">Currency strength data unavailable.</div>`;
     return;
   }
-  const entries = Object.entries(csm.rankings); // already sorted by backend
-  el.innerHTML = entries.map(([ccy, val]) => `
+  const conf = csm.confidence || {};
+  const entries = Object.entries(csm.rankings);
+  el.innerHTML = entries.map(([ccy, val]) => {
+    const c = conf[ccy] !== undefined ? conf[ccy] : 1;
+    const confPct = Math.round(c * 100);
+    const confCol = c >= 0.8 ? "#3fb950" : c >= 0.6 ? "#e3b341" : "#8b949e";
+    return `
     <div class="csm-row">
       <span class="csm-label">${ccy}</span>
       <div class="csm-bar-track">
         <div class="csm-bar-fill" style="width:${val}%"></div>
       </div>
       <span class="csm-value">${val.toFixed(1)}</span>
-    </div>
-  `).join("");
+      <span style="font-size:10px;color:${confCol};width:32px;text-align:right">${confPct}%</span>
+    </div>`;
+  }).join("");
 }
 
 // ── Render signal table ───────────────────────────────────────────────────────
