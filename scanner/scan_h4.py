@@ -49,7 +49,8 @@ def main():
         (day == 4 and hour >= 22)          # Friday after 22:00 UTC
     )
     if market_closed:
-        print("  Market closed (weekend) — no alerts will fire.")
+        print("  Market closed (weekend) — exiting.")
+        return
     ohlcv    = fetch_all_pairs(PAIRS, "H4")
     h1_data  = load_scores(H1_SCORES)
     d1_data  = load_scores(D1_SCORES)
