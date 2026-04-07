@@ -402,6 +402,16 @@
   <span id="market-closed">Market Closed</span>
 </div>
 
+<!-- Regime badge -->
+<div id="regime-badge" style="margin-bottom:12px;display:none;">
+  <span id="regime-chip" style="
+    font-size:11px;padding:3px 12px;border-radius:12px;
+    border:1px solid var(--border);color:var(--muted);
+    font-weight:600;letter-spacing:0.04em;">
+    Regime: —
+  </span>
+</div>
+
 <!-- Currency Strength -->
 <div class="section-title">Currency Strength</div>
 <div id="csm-grid"><div class="loading">Loading...</div></div>
@@ -710,14 +720,30 @@ function renderBlurbs(blurbs) {
     const time = a.timestamp ? new Date(a.timestamp).toLocaleString() : "";
     const headline = Array.isArray(a.blurb) ? a.blurb[1] : (a.blurb || "");
     // Store prompt in JS object — avoids any HTML attribute escaping issues
-    _prompts[i] = "Please analyse this forex trade recommendation using the most current fundamental and technical data available in 50 words or less.\n\n"
-      + "Pair: " + a.pair.replace("/","") + " | Direction: " + dirLabel
-      + " | H1: " + (a.h1_label || "N/A")
-      + " | H4: " + (a.h4_label || "N/A")
-      + " | D1: " + (a.d1_label || "N/A") + "\n"
+    const regime_label = (_cachedData.regime && _cachedData.regime.regime) ? _cachedData.regime.regime : "Unknown";
+    const regime_conf  = (_cachedData.regime && _cachedData.regime.confidence) ? _cachedData.regime.confidence : "";
+
+    // Extension flag from h4 data
+    const pairData = _cachedData.h4 && _cachedData.h4[a.pair];
+    const extData  = pairData && pairData.extended;
+    const extended = extData && extData.extended ? "Yes — " + (extData.reasons || []).join("; ") : "No";
+    const adxVal   = pairData && pairData.raw ? (pairData.raw.adx || "N/A") : "N/A";
+    const atrOk    = pairData ? (pairData.filter_ok !== false ? "Normal" : "Contracted") : "N/A";
+
+    _prompts[i] = "You are an institutional FX trader with web search access.\n\n"
+      + "SIGNAL:\n"
+      + "Pair: " + a.pair.replace("/","") + " | Direction: " + dirLabel + "\n"
+      + "D1: " + (a.d1_label || "N/A") + " | H4: " + (a.h4_label || "N/A") + " | H1: " + (a.h1_label || "N/A") + "\n"
+      + "ADX: " + adxVal + " | ATR: " + atrOk + " | Extended: " + extended + "\n"
+      + "Regime (proxy): " + regime_label + " (" + regime_conf + ")\n"
       + "News: \"" + headline + "\"\n"
       + "Time: " + time + "\n\n"
-      + "Based on current market structure, suggest a practical entry approach, stop loss placement, and take profit target for this " + dirLabel + " setup.";
+      + "Search current VIX, DXY, and " + a.pair.replace("/","") + " macro context.\n"
+      + "Assess: (1) does macro support this direction? (2) is price fresh or extended?\n\n"
+      + "Output strictly:\n"
+      + "Regime / Edge or Flaw / Verdict\n"
+      + "Entry: \nSL: \nTP: \n"
+      + "Max 40 words. Be decisive.";
     return `
       <div class="blurb-card">
         <div class="blurb-header">
@@ -796,7 +822,27 @@ function copyMarketBrief() {
     }
   }
 
-  text += "In 100 words, what is the current global macro narrative implied by these figures, and what does it suggest for the week ahead?";
+  // Regime
+  const r = _cachedData.regime;
+  if (r && r.regime) {
+    text += "MARKET REGIME (proxy):\n";
+    text += r.regime + " (" + r.confidence + ")\n";
+    const s = r.signals || {};
+    text += "Safe-haven divergence: " + (s.sh_divergence || "N/A") + "  ";
+    text += "USD strength: " + (s.usd_strength || "N/A") + "  ";
+    text += "Dispersion: " + (s.dispersion || "N/A") + "\n\n";
+  }
+
+  text += "You are a macro FX strategist with web search access.\n\n";
+  text += "Search current: VIX, DXY, SPX, WTI, Copper, BTC, US10Y yield.\n\n";
+  text += "Output strictly:\n";
+  text += "1. Regime (3 words max)\n";
+  text += "2. Key driver (1 sentence)\n";
+  text += "3. Pair bias:\n";
+  text += "   EURUSD / GBPUSD / USDJPY / USDCHF / AUDUSD / USDCAD / NZDUSD / EURJPY / GBPJPY\n";
+  text += "   → Strong Sell | Sell | Neutral | Buy | Strong Buy\n";
+  text += "4. One caution (1 sentence)\n";
+  text += "Max 80 words. No fluff.";
 
   navigator.clipboard.writeText(text).then(() => {
     const btn = document.getElementById("market-brief-btn");
@@ -811,16 +857,39 @@ function copyMarketBrief() {
   });
 }
 
+// ── Render Regime ────────────────────────────────────────────────────────────
+function renderRegime(regime) {
+  const badge = document.getElementById("regime-badge");
+  const chip  = document.getElementById("regime-chip");
+  if (!regime || !regime.regime) return;
+
+  const r    = regime.regime;
+  const conf = regime.confidence || "";
+  const colors = {
+    "Risk-Off": { bg: "rgba(182,35,36,0.15)", border: "#b62324", color: "#f85149" },
+    "Risk-On":  { bg: "rgba(35,134,54,0.15)", border: "#238636", color: "#3fb950" },
+    "Ranging":  { bg: "rgba(139,148,158,0.1)", border: "#30363d", color: "#8b949e" },
+    "Mixed":    { bg: "rgba(227,179,65,0.15)", border: "#e3b341", color: "#e3b341" },
+  };
+  const c = colors[r] || colors["Mixed"];
+  chip.style.background  = c.bg;
+  chip.style.borderColor = c.border;
+  chip.style.color       = c.color;
+  chip.textContent       = `Regime: ${r}  ${conf}`;
+  badge.style.display    = "block";
+}
+
 // ── Main ─────────────────────────────────────────────────────────────────────
 async function init() {
   renderSessions();
 
-  const [h1, h4, d1, csm, blurbs] = await Promise.all([
+  const [h1, h4, d1, csm, blurbs, regime] = await Promise.all([
     loadJSON("h1_scores.json", true),   // updated hourly — use API
     loadJSON("h4_scores.json", true),   // updated 4-hourly — use API
-    loadJSON("d1_scores.json"),         // deployed with Pages — same-origin
-    loadJSON("csm.json"),               // deployed with Pages — same-origin
-    loadJSON("alerts.json"),            // deployed with Pages — same-origin
+    loadJSON("d1_scores.json"),
+    loadJSON("csm.json"),
+    loadJSON("alerts.json"),
+    loadJSON("regime.json"),
   ]);
 
   // Last updated — use the most recent timestamp from any dataset
@@ -834,7 +903,8 @@ async function init() {
       "Updated: " + latest.toLocaleString();
   }
 
-  _cachedData = { h1, h4, d1, csm, blurbs };
+  _cachedData = { h1, h4, d1, csm, blurbs, regime };
+  renderRegime(regime);
   renderCSM(csm);
   renderTable(h1, h4, d1);
   renderBlurbs(blurbs);
