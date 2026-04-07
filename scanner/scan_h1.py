@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from config.pairs import PAIRS, pair_display, is_pair_active, get_active_sessions
 from scanner.fetch import fetch_all_pairs
-from scanner.score import score_pair
+from scanner.score import score_pair, is_extended
 from scanner.cooldown import is_on_cooldown, record_alert
 from alerts.news import get_alert_context
 from alerts.telegram import build_message, send_telegram
@@ -24,7 +24,8 @@ from scanner.levels import find_levels
 DATA_DIR  = os.path.join(os.path.dirname(__file__), "..", "data")
 H1_OUTPUT = os.path.join(DATA_DIR, "h1_scores.json")
 H4_SCORES = os.path.join(DATA_DIR, "h4_scores.json")
-D1_SCORES = os.path.join(DATA_DIR, "d1_scores.json")
+D1_SCORES    = os.path.join(DATA_DIR, "d1_scores.json")
+REGIME_FILE  = os.path.join(DATA_DIR, "regime.json")
 
 
 def load_scores(path):
@@ -54,6 +55,7 @@ def main():
     ohlcv    = fetch_all_pairs(PAIRS, "H1")
     h4_data  = load_scores(H4_SCORES)
     d1_data  = load_scores(D1_SCORES)
+    regime   = load_scores(REGIME_FILE)
 
     h1_results = {}
     now             = datetime.datetime.utcnow()
@@ -131,6 +133,7 @@ def main():
         print(f"    ↳ ALERT: {direction.upper()} (D1+H4+H1 aligned) — fetching news context...")
         ctx = get_alert_context(pair)
 
+        ext_data = result.get("extended", {})
         msg = build_message(
             pair=pair,
             direction=direction,
