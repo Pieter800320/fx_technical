@@ -15,10 +15,12 @@ from config.pairs import PAIRS, pair_display
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair
 from scanner.csm import compute_currency_strength, MAJOR_PAIRS, STRENGTH_PAIRS
+from scanner.regime import classify_regime
 
 DATA_DIR   = os.path.join(os.path.dirname(__file__), "..", "data")
 D1_OUTPUT  = os.path.join(DATA_DIR, "d1_scores.json")
-CSM_OUTPUT = os.path.join(DATA_DIR, "csm.json")
+CSM_OUTPUT    = os.path.join(DATA_DIR, "csm.json")
+REGIME_OUTPUT = os.path.join(DATA_DIR, "regime.json")
 
 
 def main():
@@ -87,8 +89,25 @@ def main():
             "updated":    now.isoformat(),
         }, f, indent=2)
 
+    # Compute regime
+    print("\n  Computing market regime...")
+    regime_result = classify_regime(
+        {"rankings": csm_result["rankings"]},
+        d1_results
+    )
+    print(f"  Regime: {regime_result['regime']} ({regime_result['confidence']} confidence)")
+
+    with open(REGIME_OUTPUT, "w") as f:
+        json.dump({
+            "regime":     regime_result["regime"],
+            "confidence": regime_result["confidence"],
+            "signals":    regime_result["signals"],
+            "updated":    now.isoformat(),
+        }, f, indent=2)
+
     print(f"\n  Saved: {D1_OUTPUT}")
     print(f"  Saved: {CSM_OUTPUT}")
+    print(f"  Saved: {REGIME_OUTPUT}")
     print("=== D1 Scan complete ===\n")
 
 
