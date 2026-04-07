@@ -39,6 +39,8 @@ def build_message(
     headline=None,
     events=None,
     levels=None,
+    extended=None,
+    regime=None,
 ):
     emoji   = DIRECTION_EMOJI[direction]
     action  = DIRECTION_WORD[direction]
@@ -50,6 +52,19 @@ def build_message(
     atr_status = "Normal" if atr_ok else "Contracted"
     adx_str    = f"{adx_val:.1f}" if adx_val is not None else "N/A"
 
+    # Regime label
+    regime_str = ""
+    if regime:
+        conf = regime.get("confidence", "")
+        reg  = regime.get("regime", "")
+        regime_str = f"{reg} ({conf})"
+
+    # Extension flag
+    ext_flag = ""
+    if extended and extended.get("extended"):
+        reasons = extended.get("reasons", [])
+        ext_flag = "⚠️ Extended: " + "; ".join(reasons) if reasons else "⚠️ Extended"
+
     lines = [
         f"{emoji} <b>{action} {display}</b>",
         "",
@@ -58,6 +73,11 @@ def build_message(
         f"ADX: {adx_str}  |  ATR: {atr_status}",
         f"Session: {session}",
     ]
+
+    if regime_str:
+        lines.append(f"Regime: {regime_str}")
+    if ext_flag:
+        lines.append(ext_flag)
 
     # RSS headline
     if headline:
