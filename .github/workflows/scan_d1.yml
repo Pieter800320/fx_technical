@@ -42,7 +42,8 @@ jobs:
           cp data/h1_scores.json dashboard/ || true
           cp data/h4_scores.json dashboard/ || true
           cp data/alerts.json    dashboard/ || true
-          git add data/d1_scores.json data/csm.json dashboard/ || true
+          cp data/regime.json dashboard/ || true
+          git add data/d1_scores.json data/csm.json data/regime.json dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: D1 scan update $(date -u +%Y-%m-%dT%H:%M)"
           git pull --rebase origin main
           git push
@@ -67,6 +68,7 @@ jobs:
           cp data/d1_scores.json  dashboard/
           cp data/csm.json        dashboard/
           cp data/alerts.json     dashboard/
+          cp data/regime.json     dashboard/ || true
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
