@@ -192,3 +192,56 @@ def score_pair(df, timeframe="H4"):
         "filter_ok":      passes,
         "filter_reasons": reasons,
     }
+
+
+# ── Extension / Exhaustion Detection ─────────────────────────────────────────
+
+def is_extended(df: pd.DataFrame, direction: str) -> dict:
+    """
+    Detects whether a directional signal is overextended / exhausted.
+
+    Returns {
+        "extended":  bool,
+        "reasons":   list[str],
+        "atr_dist":  float,   # ATRs from EMA200
+    }
+    """
+    close  = df["close"].astype(float)
+    high   = df["high"].astype(float)
+    low    = df["low"].astype(float)
+
+    last   = float(close.iloc[-1])
+    ema200 = float(_ema(close, 200).iloc[-1])
+    ema50  = float(_ema(close, 50).iloc[-1])
+    rsi    = float(_rsi(close).iloc[-1])
+    atr    = float(_atr(high, low, close))
+
+    reasons = []
+
+    # 1. Distance from EMA200 in ATR units
+    atr_dist = abs(last - ema200) / atr if atr > 0 else 0.0
+    if atr_dist > 2.0:
+        reasons.append(f"Price {atr_dist:.1f}× ATR from EMA200")
+
+    # 2. RSI extreme
+    if direction == "bull" and rsi > 75:
+        reasons.append(f"RSI overbought ({rsi:.0f})")
+    elif direction == "bear" and rsi < 25:
+        reasons.append(f"RSI oversold ({rsi:.0f})")
+
+    # 3. Consecutive bars on same side of EMA50 (last 10 bars)
+    if direction == "bull":
+        consecutive = sum(1 for i in range(1, 11)
+                         if len(close) > i and close.iloc[-i] > _ema(close, 50).iloc[-i])
+    else:
+        consecutive = sum(1 for i in range(1, 11)
+                         if len(close) > i and close.iloc[-i] < _ema(close, 50).iloc[-i])
+
+    if consecutive >= 8:
+        reasons.append(f"{consecutive} consecutive bars beyond EMA50")
+
+    return {
+        "extended": len(reasons) > 0,
+        "reasons":  reasons,
+        "atr_dist": round(atr_dist, 2),
+    }
