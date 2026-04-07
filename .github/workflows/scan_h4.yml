@@ -1,12 +1,14 @@
-name: H4 Scan
+name: H4 Scan + Deploy Dashboard
 
 on:
   schedule:
-    - cron: "5 0,4,8,12,16,20 * * *"   # Every 4 hours, offset 5 min to avoid clash with H1
+    - cron: "5 0,4,8,12,16,20 * * *"
   workflow_dispatch:
 
 permissions:
   contents: write
+  pages:    write
+  id-token: write
 
 jobs:
   scan_h4:
@@ -40,7 +42,42 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           cp data/h4_scores.json dashboard/
           cp data/alerts.json    dashboard/ || true
-          git add data/h4_scores.json state/cooldown.json data/alerts.json dashboard/h4_scores.json dashboard/alerts.json || true
+          cp data/regime.json    dashboard/ || true
+          git add data/h4_scores.json state/cooldown.json data/alerts.json data/regime.json dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: H4 scan update $(date -u +%Y-%m-%dT%H:%M)"
           git pull --rebase origin main
           git push
+
+  deploy_dashboard:
+    needs: scan_h4
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Copy data files into dashboard folder
+        run: |
+          cp data/h1_scores.json  dashboard/
+          cp data/h4_scores.json  dashboard/
+          cp data/d1_scores.json  dashboard/
+          cp data/csm.json        dashboard/
+          cp data/alerts.json     dashboard/
+          cp data/regime.json     dashboard/ || true
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dashboard
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
