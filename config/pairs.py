@@ -1,20 +1,13 @@
-"""
-config/pairs.py
-Central configuration: pairs, currencies, session guards.
-"""
-
+"""config/pairs.py"""
 import datetime
 
-# ── Pairs (forex + gold) ──────────────────────────────────────────────────────
 PAIRS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD", "EUR/JPY", "GBP/JPY",
-    "XAU/USD",
 ]
 
 CURRENCIES = ["EUR", "GBP", "USD", "JPY", "CHF", "AUD", "CAD", "NZD"]
 
-# ── Session windows (UTC) ─────────────────────────────────────────────────────
 SESSIONS = {
     "Sydney":   (21, 6),
     "Tokyo":    (0,  9),
@@ -25,14 +18,9 @@ SESSIONS = {
 SESSION_PAIRS = {
     "Sydney":   ["AUD/USD", "NZD/USD", "USD/JPY"],
     "Tokyo":    ["USD/JPY", "EUR/JPY", "GBP/JPY", "AUD/USD", "NZD/USD"],
-    "London":   ["EUR/USD", "GBP/USD", "USD/CHF", "EUR/JPY", "GBP/JPY", "USD/CAD", "XAU/USD"],
-    "New York": ["EUR/USD", "GBP/USD", "USD/JPY", "USD/CAD", "AUD/USD", "NZD/USD", "XAU/USD"],
+    "London":   ["EUR/USD", "GBP/USD", "USD/CHF", "EUR/JPY", "GBP/JPY", "USD/CAD"],
+    "New York": ["EUR/USD", "GBP/USD", "USD/JPY", "USD/CAD", "AUD/USD", "NZD/USD"],
 }
-
-DISPLAY_NAMES = {
-    "XAU/USD": "XAUUSD",
-}
-
 
 def get_active_sessions(dt=None):
     if dt is None:
@@ -48,7 +36,6 @@ def get_active_sessions(dt=None):
                 active.append(name)
     return active
 
-
 def is_pair_active(pair, dt=None):
     if dt is None:
         dt = datetime.datetime.utcnow()
@@ -57,10 +44,8 @@ def is_pair_active(pair, dt=None):
             return True
     return False
 
-
 def pair_display(pair):
-    return DISPLAY_NAMES.get(pair, pair.replace("/", ""))
-
+    return pair.replace("/", "")
 
 def td_symbol(pair):
-    return pair  # all pairs use slash format on Twelvedata
+    return pair
