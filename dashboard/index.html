@@ -78,7 +78,7 @@ tr:last-child td{border-bottom:none;}
 .btn-primary{background:rgba(56,139,253,.12);border:1px solid rgba(56,139,253,.4);color:#58a6ff;}
 .btn-secondary{display:inline-flex;flex-direction:column;padding:8px 14px;background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.35);border-radius:20px;color:#58a6ff;cursor:pointer;transition:opacity .15s;}
 .btn-secondary:hover{opacity:.8;}
-.btn-secondary .brief-title{font-size:13px;font-weight:600;}
+.btn-secondary .brief-title{font-size:12px;font-weight:600;}
 .btn-secondary.copied .brief-title{color:#3fb950;}
 .btn-secondary .brief-sub{font-size:11px;color:var(--muted);margin-top:2px;}
 .btn-danger{background:rgba(182,35,36,.12);border:1px solid rgba(182,35,36,.4);color:#f85149;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;}
@@ -151,20 +151,13 @@ tr:last-child td{border-bottom:none;}
 
 <!-- ═══ MARKET BRIEF ═══ -->
 <div id="tab-brief" class="tab-panel">
-  <div class="section-title">Anthropic API Key</div>
-  <div class="api-key-row">
-    <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." />
-    <button class="btn btn-primary" onclick="saveApiKey()">Save</button>
-    <button class="btn btn-danger" onclick="clearApiKey()">Clear</button>
-  </div>
-  <div id="api-key-status" style="font-size:11px;color:var(--muted);margin-bottom:12px;"></div>
-  <div class="section-title">Market Brief <span id="brief-age" style="font-weight:400;text-transform:none;letter-spacing:0;"></span></div>
-  <div id="brief-output" class="brief-output loading">Click "Refresh" to generate a market brief.</div>
-  <div class="brief-actions">
-    <button class="btn btn-primary" onclick="runMarketBrief(true)">↻ Refresh</button>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.7;">Your current market data is compiled below into a ready-to-paste AI prompt. Paste it into <a href="https://claude.ai" style="color:#58a6ff;" target="_blank">Claude.ai</a> or Perplexity for a live analysis with web search — including real-time VIX, DXY, SPX and more.</p>
+  <div class="section-title">Market Brief Prompt <span id="brief-age" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);"></span></div>
+  <div id="brief-output" class="brief-output loading">Loading data...</div>
+  <div class="brief-actions" style="margin-top:12px;display:flex;gap:8px;">
     <button class="btn-secondary" id="brief-copy-btn" onclick="copyBriefText()">
       <span class="brief-title">Copy Prompt</span>
-      <span class="brief-sub">Paste into any AI</span>
+      <span class="brief-sub">Paste into Claude.ai</span>
     </button>
   </div>
 </div>
@@ -261,7 +254,7 @@ function switchTab(name){
   document.getElementById('tab-'+name).classList.add('active');
   const idx={dashboard:0,brief:1,signals:2,journal:3}[name]||0;
   document.querySelectorAll('.tab')[idx].classList.add('active');
-  if(name==='brief') runMarketBrief(false);
+  if(name==='brief') runMarketBrief();
   if(name==='journal') renderJournalSnapshot();
 }
 
@@ -387,24 +380,7 @@ function copyPrompt(idx){
   });
 }
 
-// ── Market Brief ──────────────────────────────────────────────────────────────
-const BRIEF_CACHE_KEY="fx1212_brief_cache";
-const BRIEF_CACHE_TTL=4*60*60*1000; // 4 hours
-
-function getApiKey(){return localStorage.getItem("fx1212_api_key")||"";}
-function saveApiKey(){
-  const k=document.getElementById("api-key-input").value.trim();
-  if(!k){alert("Please enter an API key.");return;}
-  localStorage.setItem("fx1212_api_key",k);
-  document.getElementById("api-key-input").value="";
-  document.getElementById("api-key-status").textContent="✓ API key saved.";
-  document.getElementById("api-key-status").style.color="#3fb950";
-}
-function clearApiKey(){
-  localStorage.removeItem("fx1212_api_key");
-  document.getElementById("api-key-status").textContent="API key cleared.";
-  document.getElementById("api-key-status").style.color="var(--muted)";
-}
+// ── Market Brief ─────────────────────────────────────────────────────────────
 
 function buildBriefPrompt(){
   const {h1,h4,d1,csm,regime}=_cachedData;
@@ -431,71 +407,17 @@ function buildBriefPrompt(){
   return text;
 }
 
-async function runMarketBrief(force){
-  const apiKey=getApiKey();
+function runMarketBrief(){
   const outEl=document.getElementById("brief-output");
-  const ageEl=document.getElementById("brief-age");
-
-  // Show cached if fresh and not forced
-  if(!force){
-    const cached=localStorage.getItem(BRIEF_CACHE_KEY);
-    if(cached){
-      try{
-        const {text,ts}=JSON.parse(cached);
-        const age=Date.now()-ts;
-        if(age<BRIEF_CACHE_TTL){
-          outEl.textContent=text;outEl.classList.remove("loading");
-          const mins=Math.round(age/60000);
-          ageEl.textContent=`(${mins}m ago)`;
-          return;
-        }
-      }catch{}
-    }
-  }
-
-  if(!apiKey){
-    outEl.textContent="Enter your Anthropic API key above to auto-generate the brief.\nOr use 'Copy Prompt' to paste into Claude/Perplexity manually.";
-    outEl.classList.add("loading");
-    return;
-  }
-
-  outEl.textContent="Searching market data and generating brief...";
-  outEl.classList.add("loading");
-  ageEl.textContent="";
-
   const prompt=buildBriefPrompt();
-
-  try{
-    const resp=await fetch("https://api.anthropic.com/v1/messages",{
-      method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},
-      body:JSON.stringify({
-        model:"claude-sonnet-4-20250514",
-        max_tokens:600,
-        messages:[{role:"user",content:prompt}]
-      })
-    });
-    if(!resp.ok){
-      const err=await resp.json();
-      throw new Error(err.error?.message||resp.statusText);
-    }
-    const data=await resp.json();
-    const text=data.content.filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
-    outEl.textContent=text;outEl.classList.remove("loading");
-    localStorage.setItem(BRIEF_CACHE_KEY,JSON.stringify({text,ts:Date.now()}));
-    ageEl.textContent="(just now)";
-  }catch(e){
-    outEl.textContent="Error: "+e.message+"\n\nUse 'Copy Prompt' to paste into Claude/Perplexity manually.";
-    outEl.classList.add("loading");
-  }
+  outEl.textContent=prompt;
+  outEl.classList.remove("loading");
+  const ageEl=document.getElementById("brief-age");
+  if(ageEl) ageEl.textContent="";
 }
 
 function copyBriefText(){
-  const outEl=document.getElementById("brief-output");
-  const cached=localStorage.getItem(BRIEF_CACHE_KEY);
-  let text="";
-  if(cached){try{text=JSON.parse(cached).text;}catch{}}
-  if(!text||outEl.classList.contains("loading")) text=buildBriefPrompt();
+  const text=document.getElementById("brief-output").textContent||buildBriefPrompt();
   navigator.clipboard.writeText(text).then(()=>{
     const btn=document.getElementById("brief-copy-btn");
     btn.querySelector(".brief-title").textContent="✓ Copied!";
@@ -505,11 +427,7 @@ function copyBriefText(){
   });
 }
 
-// Show API key status on load
-(function(){
-  const k=getApiKey();
-  if(k) document.getElementById("api-key-status").textContent="✓ API key is set.";
-})();
+
 
 // ── Data loading ──────────────────────────────────────────────────────────────
 async function loadJSON(filename,useAPI=false){
@@ -533,6 +451,8 @@ async function init(){
   if(timestamps.length) document.getElementById("last-updated").textContent="Updated: "+new Date(timestamps[timestamps.length-1]).toLocaleString();
   _cachedData={h1,h4,d1,csm,blurbs,regime};
   renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderBlurbs(blurbs);
+  // Refresh brief if on that tab
+  if(document.getElementById('tab-brief').classList.contains('active')) runMarketBrief();
 }
 init();
 setInterval(init,5*60*1000);
