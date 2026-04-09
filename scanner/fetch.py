@@ -1,8 +1,4 @@
-"""
-scanner/fetch.py
-Twelvedata OHLCV fetcher with free-tier rate limiting.
-"""
-
+"""scanner/fetch.py"""
 import os
 import time
 import requests
@@ -12,26 +8,14 @@ from config.pairs import td_symbol
 API_KEY  = os.environ.get("TWELVEDATA_API_KEY", "")
 BASE_URL = "https://api.twelvedata.com/time_series"
 
-TF_MAP = {
-    "H1": "1h",
-    "H4": "4h",
-    "D1": "1day",
-}
-
-BARS_NEEDED = {
-    "H1":  250,
-    "H4":  5000,
-    "D1":  500,
-}
-
+TF_MAP = {"H1": "1h", "H4": "4h", "D1": "1day"}
+BARS_NEEDED = {"H1": 250, "H4": 5000, "D1": 500}
 BATCH_SIZE  = 8
 BATCH_SLEEP = 62
 
-
 def fetch_pair(pair, timeframe):
-    symbol = td_symbol(pair)
     params = {
-        "symbol":     symbol,
+        "symbol":     td_symbol(pair),
         "interval":   TF_MAP[timeframe],
         "outputsize": BARS_NEEDED[timeframe],
         "apikey":     API_KEY,
@@ -57,7 +41,6 @@ def fetch_pair(pair, timeframe):
     except Exception as e:
         print(f"  [TD] Exception fetching {pair}: {e}")
         return None
-
 
 def fetch_all_pairs(pairs, timeframe):
     results = {}
