@@ -36,9 +36,11 @@ td{padding:9px 12px;border-bottom:1px solid #21262d;white-space:nowrap;vertical-
 tr:last-child td{border-bottom:none;}
 .pair-cell{font-weight:600;font-size:13px;}
 .score-pill{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap;cursor:pointer;user-select:none;}
-.score-strong-buy,.score-buy{background:#162d21;color:#fff;}
-.score-neutral{background:var(--border);color:var(--muted);}
-.score-sell,.score-strong-sell{background:#3d1a1a;color:#fff;}
+.score-strong-buy{background:rgba(35,134,54,.2);border:1px solid rgba(35,134,54,.45);color:#3fb950;}
+.score-buy{background:rgba(35,134,54,.14);border:1px solid rgba(35,134,54,.3);color:#3fb950;}
+.score-neutral{background:rgba(139,148,158,.1);border:1px solid rgba(139,148,158,.25);color:#8b949e;}
+.score-sell{background:rgba(182,35,36,.14);border:1px solid rgba(182,35,36,.3);color:#f85149;}
+.score-strong-sell{background:rgba(182,35,36,.2);border:1px solid rgba(182,35,36,.45);color:#f85149;}
 .score-num{font-size:11px;margin-top:3px;font-weight:600;}
 .pill-wrap{position:relative;display:inline-block;overflow:visible;}
 .signal-drop,.csm-drop{display:none;position:fixed;z-index:1000;background:#1c2128;border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:190px;max-width:240px;font-size:11px;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.5);}
@@ -57,29 +59,29 @@ tr:last-child td{border-bottom:none;}
 .blurb-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
 .blurb-pair{font-weight:700;font-size:13px;}
 .blurb-direction{font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;}
-.blurb-direction.bull{background:#162d21;color:#fff;}
-.blurb-direction.bear{background:#3d1a1a;color:#fff;}
+.blurb-direction.bull{background:rgba(35,134,54,.15);border:1px solid rgba(35,134,54,.35);color:#3fb950;}
+.blurb-direction.bear{background:rgba(182,35,36,.15);border:1px solid rgba(182,35,36,.35);color:#f85149;}
 .blurb-text{font-size:12px;line-height:1.6;color:#c9d1d9;}
 .blurb-time{margin-top:6px;font-size:11px;color:var(--muted);}
 .copy-btn{margin-top:10px;display:inline-flex;align-items:center;gap:5px;background:#21262d;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;padding:4px 10px;cursor:pointer;}
 .copy-btn:hover{background:#30363d;color:var(--text);}
 .copy-btn.copied{color:#3fb950;border-color:#3fb950;}
 /* Market Brief tab */
-.api-key-row{display:flex;gap:8px;align-items:center;margin-bottom:16px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;}
-.api-key-row input{flex:1;background:#21262d;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:12px;font-family:monospace;}
+.api-key-row{display:flex;gap:6px;align-items:center;margin-bottom:16px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;}
+.api-key-row input{flex:1;min-width:0;background:#21262d;border:1px solid var(--border);border-radius:20px;color:var(--text);padding:6px 12px;font-size:12px;font-family:monospace;}
 .api-key-row input:focus{outline:none;border-color:#388bfd;}
 .brief-output{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;min-height:120px;font-size:13px;line-height:1.8;white-space:pre-wrap;color:var(--text);}
 .brief-output.loading{color:var(--muted);font-style:italic;}
 .brief-actions{display:flex;gap:8px;margin-top:12px;}
-.btn{padding:7px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;border:none;}
-.btn-primary{background:#238636;color:#fff;}
-.btn-primary:hover{background:#2ea043;}
-.btn-secondary{display:inline-flex;flex-direction:column;padding:8px 14px;background:#21262d;border:1px solid var(--border);border-radius:6px;color:var(--text);cursor:pointer;}
-.btn-secondary:hover{background:#30363d;}
+.btn{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:none;transition:opacity .15s;}
+.btn:hover{opacity:.8;}
+.btn-primary{background:rgba(56,139,253,.12);border:1px solid rgba(56,139,253,.4);color:#58a6ff;}
+.btn-secondary{display:inline-flex;flex-direction:column;padding:8px 14px;background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.35);border-radius:20px;color:#58a6ff;cursor:pointer;transition:opacity .15s;}
+.btn-secondary:hover{opacity:.8;}
 .btn-secondary .brief-title{font-size:13px;font-weight:600;}
 .btn-secondary.copied .brief-title{color:#3fb950;}
 .btn-secondary .brief-sub{font-size:11px;color:var(--muted);margin-top:2px;}
-.btn-danger{background:#3d1a1a;border:1px solid #b62324;color:#f85149;padding:7px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;}
+.btn-danger{background:rgba(182,35,36,.12);border:1px solid rgba(182,35,36,.4);color:#f85149;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;}
 /* Journal */
 #journal-form{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px;}
 .form-col{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;}
@@ -153,7 +155,7 @@ tr:last-child td{border-bottom:none;}
   <div class="api-key-row">
     <input type="password" id="api-key-input" placeholder="sk-ant-api03-..." />
     <button class="btn btn-primary" onclick="saveApiKey()">Save</button>
-    <button class="btn-danger" onclick="clearApiKey()">Clear</button>
+    <button class="btn btn-danger" onclick="clearApiKey()">Clear</button>
   </div>
   <div id="api-key-status" style="font-size:11px;color:var(--muted);margin-bottom:12px;"></div>
   <div class="section-title">Market Brief <span id="brief-age" style="font-weight:400;text-transform:none;letter-spacing:0;"></span></div>
@@ -202,7 +204,7 @@ tr:last-child td{border-bottom:none;}
     <div id="j-snapshot" style="font-size:11px;color:var(--muted);margin-bottom:12px;line-height:1.8;"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn btn-primary" onclick="saveJournalEntry()">Add to Journal</button>
-      <button class="btn btn-primary" style="background:#1f6feb" onclick="exportJournal()">Export CSV</button>
+      <button class="btn btn-primary" onclick="exportJournal()">Export CSV</button>
     </div>
   </div>
   <div class="section-title">Performance</div>
@@ -466,11 +468,10 @@ async function runMarketBrief(force){
   try{
     const resp=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
-      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01","anthropic-beta":"web-search-2025-03-05"},
+      headers:{"Content-Type":"application/json","x-api-key":apiKey,"anthropic-version":"2023-06-01"},
       body:JSON.stringify({
         model:"claude-sonnet-4-20250514",
         max_tokens:600,
-        tools:[{type:"web_search_20250305",name:"web_search"}],
         messages:[{role:"user",content:prompt}]
       })
     });
@@ -637,7 +638,7 @@ function renderJournalTable(){
       <td>${r}</td><td>${t.d1_label}</td><td>${t.h4_label}</td>
       <td style="font-size:10px">${t.regime}</td><td>${ext}</td>
       <td>${outcomesBtns}</td>
-      <td><button class="btn" style="padding:3px 8px;font-size:11px;background:#21262d;border:1px solid var(--border);color:var(--muted)" onclick="openEdit(${t.id})">✏️</button></td>
+      <td><button class="btn" style="padding:3px 10px;font-size:11px;background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.3);color:#58a6ff;border-radius:20px" onclick="openEdit(${t.id})">✏️</button></td>
     </tr>`;
   }).join("");
 }
