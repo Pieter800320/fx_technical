@@ -1,69 +1,23 @@
-"""
-alerts/telegram.py
-Build and send Telegram alert messages.
-
-Format:
-  🟢 BUY EURUSD
-
-  D1: Strong Buy  |  H4: Buy  |  H1: Buy
-
-  ADX: 28.4  |  ATR: Normal
-  Session: London
-
-  📰 "EUR supported by hawkish ECB tone" — DailyFX
-  ⚠️ USD — NFP  13:30 UTC
-
-  📊 Dashboard → https://...
-"""
-
-import os
-import requests
+"""alerts/telegram.py"""
+import os, requests
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
-DASHBOARD_URL      = os.environ.get("DASHBOARD_URL", "https://yourusername.github.io/fx_technical/")
+DASHBOARD_URL      = os.environ.get("DASHBOARD_URL", "https://Pieter800320.github.io/fx_technical/")
 
 DIRECTION_EMOJI = {"bull": "🟢", "bear": "🔴"}
 DIRECTION_WORD  = {"bull": "BUY", "bear": "SELL"}
 
-
-def build_message(
-    pair,
-    direction,
-    h1_label,
-    h4_label,
-    d1_label,
-    session_names,
-    adx_val=None,
-    atr_ok=True,
-    headline=None,
-    events=None,
-    levels=None,
-    extended=None,
-    regime=None,
-):
-    emoji   = DIRECTION_EMOJI[direction]
-    action  = DIRECTION_WORD[direction]
-    display = pair.replace("/", "")
-    session = ", ".join(session_names) if session_names else "Off-session"
-    events  = events or []
-
-    # ATR status
+def build_message(pair, direction, h1_label, h4_label, d1_label,
+                  session_names, adx_val=None, atr_ok=True,
+                  headline=None, events=None, extended=None, regime=None):
+    emoji      = DIRECTION_EMOJI[direction]
+    action     = DIRECTION_WORD[direction]
+    display    = pair.replace("/", "")
+    session    = ", ".join(session_names) if session_names else "Off-session"
     atr_status = "Normal" if atr_ok else "Contracted"
     adx_str    = f"{adx_val:.1f}" if adx_val is not None else "N/A"
-
-    # Regime label
-    regime_str = ""
-    if regime:
-        conf = regime.get("confidence", "")
-        reg  = regime.get("regime", "")
-        regime_str = f"{reg} ({conf})"
-
-    # Extension flag
-    ext_flag = ""
-    if extended and extended.get("extended"):
-        reasons = extended.get("reasons", [])
-        ext_flag = "⚠️ Extended: " + "; ".join(reasons) if reasons else "⚠️ Extended"
+    events     = events or []
 
     lines = [
         f"{emoji} <b>{action} {display}</b>",
@@ -74,19 +28,19 @@ def build_message(
         f"Session: {session}",
     ]
 
-    if regime_str:
-        lines.append(f"Regime: {regime_str}")
-    if ext_flag:
-        lines.append(ext_flag)
+    if regime and regime.get("regime"):
+        lines.append(f"Regime: {regime['regime']} ({regime.get('confidence','')})")
 
-    # RSS headline
+    if extended and extended.get("extended"):
+        reasons = extended.get("reasons", [])
+        lines.append("⚠️ Extended: " + "; ".join(reasons) if reasons else "⚠️ Extended")
+
     if headline:
         source, title = headline
         lines += ["", f'📰 <i>"{title}"</i> — {source}']
     else:
         lines += ["", "📰 <i>No recent analysis found.</i>"]
 
-    # Calendar events
     if events:
         lines.append("")
         for ev in events:
@@ -97,20 +51,14 @@ def build_message(
     lines += ["", f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>']
     return "\n".join(lines)
 
-
 def send_telegram(message):
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("  [TG] Missing credentials — skipping.")
+        print("  [TG] Missing credentials.")
         return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
-    payload = {
-        "chat_id":    TELEGRAM_CHAT_ID,
-        "text":       message,
-        "parse_mode": "HTML",
-        "disable_web_page_preview": True,
-    }
     try:
-        resp = requests.post(url, json=payload, timeout=10)
+        resp = requests.post(url, json={"chat_id": TELEGRAM_CHAT_ID, "text": message,
+                                         "parse_mode": "HTML", "disable_web_page_preview": True}, timeout=10)
         resp.raise_for_status()
         print("  [TG] Alert sent.")
         return True
