@@ -2,30 +2,23 @@ name: H1 Scan
 
 on:
   schedule:
-    - cron: "0 * * * *"   # Every hour on the hour (UTC)
-  workflow_dispatch:       # Manual trigger for testing
+    - cron: "2 * * * *"   # Every hour at :02 UTC
+  workflow_dispatch:
 
 permissions:
-  contents: write          # Needed to commit cooldown state back
+  contents: write
 
 jobs:
   scan_h1:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
+      - run: pip install -r requirements.txt
       - name: Run H1 scan
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
@@ -33,14 +26,13 @@ jobs:
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
           DASHBOARD_URL:      ${{ secrets.DASHBOARD_URL }}
         run: python scanner/scan_h1.py
-
-      - name: Commit updated data + cooldown state
+      - name: Commit data
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           cp data/h1_scores.json dashboard/
           cp data/alerts.json    dashboard/ || true
-          git add data/h1_scores.json state/cooldown.json data/alerts.json dashboard/h1_scores.json dashboard/alerts.json || true
-          git diff --cached --quiet || git commit -m "chore: H1 scan update $(date -u +%Y-%m-%dT%H:%M)"
+          git add data/h1_scores.json state/cooldown.json data/alerts.json dashboard/ || true
+          git diff --cached --quiet || git commit -m "chore: H1 scan $(date -u +%Y-%m-%dT%H:%M)"
           git pull --rebase origin main
           git push
