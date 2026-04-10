@@ -69,6 +69,8 @@ tr:last-child td{border-bottom:none;}
 .copy-btn{margin-top:10px;display:inline-flex;align-items:center;gap:5px;background:#21262d;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;padding:4px 10px;cursor:pointer;}
 .copy-btn:hover{background:#30363d;color:var(--text);}
 .copy-btn.copied{color:#3fb950;border-color:#3fb950;}
+.blurb-signal-info{display:none;margin-top:8px;padding:8px 10px;background:#0d1117;border-radius:6px;font-size:11px;line-height:1.9;border:1px solid var(--border);}
+.blurb-signal-info.open{display:block;}
 /* Market Brief tab */
 .api-key-row{display:flex;gap:6px;align-items:center;margin-bottom:16px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;}
 .api-key-row input{flex:1;min-width:0;background:#21262d;border:1px solid var(--border);border-radius:20px;color:var(--text);padding:6px 12px;font-size:12px;font-family:monospace;}
@@ -394,28 +396,7 @@ function renderCSM(csm){
 function renderTable(h1,h4,d1){
   document.getElementById("signal-tbody").innerHTML=PAIRS.map(pair=>{
     const s=pair.replace("/","");
-    const h4d=h4&&h4[pair];
-    const d1d=d1&&d1[pair];
-    // Compact info row
-    const adx=h4d&&h4d.raw?h4d.raw.adx:null;
-    const adxStr=adx!==null?adx.toFixed(1):"—";
-    const adxCol=adx!==null?(adx>=25?"#3fb950":adx>=20?"#e3b341":"#f85149"):"var(--muted)";
-    const atrOk=h4d?h4d.filter_ok!==false:null;
-    const atrStr=atrOk===null?"—":atrOk?"Normal":"Contracted";
-    const atrCol=atrOk?"#3fb950":"#f85149";
-    const ext=h4d&&h4d.extended&&h4d.extended.extended;
-    const extStr=ext?"⚠️ Extended":"";
-    const reg=(_cachedData.regime&&_cachedData.regime.regime)||"";
-    const regColors={"Risk-Off":"#f85149","Risk-On":"#3fb950","Ranging":"#8b949e","Mixed":"#e3b341"};
-    const regCol=regColors[reg]||"var(--muted)";
-    const infoRow=`<tr><td colspan="4" style="padding:0 12px 7px;font-size:10px;color:var(--muted);border-bottom:1px solid #21262d;">
-      <span style="color:${adxCol}">ADX ${adxStr}</span>
-      <span style="margin:0 6px;opacity:.4">|</span>
-      <span style="color:${atrCol}">${atrStr}</span>
-      ${extStr?`<span style="margin:0 6px;opacity:.4">|</span><span style="color:#e3b341">${extStr}</span>`:""}
-      ${reg?`<span style="margin:0 6px;opacity:.4">|</span><span style="color:${regCol}">${reg}</span>`:""}
-    </td></tr>`;
-    return`<tr><td class="pair-cell">${pair.replace("/","")}</td>${tfCell(h1&&h1[pair],s+"-h1","right")}${tfCell(h4&&h4[pair],s+"-h4","center")}${tfCell(d1&&d1[pair],s+"-d1","left")}</tr>${infoRow}`;
+    return`<tr><td class="pair-cell">${pair.replace("/","")}</td>${tfCell(h1&&h1[pair],s+"-h1","right")}${tfCell(h4&&h4[pair],s+"-h4","center")}${tfCell(d1&&d1[pair],s+"-d1","left")}</tr>`;
   }).join("");
 }
 
@@ -446,30 +427,35 @@ function renderBlurbs(blurbs){
     const regColors2={"Risk-Off":"#f85149","Risk-On":"#3fb950","Ranging":"#8b949e","Mixed":"#e3b341"};
     const regCol2=regColors2[aReg]||"var(--muted)";
 
+    const infoHtml=`
+      <span>D1: <b style="color:var(--text)">${a.d1_label||"N/A"}</b></span>
+      <span style="margin:0 5px;opacity:.4">|</span>
+      <span>H4: <b style="color:var(--text)">${a.h4_label||"N/A"}</b></span>
+      <span style="margin:0 5px;opacity:.4">|</span>
+      <span>H1: <b style="color:var(--text)">${a.h1_label||"N/A"}</b></span><br>
+      <span>ADX: <b style="color:${adxCol2}">${adxStr2}</b></span>
+      <span style="margin:0 5px;opacity:.4">|</span>
+      <span>ATR: <b style="color:${atrOk==="Normal"?"#3fb950":"#f85149"}">${atrOk}</b></span>
+      ${extLabel?`<span style="margin:0 5px;opacity:.4">|</span><span style="color:#e3b341">${extLabel}</span>`:""}
+      <br><span>Regime: <b style="color:${regCol2}">${aReg}${aConf?" ("+aConf+")":""}</b></span>`;
+
     return`<div class="blurb-card">
       <div class="blurb-header">
         <span class="blurb-pair">${a.pair.replace("/","")}</span>
-        <span class="blurb-direction ${dirClass}">${dirLabel}</span>
+        <span class="blurb-direction ${dirClass}" style="cursor:pointer" onclick="toggleBlurbInfo(this)">${dirLabel}</span>
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.9;">
-        <span>D1: <b style="color:var(--text)">${a.d1_label||"N/A"}</b></span>
-        <span style="margin:0 5px;opacity:.4">|</span>
-        <span>H4: <b style="color:var(--text)">${a.h4_label||"N/A"}</b></span>
-        <span style="margin:0 5px;opacity:.4">|</span>
-        <span>H1: <b style="color:var(--text)">${a.h1_label||"N/A"}</b></span><br>
-        <span>ADX: <b style="color:${adxCol2}">${adxStr2}</b></span>
-        <span style="margin:0 5px;opacity:.4">|</span>
-        <span>ATR: <b style="color:${atrOk==="Normal"?"#3fb950":"#f85149"}">${atrOk}</b></span>
-        ${extLabel?`<span style="margin:0 5px;opacity:.4">|</span><span style="color:#e3b341">${extLabel}</span>`:""}
-        <br>
-        <span>Regime: <b style="color:${regCol2}">${aReg}${aConf?" ("+aConf+")":""}</b></span>
-      </div>
+      <div class="blurb-signal-info">${infoHtml}</div>
       <div class="blurb-text">${headline||"<em>No news context.</em>"}</div>
       <div class="blurb-time">${time}</div>
       <button class="copy-btn" id="copybtn-${i}" onclick="copyPrompt(${i})">⎘ Copy AI Prompt</button>
     </div>`;
   }).join("");
 }
+function toggleBlurbInfo(pill){
+  const info=pill.closest('.blurb-card').querySelector('.blurb-signal-info');
+  if(info) info.classList.toggle('open');
+}
+
 function copyPrompt(idx){
   const text=_prompts[idx];if(!text)return;
   navigator.clipboard.writeText(text).then(()=>{
