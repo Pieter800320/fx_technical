@@ -128,9 +128,9 @@ tr:last-child td{border-bottom:none;}
 </header>
 <div class="tabs">
   <div class="tab active"    onclick="switchTab('dashboard')">Dashboard</div>
+  <div class="tab"           onclick="switchTab('correlation')">Correlation</div>
   <div class="tab"           onclick="switchTab('brief')">Market Brief</div>
   <div class="tab"           onclick="switchTab('signals')">Signals</div>
-  <div class="tab"           onclick="switchTab('correlation')">Correlation</div>
   <div class="tab"           onclick="switchTab('journal')">Journal</div>
 </div>
 
@@ -177,10 +177,10 @@ tr:last-child td{border-bottom:none;}
 
 <!-- ═══ CORRELATION ═══ -->
 <div id="tab-correlation" class="tab-panel">
-  <p style="font-size:12px;color:var(--muted);margin-bottom:4px;line-height:1.7;">Pairwise correlation of H4 returns over the last 50 bars. Values near +1 mean the pairs move together — avoid doubling up. Values near -1 are natural hedges. Values near 0 are uncorrelated.</p>
+  <p style="font-size:12px;color:var(--muted);margin-bottom:4px;line-height:1.7;">Pairwise correlation of H4 returns over the last 50 bars. Values near +100 mean the pairs move together — pick the stronger signal and skip the duplicate. Values near -100 are natural hedges. Values near 0 are uncorrelated — both can be traded independently.</p>
   <div style="display:flex;gap:16px;margin-bottom:14px;font-size:11px;color:var(--muted);align-items:center;flex-wrap:wrap;">
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(182,35,36,.7);margin-right:4px;vertical-align:middle;"></span>High positive (&gt;0.7)</span>
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(35,90,182,.7);margin-right:4px;vertical-align:middle;"></span>High negative (&lt;-0.7)</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(182,35,36,.7);margin-right:4px;vertical-align:middle;"></span>High positive (&gt;70)</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(35,90,182,.7);margin-right:4px;vertical-align:middle;"></span>High negative (&lt;-70)</span>
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(139,148,158,.25);margin-right:4px;vertical-align:middle;"></span>Low / uncorrelated</span>
   </div>
   <div id="corr-wrap" style="overflow-x:auto;">
@@ -219,23 +219,35 @@ tr:last-child td{border-bottom:none;}
       <button class="btn btn-primary" onclick="exportJournal()">Export CSV</button>
     </div>
   </div>
-  <div class="section-title">Performance</div>
+
+  <div class="section-title">Trade Log</div>
+  <p style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6;">
+    <b style="color:var(--text)">Result buttons:</b>
+    ✅ = TP hit (Win) &nbsp;·&nbsp; ❌ = SL hit (Loss) &nbsp;·&nbsp; ⚡ = Closed early &nbsp;·&nbsp; tap again to reset to open.
+    &nbsp;<b style="color:var(--text)">✏️</b> = edit entry/SL/TP and add post-trade notes. &nbsp;<b style="color:#f85149">×</b> = delete (recoverable).
+  </p>
+  <div id="journal-table-wrap">
+    <table id="journal-table">
+      <thead><tr>
+        <th>Date</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th>
+        <th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>AI Rec</th><th>Result</th><th>Edit</th><th>Del</th>
+      </tr></thead>
+      <tbody id="journal-tbody"><tr><td colspan="15" class="loading">No trades yet.</td></tr></tbody>
+    </table>
+  </div>
+
+  <div id="trash-section" style="display:none;margin-top:16px;">
+    <div class="section-title" style="color:#f85149;">Recently Deleted <span style="font-weight:400;text-transform:none;letter-spacing:0;">(last 10)</span></div>
+    <div id="trash-list"></div>
+  </div>
+
+  <div class="section-title" style="margin-top:20px;">Performance</div>
   <div id="journal-stats">
     <div class="stat-card"><div class="stat-value" id="stat-total">—</div><div class="stat-label">Trades</div></div>
     <div class="stat-card"><div class="stat-value" id="stat-winrate">—</div><div class="stat-label">Win Rate</div></div>
     <div class="stat-card"><div class="stat-value" id="stat-avgr">—</div><div class="stat-label">Avg R</div></div>
     <div class="stat-card"><div class="stat-value" id="stat-expect">—</div><div class="stat-label">Expectancy</div></div>
     <div class="stat-card"><div class="stat-value" id="stat-open">—</div><div class="stat-label">Open</div></div>
-  </div>
-  <div class="section-title">Trade Log</div>
-  <div id="journal-table-wrap">
-    <table id="journal-table">
-      <thead><tr>
-        <th>Date</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th>
-        <th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>Edge/Flaw</th><th>Result</th><th>Edit</th>
-      </tr></thead>
-      <tbody id="journal-tbody"><tr><td colspan="14" class="loading">No trades yet.</td></tr></tbody>
-    </table>
   </div>
   <!-- Edit modal -->
   <div id="edit-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.7);z-index:2000;padding:20px;overflow-y:auto;">
@@ -271,7 +283,7 @@ function switchTab(name){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  const idx={dashboard:0,brief:1,signals:2,correlation:3,journal:4}[name]||0;
+  const idx={dashboard:0,correlation:1,brief:2,signals:3,journal:4}[name]||0;
   document.querySelectorAll('.tab')[idx].classList.add('active');
   if(name==='brief') runMarketBrief();
   if(name==='correlation') renderCorrelation(_cachedData.correlation);
@@ -581,7 +593,7 @@ function renderCorrelation(corr) {
 
   function cellColor(v) {
     if (v === null) return "rgba(139,148,158,.1)";
-    if (v === 1.0)  return "rgba(139,148,158,.15)";
+    if (v === 1.0)  return "rgba(13,17,23,.85)";
     if (v >= 0.7)   return `rgba(182,35,36,${0.2 + (v - 0.7) * 1.3})`;
     if (v >= 0.4)   return `rgba(182,35,36,${0.05 + (v - 0.4) * 0.5})`;
     if (v <= -0.7)  return `rgba(35,90,182,${0.2 + (-v - 0.7) * 1.3})`;
@@ -591,7 +603,7 @@ function renderCorrelation(corr) {
 
   function textColor(v) {
     if (v === null) return "var(--muted)";
-    if (v === 1.0)  return "var(--muted)";
+    if (v === 1.0)  return "rgba(139,148,158,.3)";
     if (Math.abs(v) >= 0.7) return "#e6edf3";
     if (Math.abs(v) >= 0.4) return "var(--text)";
     return "var(--muted)";
@@ -729,10 +741,46 @@ if(briefTA){
   briefTA.addEventListener('input',()=>localStorage.setItem('fx1212_brief_response',briefTA.value));
 }
 }
+const TRASH_KEY="forex1212_trash_v1";
+function loadTrash(){try{return JSON.parse(localStorage.getItem(TRASH_KEY)||"[]");}catch{return[];}}
+function saveTrash(t){localStorage.setItem(TRASH_KEY,JSON.stringify(t.slice(-10)));}
+
 function deleteEntry(id){
-  if(!confirm("Delete this trade?"))return;
-  saveJournalData(loadJournal().filter(e=>e.id!==id));
+  const entries=loadJournal();
+  const t=entries.find(e=>e.id===id);
+  if(!t)return;
+  const trash=loadTrash();
+  trash.push({...t,deleted_at:new Date().toLocaleString()});
+  saveTrash(trash);
+  saveJournalData(entries.filter(e=>e.id!==id));
   renderJournalTable();renderJournalStats();
+}
+
+function restoreEntry(id){
+  const trash=loadTrash();
+  const t=trash.find(e=>e.id===id);
+  if(!t)return;
+  const{deleted_at,...trade}=t;
+  const entries=loadJournal();
+  entries.push(trade);
+  saveJournalData(entries);
+  saveTrash(trash.filter(e=>e.id!==id));
+  renderJournalTable();renderJournalStats();
+}
+
+function renderTrash(){
+  const trash=loadTrash();
+  const section=document.getElementById("trash-section");
+  const list=document.getElementById("trash-list");
+  if(!section||!list)return;
+  if(!trash.length){section.style.display="none";return;}
+  section.style.display="block";
+  list.innerHTML=trash.slice().reverse().map(t=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #21262d;font-size:12px;gap:8px;">
+      <span style="color:var(--muted);font-size:11px">${t.deleted_at} — <b style="color:var(--text)">${t.pair.replace("/","")} ${t.direction}</b></span>
+      <button class="btn" style="padding:3px 10px;font-size:11px;background:rgba(35,134,54,.1);border:1px solid rgba(35,134,54,.3);color:#3fb950;border-radius:20px;white-space:nowrap" onclick="restoreEntry(${t.id})">↩ Restore</button>
+    </div>`).join("");
+}
 
 // Persist brief response
 const briefTA=document.getElementById('brief-response');
@@ -741,19 +789,18 @@ if(briefTA){
   if(saved) briefTA.value=saved;
   briefTA.addEventListener('input',()=>localStorage.setItem('fx1212_brief_response',briefTA.value));
 }
-}
 
 function renderJournalTable(){
   const entries=loadJournal().slice().reverse();
   const tbody=document.getElementById("journal-tbody");
-  if(!entries.length){tbody.innerHTML=`<tr><td colspan="14" class="loading">No trades yet.</td></tr>`;return;}
+  if(!entries.length){tbody.innerHTML=`<tr><td colspan="15" class="loading">No trades yet.</td></tr>`;return;}
   tbody.innerHTML=entries.map(t=>{
     const r=t.r_planned!==null?`<span class="${t.r_planned>=1?"r-pos":"r-neg"}">${t.r_planned}R</span>`:"—";
     const ext=t.extended?`<span style="color:#e3b341">⚠️</span>`:`<span style="color:#3fb950">✓</span>`;
     const outcomes=[
-      {o:"win",  label:"✅",cls:"outcome-win",  tip:"Win"},
-      {o:"loss", label:"❌",cls:"outcome-loss", tip:"Loss"},
-      {o:"early",label:"⚡",cls:"outcome-early",tip:"Early Close"},
+      {o:"win",  label:"✅",cls:"outcome-win",  tip:"TP hit — Win"},
+      {o:"loss", label:"❌",cls:"outcome-loss", tip:"SL hit — Loss"},
+      {o:"early",label:"⚡",cls:"outcome-early",tip:"Closed early"},
     ];
     const outcomesBtns=outcomes.map(({o,label,cls,tip})=>
       `<button class="outcome-btn ${t.outcome===o?cls:"outcome-open"}" onclick="setOutcome(${t.id},'${o}')" title="${tip}">${t.outcome===o?label:"·"}</button>`
@@ -763,12 +810,18 @@ function renderJournalTable(){
       <td><b>${t.pair.replace("/","")}</b></td>
       <td style="color:${t.direction==="BUY"?"#3fb950":"#f85149"};font-weight:600">${t.direction}</td>
       <td>${t.entry||"—"}</td><td>${t.sl||"—"}</td><td>${t.tp||"—"}</td>
-      <td>${r}</td><td>${t.d1_label}</td><td>${t.h4_label}</td>
-      <td style="font-size:10px">${t.regime}</td><td>${ext}</td>
-      <td>${outcomesBtns}</td>
-      <td><button class="btn" style="padding:3px 10px;font-size:11px;background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.3);color:#58a6ff;border-radius:20px" onclick="openEdit(${t.id})">✏️</button></td>
+      <td>${r}</td>
+      <td style="font-size:11px">${t.d1_label}</td>
+      <td style="font-size:11px">${t.h4_label}</td>
+      <td style="font-size:10px;color:var(--muted)">${t.regime}</td>
+      <td>${ext}</td>
+      <td style="font-size:11px;color:var(--muted)">${t.ai_rec||"—"}</td>
+      <td style="white-space:nowrap">${outcomesBtns}</td>
+      <td><button class="btn" style="padding:3px 8px;font-size:11px;background:rgba(56,139,253,.1);border:1px solid rgba(56,139,253,.3);color:#58a6ff;border-radius:20px" onclick="openEdit(${t.id})">✏️</button></td>
+      <td><button class="btn" style="padding:3px 8px;font-size:11px;background:rgba(182,35,36,.1);border:1px solid rgba(182,35,36,.3);color:#f85149;border-radius:20px" onclick="deleteEntry(${t.id})">×</button></td>
     </tr>`;
   }).join("");
+  renderTrash();
 }
 
 function renderJournalStats(){
