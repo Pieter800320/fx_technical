@@ -172,7 +172,7 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
     <button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button>
-    <span style="font-size:11px;color:var(--muted);">Validates with live VIX, DXY &amp; SPX in Claude.ai</span>
+
   </div>
 </div>
 
@@ -298,7 +298,7 @@ function renderRegime(r){
   const s=r.signals||{};
   const rows=[
     ["SH Divergence",s.sh_divergence],["USD Proxy",s.usd_proxy],
-    ["Risk Basket",s.risk_basket],["Gold",s.gold_direction||"—"],
+    ["Risk Basket",s.risk_basket],["Gold",s.gold_direction||" - "],
     null,
     ["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],
     ["Dispersion",s.dispersion],["Risk-Off pts",s.risk_off_votes],["Risk-On pts",s.risk_on_votes],
@@ -307,7 +307,7 @@ function renderRegime(r){
   const drop=document.getElementById("regime-drop");
   drop.innerHTML='<div class="drop-hd">Regime Signals</div>'+rows.map(r=>{
     if(!r)return'<div class="ddiv"></div>';
-    const[k,v]=r; const vStr=v!==null&&v!==undefined?v:"—";
+    const[k,v]=r; const vStr=v!==null&&v!==undefined?v:" - ";
     const n=parseFloat(vStr); const col=!isNaN(n)?n>0?"var(--buy)":n<0?"var(--sell)":"var(--muted)":"var(--muted)";
     return`<div class="dr"><span class="dn">${k}</span><span style="color:${col};font-weight:600">${vStr}</span></div>`;
   }).join("");
@@ -361,7 +361,7 @@ document.addEventListener("click",e=>{
 
 // ── TF cell ───────────────────────────────────────────────────────────────────
 function tfCell(data,uid,pos){
-  if(!data)return`<td><span class="pill pill-N">N/A</span><div class="s-num" style="color:var(--muted)">—</div></td>`;
+  if(!data)return`<td><span class="pill pill-N">N/A</span><div class="s-num" style="color:var(--muted)"> - </div></td>`;
   const num=data.score>0?"+"+data.score:String(data.score);
   const col=data.score>0?"var(--buy)":data.score<0?"var(--sell)":"var(--muted)";
   const sigs=data.signals||{},raw=data.raw||{};
@@ -385,7 +385,7 @@ function renderCSM(csm){
   const bd=csm.breakdown||{};
   el.innerHTML=Object.entries(csm.rankings).map(([ccy,val])=>{
     const pairs=(bd[ccy]||[]).map(p=>{const col=p.bull?"var(--buy)":"var(--sell)",arr=p.bull?"▲":"▼";return`<div class="dr"><span class="dn">${p.pair}</span><span style="color:${col};font-weight:600">${arr} ${p.score>0?"+":""}${p.score.toFixed(2)}</span></div>`;}).join("");
-    return`<div class="csm-row" onclick="toggleCsmDrop('${ccy}',this)"><span class="csm-lbl">${ccy}</span><div class="csm-track"><div class="csm-fill" style="width:${val}%"></div></div><span class="csm-val">${val.toFixed(1)}</span></div><div class="drop" id="cd-${ccy}"><div class="drop-hd">${ccy} — Pair Breakdown</div>${pairs||"<div style='color:var(--muted)'>No data</div>"}</div>`;
+    return`<div class="csm-row" onclick="toggleCsmDrop('${ccy}',this)"><span class="csm-lbl">${ccy}</span><div class="csm-track"><div class="csm-fill" style="width:${val}%"></div></div><span class="csm-val">${val.toFixed(1)}</span></div><div class="drop" id="cd-${ccy}"><div class="drop-hd">${ccy}  -  Pair Breakdown</div>${pairs||"<div style='color:var(--muted)'>No data</div>"}</div>`;
   }).join("");
 }
 
@@ -462,7 +462,7 @@ function buildRankedShortlist(){
     const d1d=D.d1&&D.d1[pair];
     if(!h4d||!d1d) return;
     const score=h4d.score||0;
-    if(Math.abs(score)<3) return; // neutral — skip
+    if(Math.abs(score)<3) return; // neutral  -  skip
     const dir=score>0?"bull":"bear";
     const adx=h4d.raw?h4d.raw.adx:0;
     const ext=h4d.extended&&h4d.extended.extended;
@@ -506,11 +506,11 @@ function generateBrief(){
 
   // Regime narrative
   const shDiv=parseFloat(s.sh_divergence)||0;
-  const shText=shDiv>15?"Safe-haven currencies (JPY, CHF) are outperforming — risk-off pressure present.":shDiv<-15?"Safe-haven demand is absent — risk appetite is supportive.":"Safe-haven and risk currencies are broadly balanced.";
+  const shText=shDiv>15?"Safe-haven currencies (JPY, CHF) are outperforming  -  risk-off pressure present.":shDiv<-15?"Safe-haven demand is absent  -  risk appetite is supportive.":"Safe-haven and risk currencies are broadly balanced.";
   const usdProxy=parseFloat(s.usd_proxy)||0;
   const usdText=usdProxy>0.5?"USD is broadly strong across its pairs.":usdProxy<-0.5?"USD is broadly weak across its pairs.":"USD direction is mixed.";
   const dispersion=parseFloat(s.dispersion)||0;
-  const dispText=dispersion>60?"High CSM dispersion ("+dispersion.toFixed(0)+") — clear winners and losers.":dispersion>30?"Moderate dispersion ("+dispersion.toFixed(0)+") — some directional clarity.":"Low dispersion ("+dispersion.toFixed(0)+") — market lacks clear direction.";
+  const dispText=dispersion>60?"High CSM dispersion ("+dispersion.toFixed(0)+")  -  clear winners and losers.":dispersion>30?"Moderate dispersion ("+dispersion.toFixed(0)+")  -  some directional clarity.":"Low dispersion ("+dispersion.toFixed(0)+")  -  market lacks clear direction.";
 
   // Signal narrative
   let signalText="";
@@ -523,25 +523,22 @@ function generateBrief(){
       signalText+="Strongest BUY signals: "+bullPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", score:"+x.score+", ADX:"+x.adx.toFixed(0)+")").join(", ")+".";
     }
     if(bearPairs.length){
-      if(signalText) signalText+="
-";
+      if(signalText) signalText+="\n";
       signalText+="Strongest SELL signals: "+bearPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", score:"+x.score+", ADX:"+x.adx.toFixed(0)+")").join(", ")+".";
     }
     if(dropped.length){
-      signalText+="
-
-Correlation filter removed: "+dropped.map(x=>x.pair.replace("/","")+" (correlated with "+x.droppedBy.replace("/","")+" at +"+x.corrVal+")").join(", ")+".";
+      signalText+="\n\nCorrelation filter removed: "+dropped.map(x=>x.pair.replace("/","")+" (correlated with "+x.droppedBy.replace("/","")+" at +"+x.corrVal+")").join(", ")+".";
     }
   }
 
   // Extension warnings
   const extPairs=PAIRS.filter(p=>D.h4&&D.h4[p]&&D.h4[p].extended&&D.h4[p].extended.extended);
-  const extText=extPairs.length?"⚠️  Extended: "+extPairs.map(p=>p.replace("/","")).join(", ")+" — price stretched, reduced conviction.":"All active signals are fresh — no extension warnings.";
+  const extText=extPairs.length?"⚠️  Extended: "+extPairs.map(p=>p.replace("/","")).join(", ")+" - price stretched, reduced conviction.":"All active signals are fresh  -  no extension warnings.";
 
   // Volatility / trend quality
   const adxVals=PAIRS.map(p=>D.h4&&D.h4[p]&&D.h4[p].raw?D.h4[p].raw.adx:null).filter(Boolean);
   const avgAdx=adxVals.length?adxVals.reduce((a,b)=>a+b,0)/adxVals.length:0;
-  const adxText=avgAdx>25?"Average ADX "+avgAdx.toFixed(0)+" — trending market, signals carry weight.":avgAdx>20?"Average ADX "+avgAdx.toFixed(0)+" — borderline trend, use caution.":"Average ADX "+avgAdx.toFixed(0)+" — low trend participation, signals less reliable.";
+  const adxText=avgAdx>25?"Average ADX "+avgAdx.toFixed(0)+" - trending market, signals carry weight.":avgAdx>20?"Average ADX "+avgAdx.toFixed(0)+" - borderline trend, use caution.":"Average ADX "+avgAdx.toFixed(0)+" - low trend participation, signals less reliable.";
 
   // Assemble
   const lines=[
@@ -558,11 +555,10 @@ Correlation filter removed: "+dropped.map(x=>x.pair.replace("/","")+" (correlate
     extText,
     adxText,
     "",
-    "Note: correlation based on last 50 bars — may be less reliable if regime recently changed.",
+    "Note: correlation based on last 50 bars  -  may be less reliable if regime recently changed.",
   ];
 
-  return lines.join("
-");
+  return lines.join("\n");
 }
 
 function renderBrief(){
@@ -583,7 +579,7 @@ function renderBrief(){
 function buildPrompt(){
   const{h1,h4,d1,csm,regime}=D;
   const{kept,dropped}=buildRankedShortlist();
-  let t="MARKET BRIEF — "+new Date().toLocaleString()+"\n\n";
+  let t="MARKET BRIEF - "+new Date().toLocaleString()+"\n\n";
   if(csm&&csm.rankings){
     t+="CURRENCY STRENGTH:\n";
     Object.entries(csm.rankings).forEach(([c,v])=>{t+=c+" "+v.toFixed(0)+"  ";});
@@ -607,10 +603,10 @@ function buildPrompt(){
     t+="RANKED SIGNALS (score desc, ADX tiebreaker):\n";
     kept.forEach((x,i)=>{t+=(i+1)+". "+x.pair.replace("/","")+"  score:"+x.score+"  ADX:"+x.adx.toFixed(0)+(x.ext?"  ⚠️ Extended":"")+"\n";});
     if(dropped.length){
-      dropped.forEach(x=>{t+="   "+x.pair.replace("/","")+"  score:"+x.score+" ← dropped: correlated with "+x.droppedBy.replace("/","")+" (+"+x.corrVal+")\n";});
+      dropped.forEach(x=>{t+="   "+x.pair.replace("/","")+"  score:"+x.score+" <- dropped: correlated with "+x.droppedBy.replace("/","")+" (+"+x.corrVal+")\n";});
     }
     t+="SHORTLIST: "+kept.map(x=>x.pair.replace("/","")).join(", ")+"\n\n";
-    t+="Note: correlation based on last 50 bars — may be less reliable if regime recently changed.\n\n";
+    t+="Note: correlation based on last 50 bars  -  may be less reliable if regime recently changed.\n\n";
   }
   t+="You are a macro FX strategist with web search access.\n";
   t+="Search current: VIX, DXY, SPX, WTI, Copper, BTC, US10Y.\n\n";
@@ -635,7 +631,7 @@ function copyBriefPrompt(){
 // ── Correlation ───────────────────────────────────────────────────────────────
 function renderCorr(corr){
   const wrap=document.getElementById("corr-wrap");if(!wrap)return;
-  if(!corr||!corr.pairs||!corr.matrix){wrap.innerHTML='<div class="loading">No data yet — runs after next H4 scan.</div>';return;}
+  if(!corr||!corr.pairs||!corr.matrix){wrap.innerHTML='<div class="loading">No data yet  -  runs after next H4 scan.</div>';return;}
   const{pairs,matrix}=corr,n=pairs.length;
   const cell=Math.max(32,Math.floor((Math.min(window.innerWidth-48,520)-56)/n));
   function bg(v){
@@ -670,7 +666,7 @@ function renderCorr(corr){
   matrix.forEach((row,i)=>{
     html+=`<tr><td style="padding:2px 6px 2px 0;color:var(--muted);font-weight:600;font-size:10px;text-align:right;">${pairs[i].slice(0,3)}<br>${pairs[i].slice(3)}</td>`;
     row.forEach((v,j)=>{
-      const disp=v===null?"—":v===1?"—":(v>=0?"+":"")+(v*100).toFixed(0);
+      const disp=v===null?" - ":v===1?" - ":(v>=0?"+":"")+(v*100).toFixed(0);
       html+=`<td style="width:${cell}px;height:${cell}px;background:${bg(v)};color:${fg(v)};text-align:center;vertical-align:middle;font-size:9px;font-weight:600;border:1px solid ${bdr(v)};border-radius:4px;">${disp}</td>`;
     });
     html+="</tr>";
@@ -800,21 +796,21 @@ function renderJournal(){
   if(!entries.length){tbody.innerHTML='<tr><td colspan="15" class="loading">No trades yet.</td></tr>';}
   else{
     tbody.innerHTML=entries.map(t=>{
-      const r=t.r_planned!==null?`<span class="${t.r_planned>=1?"rp":"rn"}">${t.r_planned}R</span>`:"—";
+      const r=t.r_planned!==null?`<span class="${t.r_planned>=1?"rp":"rn"}">${t.r_planned}R</span>`:" - ";
       const ext=t.extended?'<span style="color:#e3b341">⚠️</span>':'<span style="color:var(--buy)">✓</span>';
-      const obs=[{o:"win",l:"✅",c:"ow",tip:"TP hit — Win"},{o:"loss",l:"❌",c:"ol",tip:"SL hit — Loss"},{o:"early",l:"⚡",c:"oe",tip:"Closed early"}];
+      const obs=[{o:"win",l:"✅",c:"ow",tip:"TP hit  -  Win"},{o:"loss",l:"❌",c:"ol",tip:"SL hit  -  Loss"},{o:"early",l:"⚡",c:"oe",tip:"Closed early"}];
       const btns=obs.map(({o,l,c,tip})=>`<button class="ob ${t.outcome===o?c:"oo"}" onclick="setOutcome(${t.id},'${o}')" title="${tip}">${t.outcome===o?l:"·"}</button>`).join("");
       return`<tr>
         <td style="font-size:10px">${t.date}</td>
         <td><b>${t.pair.replace("/","")}</b></td>
         <td style="color:${t.direction==="BUY"?"var(--buy)":"var(--sell)"};font-weight:600">${t.direction}</td>
-        <td>${t.entry||"—"}</td><td>${t.sl||"—"}</td><td>${t.tp||"—"}</td>
+        <td>${t.entry||" - "}</td><td>${t.sl||" - "}</td><td>${t.tp||" - "}</td>
         <td>${r}</td>
         <td style="font-size:11px">${t.d1_label}</td>
         <td style="font-size:11px">${t.h4_label}</td>
         <td style="font-size:10px;color:var(--muted)">${t.regime}</td>
         <td>${ext}</td>
-        <td style="font-size:11px;color:var(--muted)">${t.ai_rec||"—"}</td>
+        <td style="font-size:11px;color:var(--muted)">${t.ai_rec||" - "}</td>
         <td style="white-space:nowrap">${btns}</td>
         <td><button class="btn" style="padding:2px 7px;font-size:11px;" onclick="openEdit(${t.id})">✏️</button></td>
         <td><button class="btn btn-red" style="padding:2px 7px;font-size:11px;" onclick="delTrade(${t.id})">×</button></td>
@@ -828,7 +824,7 @@ function renderJournal(){
   tsec.style.display=trash.length?"block":"none";
   if(tlist)tlist.innerHTML=trash.slice().reverse().map(t=>`
     <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #21262d;gap:8px;">
-      <span style="font-size:11px;color:var(--muted)">${t.deleted_at} — <b style="color:var(--text)">${t.pair.replace("/","")} ${t.direction}</b></span>
+      <span style="font-size:11px;color:var(--muted)">${t.deleted_at}  -  <b style="color:var(--text)">${t.pair.replace("/","")} ${t.direction}</b></span>
       <button class="btn btn-green" style="padding:3px 10px;font-size:11px;white-space:nowrap" onclick="restoreTrade(${t.id})">↩ Restore</button>
     </div>`).join("");
   // Stats
@@ -844,11 +840,11 @@ function renderJournal(){
   const avgL=lRs.length?lRs.reduce((a,b)=>a+b,0)/lRs.length:0;
   const wrF=(wr||0)/100;
   const exp=closed.length?((wrF*avgW-(1-wrF)*avgL).toFixed(2)):null;
-  document.getElementById("st-total").textContent=entries.length||"—";
-  const we=document.getElementById("st-wr");we.textContent=wr!==null?wr+"%":"—";we.className="sv "+(wr>=50?"sg":wr!==null?"sr":"");
-  const re=document.getElementById("st-ar");re.textContent=avgR!==null?avgR+"R":"—";re.className="sv "+(avgR>=0?"sg":avgR!==null?"sr":"");
-  const ee=document.getElementById("st-ex");ee.textContent=exp!==null?exp+"R":"—";ee.className="sv "+(exp>=0?"sg":exp!==null?"sr":"");
-  document.getElementById("st-op").textContent=open||"—";
+  document.getElementById("st-total").textContent=entries.length||" - ";
+  const we=document.getElementById("st-wr");we.textContent=wr!==null?wr+"%":" - ";we.className="sv "+(wr>=50?"sg":wr!==null?"sr":"");
+  const re=document.getElementById("st-ar");re.textContent=avgR!==null?avgR+"R":" - ";re.className="sv "+(avgR>=0?"sg":avgR!==null?"sr":"");
+  const ee=document.getElementById("st-ex");ee.textContent=exp!==null?exp+"R":" - ";ee.className="sv "+(exp>=0?"sg":exp!==null?"sr":"");
+  document.getElementById("st-op").textContent=open||" - ";
 }
 
 function exportCSV(){
