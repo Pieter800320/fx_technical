@@ -146,21 +146,22 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div class="sec">Currency Strength</div>
   <div id="csm-grid"><div class="loading">Loading...</div></div>
-  <div class="sec">Technical Scores</div>
-  <div class="tbl-wrap">
-    <table><thead><tr><th>Pair</th><th>H1</th><th>H4</th><th>D1</th></tr></thead>
-    <tbody id="sig-tbody"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody></table>
+  <div id="shortlist-wrap" style="display:none;margin:14px 0;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
+    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Shortlist</div>
+    <div id="shortlist-picks" style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px;"></div>
+    <div id="shortlist-dropped" style="font-size:11px;color:var(--muted);"></div>
+  </div>
+
+  <div style="margin:14px 0;">
+    <button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button>
   </div>
 </div>
 
 <!-- CORRELATION -->
 <div id="tab-correlation" class="tab-panel">
 
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--muted);">
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(182,35,36,.7);margin-right:4px;vertical-align:middle;"></span>High positive (&gt;+70)</span>
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(35,90,182,.7);margin-right:4px;vertical-align:middle;"></span>High negative (&lt;-70)</span>
-    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(139,148,158,.25);margin-right:4px;vertical-align:middle;"></span>Low / uncorrelated</span>
-  </div>
+
+  <div id="corr-warning" style="display:none;margin-bottom:10px;padding:8px 12px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:6px;font-size:11px;color:#f85149;"></div>
   <div id="corr-wrap"><div class="loading">Loads after next H4 scan.</div></div>
 </div>
 
@@ -178,7 +179,12 @@ tr:last-child td{border-bottom:none;}
 
 <!-- SIGNALS -->
 <div id="tab-signals" class="tab-panel">
-  <div class="sec">Latest Signals</div>
+  <div class="sec">Technical Scores</div>
+  <div class="tbl-wrap">
+    <table><thead><tr><th>Pair</th><th>H1</th><th>H4</th><th>D1</th></tr></thead>
+    <tbody id="sig-tbody"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody></table>
+  </div>
+  <div class="sec" style="margin-top:20px;">Latest Signals</div>
   <div id="blurb-grid"><div class="loading">No alerts yet.</div></div>
 </div>
 
@@ -271,20 +277,42 @@ function go(name){
   document.getElementById('tab-'+name).classList.add('active');
   const idx={dashboard:0,correlation:1,brief:2,signals:3,journal:4}[name]||0;
   document.querySelectorAll('.tab')[idx].classList.add('active');
-  if(name==='correlation') renderCorr(D.corr);
+  if(name==='correlation'){renderCorr(D.corr);renderCorrWarning();}
   if(name==='brief') renderBrief();
   if(name==='journal') updateSnap();
 }
 
 // ── Sessions ──────────────────────────────────────────────────────────────────
 function closed(){const n=new Date(),d=n.getUTCDay(),h=n.getUTCHours();return d===6||(d===0&&h<22)||(d===5&&h>=22);}
+function minsUntil(targetHour){
+  const now=new Date();
+  const cur=now.getUTCHours()*60+now.getUTCMinutes();
+  const tgt=targetHour*60;
+  const diff=tgt>cur?tgt-cur:(1440-cur+tgt);
+  if(diff<=0||diff>=1440) return null;
+  const h=Math.floor(diff/60),m=diff%60;
+  return h>0?h+"h "+(m>0?m+"m":""):m+"m";
+}
+
 function renderSessions(){
   const isClosed=closed();
   document.getElementById("mkt-closed").style.display=isClosed?"inline-block":"none";
   document.getElementById("session-row").style.opacity=isClosed?"0.4":"1";
   const h=new Date().getUTCHours();
   const act=Object.entries(SESS).filter(([,[s,e]])=>s>e?(h>=s||h<e):(h>=s&&h<e)).map(([n])=>n);
-  Object.entries(SESS_IDS).forEach(([n,id])=>document.getElementById(id).classList.toggle("on",act.includes(n)&&!isClosed));
+  Object.entries(SESS_IDS).forEach(([n,id])=>{
+    const el=document.getElementById(id);
+    const isActive=act.includes(n)&&!isClosed;
+    el.classList.toggle("on",isActive);
+    const[s,e]=SESS[n];
+    if(isActive){
+      const t=minsUntil(e);
+      el.textContent=t?n+" closes "+t:n;
+    } else {
+      const t=minsUntil(s);
+      el.textContent=t?n+" opens "+t:n;
+    }
+  });
 }
 
 // ── Regime ────────────────────────────────────────────────────────────────────
@@ -402,8 +430,17 @@ const prompts={};
 function renderSignals(blurbs){
   const el=document.getElementById("blurb-grid");
   if(!blurbs||!blurbs.alerts||!blurbs.alerts.length){el.innerHTML='<div class="loading">No alerts yet.</div>';return;}
-  const seen=new Set();
-  const latest=blurbs.alerts.slice().reverse().filter(a=>{if(seen.has(a.pair))return false;seen.add(a.pair);return true;});
+  // Show all alerts from last 24h, grouped by recency, latest first
+  const cutoff=Date.now()-24*60*60*1000;
+  const recent=blurbs.alerts.slice().reverse().filter(a=>{
+    if(!a.timestamp) return true;
+    return new Date(a.timestamp).getTime()>cutoff;
+  });
+  // If nothing in last 24h, fall back to latest per pair
+  const latest=recent.length>0?recent:(()=>{
+    const seen=new Set();
+    return blurbs.alerts.slice().reverse().filter(a=>{if(seen.has(a.pair))return false;seen.add(a.pair);return true;});
+  })();
   const reg=(D.regime&&D.regime.regime)||"Unknown";
   const regConf=(D.regime&&D.regime.confidence)||"";
   el.innerHTML=latest.map((a,i)=>{
@@ -561,6 +598,37 @@ function generateBrief(){
   return lines.join("\n");
 }
 
+function renderShortlist(){
+  const wrap=document.getElementById("shortlist-wrap");
+  const picks=document.getElementById("shortlist-picks");
+  const dropped=document.getElementById("shortlist-dropped");
+  if(!wrap||!picks||!dropped) return;
+  const{kept,dropped:dr}=buildRankedShortlist();
+  if(!kept.length&&!dr.length){wrap.style.display="none";return;}
+  wrap.style.display="block";
+  const RC2={"bull":"var(--buy)","bear":"var(--sell)"};
+  picks.innerHTML=kept.map(x=>{
+    const col=RC2[x.dir]||"var(--text)";
+    const lbl=x.dir==="bull"?"BUY":"SELL";
+    return`<span style="color:${col};margin-right:16px;">${x.pair.replace("/","")} <b>${lbl}</b></span>`;
+  }).join("");
+  if(dr.length){
+    dropped.textContent="Dropped: "+dr.map(x=>x.pair.replace("/","")+" (+"+x.corrVal+" "+x.droppedBy.replace("/","")+ ")").join(" / ");
+  } else {
+    dropped.textContent="";
+  }
+}
+
+function renderCorrWarning(){
+  const el=document.getElementById("corr-warning");
+  if(!el) return;
+  const{kept,dropped:dr}=buildRankedShortlist();
+  const high=dr.filter(x=>x.corrVal>=70);
+  if(!high.length){el.style.display="none";return;}
+  el.style.display="block";
+  el.textContent="Active correlation alert: "+high.map(x=>x.pair.replace("/","")+" + "+x.droppedBy.replace("/","")+" (+"+x.corrVal+")").join(", ");
+}
+
 function renderBrief(){
   const text=generateBrief();
   const loading=document.getElementById("brief-loading");
@@ -693,7 +761,9 @@ async function init(){
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+new Date(ts[ts.length-1]).toLocaleString();
   D={h1,h4,d1,csm,alerts,regime,corr};
   renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);
+  renderShortlist();
   renderBrief();
+  if(document.getElementById('tab-correlation').classList.contains('active')) renderCorrWarning();
   if(document.getElementById("tab-correlation").classList.contains("active"))renderCorr(corr);
 }
 init();setInterval(init,5*60*1000);
