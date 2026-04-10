@@ -185,7 +185,7 @@ tr:last-child td{border-bottom:none;}
         </select></div>
       <div class="form-group"><label>Direction</label>
         <select id="j-dir"><option value="BUY">BUY</option><option value="SELL">SELL</option></select></div>
-      <div class="form-group"><label>AI Rec.</label>
+      <div class="form-group"><label>Edge / Flaw</label>
         <select id="j-ai-rec">
           <option>Strong Buy</option><option>Buy</option><option>Neutral</option>
           <option>Sell</option><option>Strong Sell</option>
@@ -217,9 +217,9 @@ tr:last-child td{border-bottom:none;}
     <table id="journal-table">
       <thead><tr>
         <th>Date</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th>
-        <th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>Result</th><th>Edit</th>
+        <th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>Edge/Flaw</th><th>Result</th><th>Edit</th>
       </tr></thead>
-      <tbody id="journal-tbody"><tr><td colspan="13" class="loading">No trades yet.</td></tr></tbody>
+      <tbody id="journal-tbody"><tr><td colspan="14" class="loading">No trades yet.</td></tr></tbody>
     </table>
   </div>
   <!-- Edit modal -->
@@ -395,7 +395,28 @@ function renderCSM(csm){
 function renderTable(h1,h4,d1){
   document.getElementById("signal-tbody").innerHTML=PAIRS.map(pair=>{
     const s=pair.replace("/","");
-    return`<tr><td class="pair-cell">${pair.replace("/","")}</td>${tfCell(h1&&h1[pair],s+"-h1","right")}${tfCell(h4&&h4[pair],s+"-h4","center")}${tfCell(d1&&d1[pair],s+"-d1","left")}</tr>`;
+    const h4d=h4&&h4[pair];
+    const d1d=d1&&d1[pair];
+    // Compact info row
+    const adx=h4d&&h4d.raw?h4d.raw.adx:null;
+    const adxStr=adx!==null?adx.toFixed(1):"—";
+    const adxCol=adx!==null?(adx>=25?"#3fb950":adx>=20?"#e3b341":"#f85149"):"var(--muted)";
+    const atrOk=h4d?h4d.filter_ok!==false:null;
+    const atrStr=atrOk===null?"—":atrOk?"Normal":"Contracted";
+    const atrCol=atrOk?"#3fb950":"#f85149";
+    const ext=h4d&&h4d.extended&&h4d.extended.extended;
+    const extStr=ext?"⚠️ Extended":"";
+    const reg=(_cachedData.regime&&_cachedData.regime.regime)||"";
+    const regColors={"Risk-Off":"#f85149","Risk-On":"#3fb950","Ranging":"#8b949e","Mixed":"#e3b341"};
+    const regCol=regColors[reg]||"var(--muted)";
+    const infoRow=`<tr><td colspan="4" style="padding:0 12px 7px;font-size:10px;color:var(--muted);border-bottom:1px solid #21262d;">
+      <span style="color:${adxCol}">ADX ${adxStr}</span>
+      <span style="margin:0 6px;opacity:.4">|</span>
+      <span style="color:${atrCol}">${atrStr}</span>
+      ${extStr?`<span style="margin:0 6px;opacity:.4">|</span><span style="color:#e3b341">${extStr}</span>`:""}
+      ${reg?`<span style="margin:0 6px;opacity:.4">|</span><span style="color:${regCol}">${reg}</span>`:""}
+    </td></tr>`;
+    return`<tr><td class="pair-cell">${pair.replace("/","")}</td>${tfCell(h1&&h1[pair],s+"-h1","right")}${tfCell(h4&&h4[pair],s+"-h4","center")}${tfCell(d1&&d1[pair],s+"-d1","left")}</tr>${infoRow}`;
   }).join("");
 }
 
@@ -628,7 +649,7 @@ if(briefTA){
 function renderJournalTable(){
   const entries=loadJournal().slice().reverse();
   const tbody=document.getElementById("journal-tbody");
-  if(!entries.length){tbody.innerHTML=`<tr><td colspan="13" class="loading">No trades yet.</td></tr>`;return;}
+  if(!entries.length){tbody.innerHTML=`<tr><td colspan="14" class="loading">No trades yet.</td></tr>`;return;}
   tbody.innerHTML=entries.map(t=>{
     const r=t.r_planned!==null?`<span class="${t.r_planned>=1?"r-pos":"r-neg"}">${t.r_planned}R</span>`:"—";
     const ext=t.extended?`<span style="color:#e3b341">⚠️</span>`:`<span style="color:#3fb950">✓</span>`;
