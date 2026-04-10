@@ -20,7 +20,10 @@ header h1{font-size:18px;font-weight:600;}
 .session-chip{font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid var(--border);color:var(--muted);}
 .session-chip.active{border-color:#388bfd;color:#58a6ff;background:rgba(56,139,253,.1);}
 #market-closed{display:none;font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #b62324;color:#f85149;background:rgba(182,35,36,.1);font-weight:600;}
-#regime-badge{margin-bottom:12px;display:none;}
+#regime-badge{margin-bottom:12px;display:none;position:relative;}
+#regime-chip{cursor:pointer;}
+#regime-drop{display:none;position:fixed;z-index:1000;background:#1c2128;border:1px solid var(--border);border-radius:8px;padding:10px 14px;min-width:200px;font-size:11px;box-shadow:0 4px 16px rgba(0,0,0,.5);}
+#regime-drop.open{display:block;}
 #regime-chip{font-size:11px;padding:3px 14px;border-radius:12px;border:1px solid var(--border);color:var(--muted);font-weight:600;letter-spacing:.04em;}
 #csm-grid{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;position:relative;overflow:visible;}
 .csm-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:4px;padding:2px 4px;margin:0 -4px;}
@@ -137,7 +140,10 @@ tr:last-child td{border-bottom:none;}
     <span class="session-chip" id="sess-newyork">New York</span>
     <span id="market-closed">Market Closed</span>
   </div>
-  <div id="regime-badge"><span id="regime-chip">Regime: —</span></div>
+  <div id="regime-badge">
+  <span id="regime-chip" onclick="toggleRegimeDrop()">Regime: —</span>
+  <div id="regime-drop"></div>
+</div>
   <div class="section-title">Currency Strength</div>
   <div id="csm-grid"><div class="loading">Loading...</div></div>
   <div class="section-title">Technical Scores</div>
@@ -151,15 +157,13 @@ tr:last-child td{border-bottom:none;}
 
 <!-- ═══ MARKET BRIEF ═══ -->
 <div id="tab-brief" class="tab-panel">
-  <p style="font-size:12px;color:var(--muted);margin-bottom:14px;line-height:1.7;">Your current market data is compiled below into a ready-to-paste AI prompt. Paste it into <a href="https://claude.ai" style="color:#58a6ff;" target="_blank">Claude.ai</a> or Perplexity for a live analysis with web search — including real-time VIX, DXY, SPX and more.</p>
-  <div class="section-title">Market Brief Prompt <span id="brief-age" style="font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);"></span></div>
-  <div id="brief-output" class="brief-output loading">Loading data...</div>
-  <div class="brief-actions" style="margin-top:12px;display:flex;gap:8px;">
-    <button class="btn-secondary" id="brief-copy-btn" onclick="copyBriefText()">
-      <span class="brief-title">Copy Prompt</span>
-      <span class="brief-sub">Paste into Claude.ai</span>
-    </button>
+  <div style="display:flex;gap:8px;margin-bottom:14px;">
+    <button class="btn btn-primary" id="brief-copy-btn" onclick="copyBriefText()">Copy Prompt</button>
+    <button class="btn btn-primary" onclick="clearBriefResponse()">Clear</button>
   </div>
+  <div class="section-title">AI Response</div>
+  <textarea id="brief-response" placeholder="Paste AI response here..." style="width:100%;min-height:220px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:14px;font-size:13px;line-height:1.8;resize:vertical;font-family:inherit;"></textarea>
+  <div id="brief-output" style="display:none;"></div>
 </div>
 
 <!-- ═══ SIGNALS & HEADLINES ═══ -->
@@ -278,6 +282,49 @@ function renderRegime(r){
   chip.style.background=c.bg;chip.style.borderColor=c.border;chip.style.color=c.color;
   chip.textContent=`Regime: ${r.regime}  ${r.confidence||""}`;
   badge.style.display="block";
+  // Build dropdown
+  const s=r.signals||{};
+  const src=r.data_source||"D1";
+  const rows=[
+    ["SH Divergence", s.sh_divergence!==undefined?s.sh_divergence:"—"],
+    ["USD Proxy",     s.usd_proxy!==undefined?s.usd_proxy:"—"],
+    ["Risk Basket",   s.risk_basket!==undefined?s.risk_basket:"—"],
+    ["Gold",          s.gold_direction||"—"],
+    ["divider"],
+    ["Trend ratio",   s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":"—"],
+    ["Dispersion",    s.dispersion!==undefined?s.dispersion:"—"],
+    ["Risk-Off pts",  s.risk_off_votes!==undefined?s.risk_off_votes:"—"],
+    ["Risk-On pts",   s.risk_on_votes!==undefined?s.risk_on_votes:"—"],
+    ["divider"],
+    ["Data source",   src],
+    ["Vol ratio",     r.vol_ratio!==undefined?r.vol_ratio:"—"],
+  ];
+  const drop=document.getElementById("regime-drop");
+  drop.innerHTML='<div class="drop-heading">Regime Signals</div>'+rows.map(([k,v])=>{
+    if(k==="divider") return'<div class="sig-divider"></div>';
+    const numV=parseFloat(v);
+    let col="var(--muted)";
+    if(!isNaN(numV)) col=numV>0?"#3fb950":numV<0?"#f85149":"var(--muted)";
+    if(v==="Bull"||v==="bull") col="#3fb950";
+    if(v==="Bear"||v==="bear") col="#f85149";
+    return`<div class="sig-row"><span class="sig-name">${k}</span><span style="color:${col};font-weight:600">${v}</span></div>`;
+  }).join("");
+}
+
+let _regimeDropOpen=false;
+function toggleRegimeDrop(){
+  const drop=document.getElementById("regime-drop");
+  const chip=document.getElementById("regime-chip");
+  if(!drop.innerHTML||drop.innerHTML==="") return;
+  _regimeDropOpen=!_regimeDropOpen;
+  if(_regimeDropOpen){
+    // Close other dropdowns
+    if(_openDrop){_openDrop.classList.remove("open");_openDrop=null;}
+    if(_openCsmDrop){_openCsmDrop.classList.remove("open");_openCsmDrop=null;}
+    openDrop(drop,chip,"left");
+  } else {
+    drop.classList.remove("open");
+  }
 }
 
 // ── Dropdowns ─────────────────────────────────────────────────────────────────
@@ -326,6 +373,10 @@ document.addEventListener("click",e=>{
   if(!e.target.classList.contains("score-pill")&&!e.target.closest(".csm-row")){
     if(_openDrop){_openDrop.classList.remove("open");_openDrop=null;}
     if(_openCsmDrop){_openCsmDrop.classList.remove("open");_openCsmDrop=null;}
+  }
+  if(!e.target.closest("#regime-badge")&&_regimeDropOpen){
+    document.getElementById("regime-drop").classList.remove("open");
+    _regimeDropOpen=false;
   }
 });
 
@@ -416,14 +467,18 @@ function runMarketBrief(){
   if(ageEl) ageEl.textContent="";
 }
 
+function clearBriefResponse(){
+  document.getElementById('brief-response').value='';
+  localStorage.removeItem('fx1212_brief_response');
+}
+
 function copyBriefText(){
   const text=document.getElementById("brief-output").textContent||buildBriefPrompt();
   navigator.clipboard.writeText(text).then(()=>{
     const btn=document.getElementById("brief-copy-btn");
-    btn.querySelector(".brief-title").textContent="✓ Copied!";
-    btn.querySelector(".brief-sub").textContent="";
-    btn.classList.add("copied");
-    setTimeout(()=>{btn.querySelector(".brief-title").textContent="Copy Prompt";btn.querySelector(".brief-sub").textContent="Paste into any AI";btn.classList.remove("copied");},2000);
+    const orig=btn.textContent;
+    btn.textContent="✓ Copied!";
+    setTimeout(()=>{btn.textContent=orig;},2000);
   });
 }
 
@@ -453,6 +508,9 @@ async function init(){
   renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderBlurbs(blurbs);
   // Refresh brief if on that tab
   if(document.getElementById('tab-brief').classList.contains('active')) runMarketBrief();
+  // Restore saved AI response
+  const savedResp=localStorage.getItem('fx1212_brief_response');
+  if(savedResp) document.getElementById('brief-response').value=savedResp;
 }
 init();
 setInterval(init,5*60*1000);
@@ -500,6 +558,14 @@ function saveJournalEntry(){
   };
   const entries=loadJournal();entries.push(trade);saveJournalData(entries);
   renderJournalTable();renderJournalStats();
+
+// Persist brief response
+const briefTA=document.getElementById('brief-response');
+if(briefTA){
+  const saved=localStorage.getItem('fx1212_brief_response');
+  if(saved) briefTA.value=saved;
+  briefTA.addEventListener('input',()=>localStorage.setItem('fx1212_brief_response',briefTA.value));
+}
   ["j-entry","j-sl","j-tp","j-notes"].forEach(id=>document.getElementById(id).value="");
 }
 
@@ -507,6 +573,14 @@ function setOutcome(id,outcome){
   const entries=loadJournal();const t=entries.find(e=>e.id===id);if(!t)return;
   t.outcome=t.outcome===outcome?"open":outcome;
   saveJournalData(entries);renderJournalTable();renderJournalStats();
+
+// Persist brief response
+const briefTA=document.getElementById('brief-response');
+if(briefTA){
+  const saved=localStorage.getItem('fx1212_brief_response');
+  if(saved) briefTA.value=saved;
+  briefTA.addEventListener('input',()=>localStorage.setItem('fx1212_brief_response',briefTA.value));
+}
 }
 
 function openEdit(id){
@@ -528,11 +602,27 @@ function saveEdit(){
   t.post_notes=document.getElementById("edit-notes").value;
   t.r_planned=calcR(t.entry,t.sl,t.tp,t.direction);
   saveJournalData(entries);closeEdit();renderJournalTable();renderJournalStats();
+
+// Persist brief response
+const briefTA=document.getElementById('brief-response');
+if(briefTA){
+  const saved=localStorage.getItem('fx1212_brief_response');
+  if(saved) briefTA.value=saved;
+  briefTA.addEventListener('input',()=>localStorage.setItem('fx1212_brief_response',briefTA.value));
+}
 }
 function deleteEntry(id){
   if(!confirm("Delete this trade?"))return;
   saveJournalData(loadJournal().filter(e=>e.id!==id));
   renderJournalTable();renderJournalStats();
+
+// Persist brief response
+const briefTA=document.getElementById('brief-response');
+if(briefTA){
+  const saved=localStorage.getItem('fx1212_brief_response');
+  if(saved) briefTA.value=saved;
+  briefTA.addEventListener('input',()=>localStorage.setItem('fx1212_brief_response',briefTA.value));
+}
 }
 
 function renderJournalTable(){
@@ -593,6 +683,14 @@ function exportJournal(){
 }
 
 renderJournalTable();renderJournalStats();
+
+// Persist brief response
+const briefTA=document.getElementById('brief-response');
+if(briefTA){
+  const saved=localStorage.getItem('fx1212_brief_response');
+  if(saved) briefTA.value=saved;
+  briefTA.addEventListener('input',()=>localStorage.setItem('fx1212_brief_response',briefTA.value));
+}
 </script>
 </body>
 </html>
