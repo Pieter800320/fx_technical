@@ -430,14 +430,14 @@ function renderSignals(blurbs){
       </div>
       <div class="btext">${headline||"<em>No news.</em>"}</div>
       <div class="btime">${time}</div>
-      <button class="cpbtn" id="cp-${i}" onclick="copyPrompt(${i})">⎘ Copy AI Prompt</button>
+      <button class="cpbtn" id="cp-${i}" onclick="copyPrompt(${i})">Copy Prompt</button>
     </div>`;
   }).join("");
 }
 function copyPrompt(i){
   navigator.clipboard.writeText(prompts[i]||"").then(()=>{
     const b=document.getElementById("cp-"+i);b.textContent="✓ Copied!";b.classList.add("ok");
-    setTimeout(()=>{b.textContent="⎘ Copy AI Prompt";b.classList.remove("ok");},2000);
+    setTimeout(()=>{b.textContent="Copy Prompt";b.classList.remove("ok");},2000);
   });
 }
 
