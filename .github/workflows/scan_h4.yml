@@ -32,10 +32,11 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          cp data/h4_scores.json dashboard/
-          cp data/alerts.json    dashboard/ || true
-          cp data/regime.json    dashboard/ || true
-          git add data/h4_scores.json state/cooldown.json data/alerts.json data/regime.json dashboard/ || true
+          cp data/h4_scores.json  dashboard/
+          cp data/alerts.json     dashboard/ || true
+          cp data/regime.json     dashboard/ || true
+          cp data/correlation.json dashboard/ || true
+          git add data/h4_scores.json state/cooldown.json data/alerts.json data/regime.json data/correlation.json dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: H4 scan $(date -u +%Y-%m-%dT%H:%M)"
           git pull --rebase origin main
           git push
@@ -58,6 +59,7 @@ jobs:
           cp data/csm.json        dashboard/
           cp data/alerts.json     dashboard/
           cp data/regime.json     dashboard/ || true
+          cp data/correlation.json dashboard/ || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
