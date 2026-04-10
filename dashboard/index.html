@@ -166,12 +166,14 @@ tr:last-child td{border-bottom:none;}
 
 <!-- MARKET BRIEF -->
 <div id="tab-brief" class="tab-panel">
-  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-    <button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button>
-    <button class="btn btn-red" onclick="clearBrief()">Clear</button>
+  <div id="brief-card" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:14px;min-height:160px;">
+    <div class="loading" id="brief-loading">Loading data...</div>
+    <div id="brief-text" style="display:none;font-size:13px;line-height:1.9;color:var(--text);white-space:pre-wrap;"></div>
   </div>
-  <div class="sec">AI Response</div>
-  <textarea id="brief-response" placeholder="Paste AI response here..."></textarea>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+    <button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button>
+    <span style="font-size:11px;color:var(--muted);">Validates with live VIX, DXY &amp; SPX in Claude.ai</span>
+  </div>
 </div>
 
 <!-- SIGNALS -->
@@ -270,6 +272,7 @@ function go(name){
   const idx={dashboard:0,correlation:1,brief:2,signals:3,journal:4}[name]||0;
   document.querySelectorAll('.tab')[idx].classList.add('active');
   if(name==='correlation') renderCorr(D.corr);
+  if(name==='brief') renderBrief();
   if(name==='journal') updateSnap();
 }
 
@@ -442,20 +445,183 @@ function copyPrompt(i){
 }
 
 // ── Market Brief ──────────────────────────────────────────────────────────────
+// ── Correlation helpers ──────────────────────────────────────────────────────
+function getCorrVal(pair1, pair2){
+  if(!D.corr||!D.corr.pairs||!D.corr.matrix) return null;
+  const i=D.corr.pairs.indexOf(pair1.replace("/",""));
+  const j=D.corr.pairs.indexOf(pair2.replace("/",""));
+  if(i<0||j<0) return null;
+  return D.corr.matrix[i][j];
+}
+
+function buildRankedShortlist(){
+  // Get all directional signals
+  const signals=[];
+  PAIRS.forEach(pair=>{
+    const h4d=D.h4&&D.h4[pair];
+    const d1d=D.d1&&D.d1[pair];
+    if(!h4d||!d1d) return;
+    const score=h4d.score||0;
+    if(Math.abs(score)<3) return; // neutral — skip
+    const dir=score>0?"bull":"bear";
+    const adx=h4d.raw?h4d.raw.adx:0;
+    const ext=h4d.extended&&h4d.extended.extended;
+    signals.push({pair,score,dir,label:h4d.label,d1:d1d.label,h4:h4d.label,h1:(D.h1&&D.h1[pair])?D.h1[pair].label:"N/A",adx:adx||0,ext});
+  });
+  // Sort by absolute score desc, then ADX as tiebreaker
+  signals.sort((a,b)=>Math.abs(b.score)-Math.abs(a.score)||b.adx-a.adx);
+
+  // Correlation filter — walk list, keep if not correlated >0.7 with already-kept pair
+  const kept=[], dropped=[];
+  signals.forEach(s=>{
+    let correlated=false;
+    for(const k of kept){
+      if(k.dir!==s.dir) continue; // only flag same-direction correlations
+      const cv=getCorrVal(k.pair,s.pair);
+      if(cv!==null&&Math.abs(cv)>=0.7){
+        dropped.push({...s, droppedBy:k.pair, corrVal:Math.round(cv*100)});
+        correlated=true; break;
+      }
+    }
+    if(!correlated) kept.push(s);
+  });
+  return{kept,dropped,all:signals};
+}
+
+// ── Auto-generated Market Brief ───────────────────────────────────────────────
+function generateBrief(){
+  const{h1,h4,d1,csm,regime,corr}=D;
+  if(!regime||!csm||!csm.rankings) return null;
+
+  const r=regime.regime||"Unknown";
+  const conf=regime.confidence||"";
+  const s=regime.signals||{};
+  const rankings=csm.rankings||{};
+  const{kept,dropped,all}=buildRankedShortlist();
+
+  // CSM narrative
+  const sorted=Object.entries(rankings).sort((a,b)=>b[1]-a[1]);
+  const strongest=sorted.slice(0,2).map(([c,v])=>`${c} (${v.toFixed(0)})`).join(" and ");
+  const weakest=sorted.slice(-2).map(([c,v])=>`${c} (${v.toFixed(0)})`).join(" and ");
+
+  // Regime narrative
+  const shDiv=parseFloat(s.sh_divergence)||0;
+  const shText=shDiv>15?"Safe-haven currencies (JPY, CHF) are outperforming — risk-off pressure present.":shDiv<-15?"Safe-haven demand is absent — risk appetite is supportive.":"Safe-haven and risk currencies are broadly balanced.";
+  const usdProxy=parseFloat(s.usd_proxy)||0;
+  const usdText=usdProxy>0.5?"USD is broadly strong across its pairs.":usdProxy<-0.5?"USD is broadly weak across its pairs.":"USD direction is mixed.";
+  const dispersion=parseFloat(s.dispersion)||0;
+  const dispText=dispersion>60?"High CSM dispersion ("+dispersion.toFixed(0)+") — clear winners and losers.":dispersion>30?"Moderate dispersion ("+dispersion.toFixed(0)+") — some directional clarity.":"Low dispersion ("+dispersion.toFixed(0)+") — market lacks clear direction.";
+
+  // Signal narrative
+  let signalText="";
+  if(all.length===0){
+    signalText="No pairs currently meet the signal threshold.";
+  } else {
+    const bullPairs=kept.filter(x=>x.dir==="bull");
+    const bearPairs=kept.filter(x=>x.dir==="bear");
+    if(bullPairs.length){
+      signalText+="Strongest BUY signals: "+bullPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", score:"+x.score+", ADX:"+x.adx.toFixed(0)+")").join(", ")+".";
+    }
+    if(bearPairs.length){
+      if(signalText) signalText+="
+";
+      signalText+="Strongest SELL signals: "+bearPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", score:"+x.score+", ADX:"+x.adx.toFixed(0)+")").join(", ")+".";
+    }
+    if(dropped.length){
+      signalText+="
+
+Correlation filter removed: "+dropped.map(x=>x.pair.replace("/","")+" (correlated with "+x.droppedBy.replace("/","")+" at +"+x.corrVal+")").join(", ")+".";
+    }
+  }
+
+  // Extension warnings
+  const extPairs=PAIRS.filter(p=>D.h4&&D.h4[p]&&D.h4[p].extended&&D.h4[p].extended.extended);
+  const extText=extPairs.length?"⚠️  Extended: "+extPairs.map(p=>p.replace("/","")).join(", ")+" — price stretched, reduced conviction.":"All active signals are fresh — no extension warnings.";
+
+  // Volatility / trend quality
+  const adxVals=PAIRS.map(p=>D.h4&&D.h4[p]&&D.h4[p].raw?D.h4[p].raw.adx:null).filter(Boolean);
+  const avgAdx=adxVals.length?adxVals.reduce((a,b)=>a+b,0)/adxVals.length:0;
+  const adxText=avgAdx>25?"Average ADX "+avgAdx.toFixed(0)+" — trending market, signals carry weight.":avgAdx>20?"Average ADX "+avgAdx.toFixed(0)+" — borderline trend, use caution.":"Average ADX "+avgAdx.toFixed(0)+" — low trend participation, signals less reliable.";
+
+  // Assemble
+  const lines=[
+    "Regime: "+r+"  "+conf+(regime.data_source?" ["+regime.data_source+"]":""),
+    "",
+    usdText+" "+shText,
+    dispText,
+    "",
+    "Strongest currencies: "+strongest+".",
+    "Weakest currencies:   "+weakest+".",
+    "",
+    signalText,
+    "",
+    extText,
+    adxText,
+    "",
+    "Note: correlation based on last 50 bars — may be less reliable if regime recently changed.",
+  ];
+
+  return lines.join("
+");
+}
+
+function renderBrief(){
+  const text=generateBrief();
+  const loading=document.getElementById("brief-loading");
+  const el=document.getElementById("brief-text");
+  if(!el) return;
+  if(!text){
+    if(loading) loading.style.display="block";
+    el.style.display="none";
+    return;
+  }
+  if(loading) loading.style.display="none";
+  el.style.display="block";
+  el.textContent=text;
+}
+
 function buildPrompt(){
   const{h1,h4,d1,csm,regime}=D;
+  const{kept,dropped}=buildRankedShortlist();
   let t="MARKET BRIEF — "+new Date().toLocaleString()+"\n\n";
-  if(csm&&csm.rankings){t+="CURRENCY STRENGTH:\n";Object.entries(csm.rankings).forEach(([c,v])=>{t+=c+" "+v.toFixed(0)+"  ";});t+="\n\n";}
+  if(csm&&csm.rankings){
+    t+="CURRENCY STRENGTH:\n";
+    Object.entries(csm.rankings).forEach(([c,v])=>{t+=c+" "+v.toFixed(0)+"  ";});
+    t+="\n\n";
+  }
   t+="TECHNICAL SCORES:\n";
   PAIRS.forEach(p=>{
     const h1d=h1&&h1[p],h4d=h4&&h4[p],d1d=d1&&d1[p];
     const h1l=h1d?h1d.label:"N/A",h4l=h4d?h4d.label:"N/A",d1l=d1d?d1d.label:"N/A";
-    if(h1l==="Neutral"&&h4l==="Neutral"&&d1l==="Neutral")return;
-    t+=p.replace("/","")+" D1:"+d1l+" H4:"+h4l+" H1:"+h1l+"\n";
+    const sc=h4d?h4d.score:0;
+    if(h1l==="Neutral"&&h4l==="Neutral"&&d1l==="Neutral") return;
+    t+=p.replace("/","")+" D1:"+d1l+" H4:"+h4l+" H1:"+h1l+"  [score:"+sc+"]\n";
   });
   t+="\n";
-  if(regime&&regime.regime){const s=regime.signals||{};t+="REGIME: "+regime.regime+" ("+regime.confidence+") ["+regime.data_source+"]\nSH-div:"+s.sh_divergence+"  USD-proxy:"+s.usd_proxy+"  Risk-basket:"+s.risk_basket+"  Dispersion:"+s.dispersion+"\n\n";}
-  t+="You are a macro FX strategist with web search access.\nSearch current: VIX, DXY, SPX, WTI, Copper, BTC, US10Y.\n\nOutput strictly:\n1. Regime (3 words)\n2. Key driver (1 sentence)\n3. Pair bias: EURUSD/GBPUSD/USDJPY/USDCHF/AUDUSD/USDCAD/NZDUSD/EURJPY/GBPJPY → Strong Sell|Sell|Neutral|Buy|Strong Buy\n4. One caution\nMax 80 words.";
+  if(regime&&regime.regime){
+    const s=regime.signals||{};
+    t+="REGIME: "+regime.regime+" ("+regime.confidence+") ["+regime.data_source+"]\n";
+    t+="SH-div:"+s.sh_divergence+"  USD-proxy:"+s.usd_proxy+"  Risk-basket:"+s.risk_basket+"  Dispersion:"+s.dispersion+"\n\n";
+  }
+  if(kept.length||dropped.length){
+    t+="RANKED SIGNALS (score desc, ADX tiebreaker):\n";
+    kept.forEach((x,i)=>{t+=(i+1)+". "+x.pair.replace("/","")+"  score:"+x.score+"  ADX:"+x.adx.toFixed(0)+(x.ext?"  ⚠️ Extended":"")+"\n";});
+    if(dropped.length){
+      dropped.forEach(x=>{t+="   "+x.pair.replace("/","")+"  score:"+x.score+" ← dropped: correlated with "+x.droppedBy.replace("/","")+" (+"+x.corrVal+")\n";});
+    }
+    t+="SHORTLIST: "+kept.map(x=>x.pair.replace("/","")).join(", ")+"\n\n";
+    t+="Note: correlation based on last 50 bars — may be less reliable if regime recently changed.\n\n";
+  }
+  t+="You are a macro FX strategist with web search access.\n";
+  t+="Search current: VIX, DXY, SPX, WTI, Copper, BTC, US10Y.\n\n";
+  t+="Output strictly:\n";
+  t+="1. Regime (3 words)\n";
+  t+="2. Key driver (1 sentence)\n";
+  t+="3. Pair bias: EURUSD/GBPUSD/USDJPY/USDCHF/AUDUSD/USDCAD/NZDUSD/EURJPY/GBPJPY\n";
+  t+="   → Strong Sell|Sell|Neutral|Buy|Strong Buy\n";
+  t+="4. One caution\n";
+  t+="5. Confirm or adjust the shortlist. If you adjust, state why.\n";
+  t+="Max 100 words. No fluff.";
   return t;
 }
 function copyBriefPrompt(){
@@ -464,10 +630,7 @@ function copyBriefPrompt(){
     setTimeout(()=>{b.textContent=orig;},2000);
   });
 }
-function clearBrief(){
-  document.getElementById("brief-response").value="";
-  localStorage.removeItem("fx1212_brief");
-}
+
 
 // ── Correlation ───────────────────────────────────────────────────────────────
 function renderCorr(corr){
@@ -534,6 +697,7 @@ async function init(){
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+new Date(ts[ts.length-1]).toLocaleString();
   D={h1,h4,d1,csm,alerts,regime,corr};
   renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);
+  renderBrief();
   if(document.getElementById("tab-correlation").classList.contains("active"))renderCorr(corr);
 }
 init();setInterval(init,5*60*1000);
@@ -697,12 +861,7 @@ function exportCSV(){
 
 // ── Init journal & brief persist ──────────────────────────────────────────────
 renderJournal();
-const bta=document.getElementById("brief-response");
-if(bta){
-  const sv=localStorage.getItem("fx1212_brief");
-  if(sv)bta.value=sv;
-  bta.addEventListener("input",()=>localStorage.setItem("fx1212_brief",bta.value));
-}
+
 </script>
 </body>
 </html>
