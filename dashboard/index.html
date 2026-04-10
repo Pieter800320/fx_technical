@@ -156,8 +156,8 @@ tr:last-child td{border-bottom:none;}
   <!-- Market Brief -->
   <div class="module">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <button class="btn" onclick="toggleBrief()">Market Brief</button>
-      <button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button>
+      <button class="btn" style="font-size:11px;padding:3px 12px;" onclick="toggleBrief()">Market Brief</button>
+      <button class="btn" id="dash-copy-btn" style="font-size:11px;padding:3px 12px;" onclick="copyBriefPrompt()">Copy Prompt</button>
     </div>
     <div id="brief-text" style="display:none;margin-top:12px;font-size:12px;line-height:1.9;color:var(--text);white-space:pre-wrap;padding:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);"></div>
   </div>
@@ -707,7 +707,17 @@ function buildPrompt(){
 }
 function copyBriefPrompt(){
   navigator.clipboard.writeText(buildPrompt()).then(()=>{
-    const btns=document.querySelectorAll('#tab-dashboard .btn');btns.forEach(b=>{if(b.textContent==="Copy Prompt"){const orig=b.textContent;b.textContent="✓ Copied!";setTimeout(()=>{b.textContent=orig;},2000);}});
+    const cb=document.getElementById("dash-copy-btn");
+    if(cb){
+      cb.textContent="✓ Copied!";
+      cb.style.background="rgba(35,134,54,.12)";
+      cb.style.borderColor="rgba(35,134,54,.4)";
+      cb.style.color="var(--buy)";
+      setTimeout(()=>{
+        cb.textContent="Copy Prompt";
+        cb.style.background="";cb.style.borderColor="";cb.style.color="";
+      },2000);
+    }
   });
 }
 
