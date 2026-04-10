@@ -75,9 +75,9 @@ tr:last-child td{border-bottom:none;}
 .binfo.open{display:block;}
 .btext{font-size:12px;line-height:1.6;color:#c9d1d9;}
 .btime{margin-top:5px;font-size:11px;color:var(--muted);}
-.cpbtn{margin-top:8px;display:inline-flex;align-items:center;gap:5px;background:#21262d;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;padding:4px 10px;cursor:pointer;}
-.cpbtn:hover{background:#30363d;color:var(--text);}
-.cpbtn.ok{color:var(--buy);border-color:var(--buy);}
+.cpbtn{margin-top:8px;display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;background:rgba(56,139,253,.12);border:1px solid rgba(56,139,253,.4);color:#58a6ff;transition:opacity .15s;}
+.cpbtn:hover{opacity:.8;}
+.cpbtn.ok{color:var(--buy);border-color:rgba(35,134,54,.5);background:rgba(35,134,54,.1);}
 /* Market Brief */
 #brief-output{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;font-size:13px;line-height:1.8;white-space:pre-wrap;color:var(--text);min-height:100px;margin:10px 0;}
 #brief-response{width:100%;min-height:200px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:14px;font-size:13px;line-height:1.8;resize:vertical;font-family:inherit;}
@@ -220,7 +220,10 @@ tr:last-child td{border-bottom:none;}
     </table>
   </div>
   <div id="trash-sec">
-    <div class="sec" style="color:var(--sell);">Recently Deleted</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;margin-bottom:6px;">
+      <span class="sec" style="color:var(--sell);margin:0;">Recently Deleted</span>
+      <button class="btn btn-red" style="padding:3px 10px;font-size:11px;" onclick="clearTrash()">Clear All</button>
+    </div>
     <div id="trash-list"></div>
   </div>
   <div class="sec" style="margin-top:18px;">Performance</div>
@@ -592,6 +595,11 @@ function delTrade(id){
   const e=jLoad(),t=e.find(x=>x.id===id);if(!t)return;
   const tr=tLoad();tr.push({...t,deleted_at:new Date().toLocaleString()});tSave(tr);
   jSave(e.filter(x=>x.id!==id));renderJournal();
+}
+
+function clearTrash(){
+  localStorage.removeItem(TK);
+  renderJournal();
 }
 
 function restoreTrade(id){
