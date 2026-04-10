@@ -110,7 +110,15 @@ tr:last-child td{border-bottom:none;}
 .modal-box{background:#161b22;border:1px solid var(--border);border-radius:10px;padding:20px;max-width:460px;margin:40px auto;}
 .modal-box h3{margin-bottom:14px;font-size:14px;}
 .loading{color:var(--muted);padding:20px;text-align:center;font-style:italic;}
-@media(max-width:500px){.f3{grid-template-columns:1fr;}.tabs{gap:0;}.tab{padding:8px 10px;font-size:11px;}}
+@media(max-width:500px){
+  .f3{grid-template-columns:1fr;}
+  .tabs{gap:0;}.tab{padding:7px 8px;font-size:11px;}
+  th,td{padding:5px 6px;}
+  .pair-cell{font-size:11px;}
+  .pill{padding:2px 7px;font-size:10px;}
+  .s-num{font-size:10px;}
+  body{padding:10px;}
+}
 </style>
 </head>
 <body>
@@ -147,7 +155,7 @@ tr:last-child td{border-bottom:none;}
 
 <!-- CORRELATION -->
 <div id="tab-correlation" class="tab-panel">
-  <p style="font-size:12px;color:var(--muted);margin-bottom:8px;line-height:1.7;">Pairwise correlation of H4 returns over 50 bars. Values near +100 mean pairs move together — pick the stronger signal and skip the duplicate. Values near -100 are natural hedges. Values near 0 are uncorrelated — both can be traded independently.</p>
+
   <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--muted);">
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(182,35,36,.7);margin-right:4px;vertical-align:middle;"></span>High positive (&gt;+70)</span>
     <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(35,90,182,.7);margin-right:4px;vertical-align:middle;"></span>High negative (&lt;-70)</span>
@@ -200,10 +208,7 @@ tr:last-child td{border-bottom:none;}
     </div>
   </div>
   <div class="sec">Trade Log</div>
-  <p style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6;">
-    Result: <b style="color:var(--text)">✅</b> TP hit &nbsp;·&nbsp; <b style="color:var(--text)">❌</b> SL hit &nbsp;·&nbsp; <b style="color:var(--text)">⚡</b> Closed early &nbsp;·&nbsp; tap again to reset.
-    &nbsp; <b style="color:var(--text)">✏️</b> Edit &nbsp;·&nbsp; <b style="color:var(--sell)">×</b> Delete (recoverable below).
-  </p>
+
   <div id="j-tbl-wrap">
     <table id="j-tbl">
       <thead><tr>
@@ -467,8 +472,32 @@ function renderCorr(corr){
   if(!corr||!corr.pairs||!corr.matrix){wrap.innerHTML='<div class="loading">No data yet — runs after next H4 scan.</div>';return;}
   const{pairs,matrix}=corr,n=pairs.length;
   const cell=Math.max(32,Math.floor((Math.min(window.innerWidth-48,520)-56)/n));
-  function bg(v){if(v===null)return"rgba(139,148,158,.1)";if(v===1)return"rgba(13,17,23,.85)";if(v>=.7)return`rgba(182,35,36,${.2+(v-.7)*1.3})`;if(v>=.4)return`rgba(182,35,36,${.05+(v-.4)*.5})`;if(v<=-.7)return`rgba(35,90,182,${.2+(-v-.7)*1.3})`;if(v<=-.4)return`rgba(35,90,182,${.05+(-v-.4)*.5})`;return"rgba(139,148,158,.12)";}
-  function fg(v){if(v===null||v===1)return"rgba(139,148,158,.4)";return Math.abs(v)>=.7?"#e6edf3":Math.abs(v)>=.4?"var(--text)":"var(--muted)";}
+  function bg(v){
+    if(v===null)return"rgba(139,148,158,.08)";
+    if(v===1)return"rgba(13,17,23,.85)";
+    if(v>=.7)return`rgba(248,81,73,.2)`;
+    if(v>=.4)return`rgba(248,81,73,.1)`;
+    if(v<=-.7)return`rgba(56,139,253,.2)`;
+    if(v<=-.4)return`rgba(56,139,253,.1)`;
+    return"rgba(139,148,158,.08)";
+  }
+  function bdr(v){
+    if(v===null)return"rgba(139,148,158,.2)";
+    if(v===1)return"rgba(13,17,23,.5)";
+    if(v>=.7)return"rgba(248,81,73,.55)";
+    if(v>=.4)return"rgba(248,81,73,.3)";
+    if(v<=-.7)return"rgba(56,139,253,.55)";
+    if(v<=-.4)return"rgba(56,139,253,.3)";
+    return"rgba(139,148,158,.2)";
+  }
+  function fg(v){
+    if(v===null||v===1)return"rgba(139,148,158,.35)";
+    if(v>=.7)return"var(--sell)";
+    if(v>=.4)return"rgba(248,81,73,.7)";
+    if(v<=-.7)return"#58a6ff";
+    if(v<=-.4)return"rgba(56,139,253,.7)";
+    return"var(--muted)";
+  }
   let html=`<table style="border-collapse:collapse;font-size:10px;"><tr><th style="width:52px;"></th>`;
   pairs.forEach(p=>{html+=`<th style="width:${cell}px;text-align:center;padding:2px 1px;color:var(--muted);font-weight:600;font-size:9px;">${p.slice(0,3)}<br>${p.slice(3)}</th>`;});
   html+="</tr>";
@@ -476,7 +505,7 @@ function renderCorr(corr){
     html+=`<tr><td style="padding:2px 6px 2px 0;color:var(--muted);font-weight:600;font-size:10px;text-align:right;">${pairs[i].slice(0,3)}<br>${pairs[i].slice(3)}</td>`;
     row.forEach((v,j)=>{
       const disp=v===null?"—":v===1?"—":(v>=0?"+":"")+(v*100).toFixed(0);
-      html+=`<td style="width:${cell}px;height:${cell}px;background:${bg(v)};color:${fg(v)};text-align:center;vertical-align:middle;font-size:9px;font-weight:600;border:1px solid rgba(48,54,61,.5);border-radius:3px;">${disp}</td>`;
+      html+=`<td style="width:${cell}px;height:${cell}px;background:${bg(v)};color:${fg(v)};text-align:center;vertical-align:middle;font-size:9px;font-weight:600;border:1px solid ${bdr(v)};border-radius:4px;">${disp}</td>`;
     });
     html+="</tr>";
   });
