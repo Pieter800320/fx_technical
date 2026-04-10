@@ -688,14 +688,6 @@ function saveJournalEntry(){
   };
   const entries=loadJournal();entries.push(trade);saveJournalData(entries);
   renderJournalTable();renderJournalStats();
-
-// Persist brief response
-const briefTA=document.getElementById('brief-response');
-if(briefTA){
-  const saved=localStorage.getItem('fx1212_brief_response');
-  if(saved) briefTA.value=saved;
-  briefTA.addEventListener('input',()=>localStorage.setItem('fx1212_brief_response',briefTA.value));
-}
   ["j-entry","j-sl","j-tp","j-notes"].forEach(id=>document.getElementById(id).value="");
 }
 
