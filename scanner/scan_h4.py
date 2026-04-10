@@ -5,6 +5,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config.pairs import PAIRS, pair_display, is_pair_active, get_active_sessions
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, is_extended
+from scanner.correlate import compute_correlation
 from scanner.levels import find_levels
 from scanner.cooldown import is_on_cooldown, record_alert
 from alerts.news import get_alert_context
@@ -13,6 +14,7 @@ from alerts.log import log_alert
 
 DATA_DIR    = os.path.join(os.path.dirname(__file__), "..", "data")
 H4_OUTPUT   = os.path.join(DATA_DIR, "h4_scores.json")
+CORR_OUTPUT = os.path.join(DATA_DIR, "correlation.json")
 H1_SCORES   = os.path.join(DATA_DIR, "h1_scores.json")
 D1_SCORES   = os.path.join(DATA_DIR, "d1_scores.json")
 REGIME_FILE = os.path.join(DATA_DIR, "regime.json")
@@ -92,9 +94,18 @@ def main():
                   ctx["headline"], levels=levels, extended=ext_data,
                   regime=regime, adx_val=adx_val, atr_ok=result["filter_ok"])
 
+    # Correlation matrix
+    print("\n  Computing correlation matrix...")
+    corr_result = compute_correlation(ohlcv)
+    with open(CORR_OUTPUT, "w") as f:
+        json.dump({"pairs": corr_result["pairs"], "matrix": corr_result["matrix"],
+                   "lookback": 50, "updated": now.isoformat()}, f, indent=2)
+    print(f"  Correlation matrix: {len(corr_result['pairs'])} pairs")
+
     with open(H4_OUTPUT, "w") as f:
         json.dump(h4_results, f, indent=2)
     print(f"\n  Saved: {H4_OUTPUT}")
+    print(f"  Saved: {CORR_OUTPUT}")
     print("=== H4 Scan complete ===\n")
 
 if __name__ == "__main__":
