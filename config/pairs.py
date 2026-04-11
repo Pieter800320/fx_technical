@@ -1,9 +1,9 @@
-"""config/pairs.py"""
 import datetime
 
 PAIRS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD", "EUR/JPY", "GBP/JPY",
+    "AUD/JPY", "NZD/JPY", "CAD/JPY",
 ]
 
 CURRENCIES = ["EUR", "GBP", "USD", "JPY", "CHF", "AUD", "CAD", "NZD"]
@@ -16,11 +16,15 @@ SESSIONS = {
 }
 
 SESSION_PAIRS = {
-    "Sydney":   ["AUD/USD", "NZD/USD", "USD/JPY"],
-    "Tokyo":    ["USD/JPY", "EUR/JPY", "GBP/JPY", "AUD/USD", "NZD/USD"],
-    "London":   ["EUR/USD", "GBP/USD", "USD/CHF", "EUR/JPY", "GBP/JPY", "USD/CAD"],
-    "New York": ["EUR/USD", "GBP/USD", "USD/JPY", "USD/CAD", "AUD/USD", "NZD/USD"],
+    "Sydney":   ["AUD/USD", "NZD/USD", "USD/JPY", "AUD/JPY", "NZD/JPY"],
+    "Tokyo":    ["USD/JPY", "EUR/JPY", "GBP/JPY", "AUD/USD", "NZD/USD",
+                 "AUD/JPY", "NZD/JPY", "CAD/JPY"],
+    "London":   ["EUR/USD", "GBP/USD", "USD/CHF", "EUR/JPY", "GBP/JPY",
+                 "USD/CAD", "CAD/JPY"],
+    "New York": ["EUR/USD", "GBP/USD", "USD/JPY", "USD/CAD", "AUD/USD",
+                 "NZD/USD", "CAD/JPY"],
 }
+
 
 def get_active_sessions(dt=None):
     if dt is None:
@@ -36,6 +40,7 @@ def get_active_sessions(dt=None):
                 active.append(name)
     return active
 
+
 def is_pair_active(pair, dt=None):
     if dt is None:
         dt = datetime.datetime.utcnow()
@@ -44,8 +49,10 @@ def is_pair_active(pair, dt=None):
             return True
     return False
 
+
 def pair_display(pair):
     return pair.replace("/", "")
+
 
 def td_symbol(pair):
     return pair
