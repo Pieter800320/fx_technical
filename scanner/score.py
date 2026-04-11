@@ -312,7 +312,8 @@ def score_pair(df, timeframe="H4", regime="unknown", swing_n=5):
     conflict  = False
 
     if timeframe in ("H4", "D1"):
-        structure = detect_structure(df, atr_val, swing_n=swing_n)
+        _n = 10 if timeframe == "D1" else swing_n
+        structure = detect_structure(df, atr_val, swing_n=_n)
         if structure["direction"] != "neutral" and momentum_dir != 0:
             struct_int = 1 if structure["direction"] == "bull" else -1
             if struct_int != momentum_dir:
