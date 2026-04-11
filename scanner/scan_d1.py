@@ -68,6 +68,9 @@ def main():
             "raw":        result["raw"],
             "signals":    result["signals"],
             "filter_ok":  result["filter_ok"],
+            "conflict":   result.get("conflict", False),
+            "structure":  result.get("structure", {}),
+            "adx_weight": result.get("adx_weight", 1.0),
             "updated":    now.isoformat(),
         }
 
