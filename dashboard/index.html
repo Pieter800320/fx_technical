@@ -62,7 +62,7 @@ td{padding:8px 12px;border-bottom:1px solid #21262d;white-space:nowrap;vertical-
 tr:last-child td{border-bottom:none;}
 .pair-cell{font-weight:600;font-size:var(--f-primary);}
 .s-num{font-size:var(--f-info);margin-top:3px;font-weight:600;}
-.sig-tbl{table-layout:fixed;width:100%;}.sig-tbl th{padding:5px 4px;}.sig-tbl td{padding:4px 2px;}.sig-tbl .pill{width:50px;text-align:center;padding:3px 2px;}
+.sig-tbl{table-layout:fixed;width:100%;}.sig-tbl th{padding:6px 4px;}.sig-tbl td{padding:6px 2px;}.sig-tbl td:first-child{padding-left:12px;}.sig-tbl th:first-child{padding-left:12px;width:28%;}.sig-tbl .pill{width:50px;text-align:center;padding:3px 2px;}
 #csm-grid{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;position:relative;}
 .csm-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:4px;padding:2px 4px;margin:0 -4px;}
 .csm-row:hover{background:#21262d;}
@@ -71,7 +71,7 @@ tr:last-child td{border-bottom:none;}
 .csm-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:0 4px 4px 0;}
 .csm-val{width:38px;text-align:right;font-size:var(--f-info);color:var(--muted);}
 #blurb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;}
-.bcard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
+.bcard{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
 .bcard-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .bcard-pair{font-weight:700;font-size:var(--f-primary);}
 .binfo{display:none;margin:6px 0 8px;padding:8px 10px;background:#0d1117;border-radius:6px;font-size:var(--f-info);line-height:1.9;border:1px solid var(--border);}
@@ -148,8 +148,7 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div id="brief-text" style="display:none;margin-top:12px;font-size:12px;line-height:1.9;color:var(--text);white-space:pre-wrap;padding:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);"></div>
   </div>
-  <div class="sec">Currency Strength</div>
-  <div id="csm-grid"><div class="loading">Loading...</div></div>
+  <div id="csm-grid" style="padding-top:12px;"><div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">Currency Strength</div><div class="loading">Loading...</div></div>
   <div id="shortlist-wrap" style="display:none;margin-top:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Shortlist</div>
     <div id="shortlist-picks" style="font-size:var(--f-pill);line-height:2;"></div>
@@ -158,23 +157,28 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <div id="tab-correlation" class="tab-panel">
-  <div id="corr-warning" style="display:none;margin-bottom:10px;padding:8px 12px;background:rgba(248,81,73,.08);border:1px solid rgba(248,81,73,.3);border-radius:6px;font-size:11px;color:#f85149;"></div>
-  <div id="corr-wrap"><div class="loading">Loads after next H4 scan.</div></div>
+  <div class="module" id="corr-warning-wrap" style="display:none;">
+    <span id="corr-warning" style="font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;background:rgba(248,81,73,.13);border:1px solid rgba(248,81,73,.3);color:#f85149;"></span>
+  </div>
+  <div class="module" id="corr-pairs-wrap" style="display:none;padding:10px 10px 6px;"></div>
+  <div class="module" id="corr-chart-wrap"><div class="loading">Loads after next H4 scan.</div></div>
 </div>
 
 <div id="tab-signals" class="tab-panel">
-  <div class="sec">Technical Scores</div>
   <div class="tbl-wrap">
+    <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px 8px;border-bottom:1px solid var(--border);">Technical Scores</div>
     <table class="sig-tbl"><thead><tr><th>Pair</th><th>H1</th><th>H4</th><th>D1</th></tr></thead>
     <tbody id="sig-tbody"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody></table>
   </div>
-  <div class="sec" style="margin-top:20px;">Latest Signals</div>
-  <div id="blurb-grid"><div class="loading">No alerts yet.</div></div>
+  <div class="module" style="margin-top:12px;padding:10px;">
+    <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">Latest Signals</div>
+    <div id="blurb-grid"><div class="loading">No alerts yet.</div></div>
+  </div>
 </div>
 
 <div id="tab-journal" class="tab-panel">
-  <div class="sec">New Trade Entry</div>
   <div id="j-form">
+  <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;">New Trade Entry</div>
     <div class="f3">
       <div class="fg"><label>Pair</label><select id="j-pair" onchange="updateSnap()">
         <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
@@ -197,8 +201,9 @@ tr:last-child td{border-bottom:none;}
       <button class="btn" onclick="exportCSV()">Export CSV</button>
     </div>
   </div>
-  <div class="sec">Trade Log</div>
-  <div id="j-tbl-wrap">
+  <div class="module" style="padding:0;overflow:hidden;margin-top:4px;">
+  <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px 8px;border-bottom:1px solid var(--border);">Trade Log</div>
+  <div id="j-tbl-wrap" style="overflow-x:auto;">
     <table id="j-tbl">
       <thead><tr>
         <th>Date</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th>
@@ -208,20 +213,23 @@ tr:last-child td{border-bottom:none;}
       <tbody id="j-tbody"><tr><td colspan="15" class="loading">No trades yet.</td></tr></tbody>
     </table>
   </div>
-  <div id="trash-sec">
+  <div id="trash-sec" style="padding:0 14px 10px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-top:18px;margin-bottom:6px;">
       <span class="sec" style="color:var(--sell);margin:0;">Recently Deleted</span>
       <button class="btn btn-red" style="padding:3px 10px;font-size:11px;" onclick="clearTrash()">Clear All</button>
     </div>
     <div id="trash-list"></div>
   </div>
-  <div class="sec" style="margin-top:18px;">Performance</div>
-  <div id="j-stats">
+  </div>
+  <div class="module" style="margin-top:4px;padding:12px 14px;">
+  <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;">Performance</div>
+  <div id="j-stats" style="margin-bottom:0;">
     <div class="scard"><div class="sv" id="st-total">-</div><div class="sl2">Trades</div></div>
     <div class="scard"><div class="sv" id="st-wr">-</div><div class="sl2">Win Rate</div></div>
     <div class="scard"><div class="sv" id="st-ar">-</div><div class="sl2">Avg R</div></div>
     <div class="scard"><div class="sv" id="st-ex">-</div><div class="sl2">Expectancy</div></div>
     <div class="scard"><div class="sv" id="st-op">-</div><div class="sl2">Open</div></div>
+  </div>
   </div>
 </div>
 
@@ -539,12 +547,14 @@ function renderShortlist(){
 }
 
 function renderCorrWarning(){
-  const el=document.getElementById("corr-warning");if(!el)return;
+  const wrap=document.getElementById("corr-warning-wrap");
+  const el=document.getElementById("corr-warning");
+  if(!wrap||!el)return;
   const{kept,dropped:dr}=buildRankedShortlist();
   const high=dr.filter(x=>x.corrVal>=70);
-  if(!high.length){el.style.display="none";return;}
-  el.style.display="block";
-  el.textContent="Correlation: "+high.map(x=>x.pair.replace("/","")+" + "+x.droppedBy.replace("/","")+" (+"+x.corrVal+")").join(", ");
+  if(!high.length){wrap.style.display="none";return;}
+  wrap.style.display="block";
+  el.textContent="Correlated signals: "+high.map(x=>x.pair.replace("/","")+" + "+x.droppedBy.replace("/","")+" (+"+x.corrVal+")").join(", ");
 }
 
 function toggleBrief(){
@@ -605,19 +615,29 @@ function corrDotColor(v){
   return"var(--muted)";
 }
 function renderCorr(corr){
-  const wrap=document.getElementById("corr-wrap");if(!wrap)return;
-  if(!corr||!corr.pairs||!corr.matrix){wrap.innerHTML='<div class="loading">No data yet - runs after next H4 scan.</div>';return;}
+  const pairsWrap=document.getElementById("corr-pairs-wrap");
+  const chartWrap=document.getElementById("corr-chart-wrap");
+  if(!chartWrap)return;
+  if(!corr||!corr.pairs||!corr.matrix){
+    chartWrap.innerHTML='<div class="loading">No data yet - runs after next H4 scan.</div>';
+    if(pairsWrap)pairsWrap.style.display="none";
+    return;
+  }
   const{pairs,matrix}=corr;
   if(!corrSelectedPair||!pairs.includes(corrSelectedPair))corrSelectedPair=pairs[0];
   const idx=pairs.indexOf(corrSelectedPair);
   const row=matrix[idx];
-  let h='<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;">';
-  pairs.forEach(p=>{
-    const act=p===corrSelectedPair;
-    h+=`<button onclick="corrSelectedPair='${p}';renderCorr(D.corr)" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;cursor:pointer;border:1px solid ${act?"#58a6ff":"var(--border)"};background:${act?"rgba(56,139,253,.15)":"transparent"};color:${act?"#58a6ff":"var(--muted)"};">${p.replace("/","")}</button>`;
-  });
-  h+='</div>';
-  h+='<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';
+  if(pairsWrap){
+    pairsWrap.style.display="block";
+    let ph='<div style="display:flex;gap:5px;flex-wrap:wrap;">';
+    pairs.forEach(p=>{
+      const act=p===corrSelectedPair;
+      ph+=`<button onclick="corrSelectedPair='${p}';renderCorr(D.corr)" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;cursor:pointer;border:1px solid ${act?"#58a6ff":"var(--border)"};background:${act?"rgba(56,139,253,.15)":"transparent"};color:${act?"#58a6ff":"var(--muted)"};">${p.replace("/","")}</button>`;
+    });
+    ph+='</div>';
+    pairsWrap.innerHTML=ph;
+  }
+  let h='<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';
   pairs.forEach((p,j)=>{
     if(p===corrSelectedPair)return;
     const v=row[j];if(v===null||v===1)return;
@@ -637,7 +657,7 @@ function renderCorr(corr){
     </div>`;
   });
   h+=`</div><div style="margin-top:10px;font-size:11px;color:var(--muted);">50-bar H4 returns &middot; ${corr.updated?new Date(corr.updated).toLocaleString():""}</div>`;
-  wrap.innerHTML=h;
+  chartWrap.innerHTML=h;
 }
 
 async function load(file,api=false){
@@ -786,8 +806,8 @@ function renderJournal(){
   const exp=closed.length?((wrF*avgW-(1-wrF)*avgL).toFixed(2)):null;
   document.getElementById("st-total").textContent=entries.length||" - ";
   const we=document.getElementById("st-wr");we.textContent=wr!==null?wr+"%":" - ";we.className="sv "+(wr>=50?"sg":wr!==null?"sr":"");
-  const re=document.getElementById("st-ar");re.textContent=avgR!==null?avgR+"R":" - ";re.className="sv "+(avgR>=0?"sg":avgR!==null?"sr":"");
-  const ee=document.getElementById("st-ex");ee.textContent=exp!==null?exp+"R":" - ";ee.className="sv "+(exp>=0?"sg":exp!==null?"sr":"");
+  const re=document.getElementById("st-ar");re.textContent=avgR!==null?avgR+"R":" - ";re.className="sv "+(avgR===null?"":avgR>=0?"sg":"sr");
+  const ee=document.getElementById("st-ex");ee.textContent=exp!==null?exp+"R":" - ";ee.className="sv "+(exp===null?"":exp>=0?"sg":"sr");
   document.getElementById("st-op").textContent=open||" - ";
 }
 
