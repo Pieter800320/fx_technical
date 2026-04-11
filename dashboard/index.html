@@ -25,7 +25,7 @@ header h1{font-size:18px;font-weight:600;}
 #session-row{display:flex;gap:6px;flex-wrap:wrap;}
 .s-chip{font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;border:1px solid var(--border);color:var(--muted);}
 .s-chip.on{border-color:#388bfd;color:#58a6ff;background:rgba(56,139,253,.1);}
-#mkt-closed{display:none;font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;border:1px solid var(--sell);color:var(--sell);background:rgba(248,81,73,.15);}
+#mkt-closed{display:none;font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;border:1px solid #f85149;color:#f85149;background:rgba(248,81,73,.28);}
 #regime-pill{font-size:var(--f-pill);font-weight:600;padding:3px 14px;border-radius:12px;border:1px solid var(--border);color:var(--muted);cursor:pointer;display:inline-block;}
 .pill{display:inline-block;padding:3px 12px;border-radius:12px;font-size:var(--f-pill);font-weight:600;cursor:pointer;user-select:none;}
 .pill-SB{background:rgba(35,134,54,.2);border:1px solid rgba(35,134,54,.45);color:var(--buy);}
@@ -62,13 +62,13 @@ td{padding:8px 12px;border-bottom:1px solid #21262d;white-space:nowrap;vertical-
 tr:last-child td{border-bottom:none;}
 .pair-cell{font-weight:600;font-size:var(--f-primary);}
 .s-num{font-size:var(--f-info);margin-top:3px;font-weight:600;}
-.sig-tbl th{padding:6px 5px;}.sig-tbl td{padding:5px 5px;}
+.sig-tbl{table-layout:fixed;width:100%;}.sig-tbl th{padding:5px 1px;}.sig-tbl td{padding:4px 1px;}.sig-tbl td:first-child,.sig-tbl th:first-child{width:22%;}.sig-tbl .pair-cell{font-size:10px;overflow:hidden;text-overflow:ellipsis;}
 #csm-grid{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;position:relative;}
 .csm-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:4px;padding:2px 4px;margin:0 -4px;}
 .csm-row:hover{background:#21262d;}
 .csm-lbl{width:36px;font-weight:600;font-size:var(--f-primary);}
 .csm-track{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;}
-.csm-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);}
+.csm-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:0 4px 4px 0;}
 .csm-val{width:38px;text-align:right;font-size:var(--f-info);color:var(--muted);}
 #blurb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;}
 .bcard{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;}
@@ -79,7 +79,7 @@ tr:last-child td{border-bottom:none;}
 .btext{font-size:var(--f-body);line-height:1.6;color:#c9d1d9;}
 .btime{margin-top:5px;font-size:var(--f-info);color:var(--muted);}
 #brief-text{display:none;margin-top:12px;font-size:var(--f-body);line-height:1.9;color:var(--text);white-space:pre-wrap;padding:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);}
-#shortlist-picks{font-size:var(--f-body);line-height:2.1;}
+#shortlist-picks{font-size:var(--f-pill);line-height:2.0;}
 #shortlist-dropped{font-size:var(--f-info);color:var(--muted);margin-top:4px;}
 #j-form{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px;}
 .f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;}
@@ -152,7 +152,7 @@ tr:last-child td{border-bottom:none;}
   <div id="csm-grid"><div class="loading">Loading...</div></div>
   <div id="shortlist-wrap" style="display:none;margin-top:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Shortlist</div>
-    <div id="shortlist-picks" style="font-size:13px;line-height:2;"></div>
+    <div id="shortlist-picks" style="font-size:var(--f-pill);line-height:2;"></div>
     <div id="shortlist-dropped" style="font-size:11px;color:var(--muted);margin-top:4px;"></div>
   </div>
 </div>
@@ -447,7 +447,7 @@ function renderSignals(blurbs){
 }
 function copyPrompt(i){
   navigator.clipboard.writeText(prompts[i]||"").then(()=>{
-    const b=document.getElementById("cp-"+i);b.textContent="&#10003; Copied!";b.classList.add("ok");
+    const b=document.getElementById("cp-"+i);b.textContent="✓ Copied!";b.classList.add("ok");
     setTimeout(()=>{b.textContent="Copy Prompt";b.classList.remove("ok");},2000);
   });
 }
