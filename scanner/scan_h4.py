@@ -30,7 +30,6 @@ def main():
 
     now = datetime.datetime.utcnow()
 
-    # Weekend guard
     day, hour = now.weekday(), now.hour
     if day == 5 or (day == 6 and hour < 22) or (day == 4 and hour >= 22):
         print("  Market closed (weekend) — exiting.")
@@ -58,10 +57,17 @@ def main():
         levels    = find_levels(df)
 
         h4_results[pair] = {
-            "score":     result["score"], "label": label, "direction": direction,
-            "raw":       result["raw"], "signals": result["signals"],
-            "filter_ok": result["filter_ok"], "extended": ext_data,
-            "updated":   now.isoformat(),
+            "score":      result["score"],
+            "label":      label,
+            "direction":  direction,
+            "raw":        result["raw"],
+            "signals":    result["signals"],
+            "filter_ok":  result["filter_ok"],
+            "extended":   ext_data,
+            "conflict":   result.get("conflict", False),
+            "structure":  result.get("structure", {}),
+            "adx_weight": result.get("adx_weight", 1.0),
+            "updated":    now.isoformat(),
         }
         print(f"  {display}: {result['score']:+d} → {label}")
 
@@ -87,6 +93,9 @@ def main():
             session_names=active_sessions, adx_val=adx_val,
             atr_ok=result["filter_ok"], headline=ctx["headline"],
             events=ctx["events"], extended=ext_data, regime=regime,
+            conflict=result.get("conflict", False),
+            structure=result.get("structure"),
+            adx_weight=result.get("adx_weight"),
         )
         send_telegram(msg)
         record_alert(pair, direction)
