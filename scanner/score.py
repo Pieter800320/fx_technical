@@ -358,7 +358,7 @@ def score_pair(df, timeframe="H4", regime="unknown", swing_n=5):
     }
 
     return {
-        "score":          final_score,
+        "score":          int(round(final_score)),
         "raw_score":      raw_score,
         "label":          label,
         "signals":        signals,
