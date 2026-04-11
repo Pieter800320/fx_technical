@@ -101,7 +101,9 @@ def main():
         record_alert(pair, direction)
         log_alert(pair, direction, h1_label, label, d1_label,
                   ctx["headline"], levels=levels, extended=ext_data,
-                  regime=regime, adx_val=adx_val, atr_ok=result["filter_ok"])
+                  regime=regime, adx_val=adx_val, atr_ok=result["filter_ok"],
+                  conflict=result.get("conflict", False),
+                  structure=result.get("structure", {}))
 
     # Correlation matrix
     print("\n  Computing correlation matrix...")
