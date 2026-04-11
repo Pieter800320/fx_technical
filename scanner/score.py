@@ -277,6 +277,7 @@ def score_pair(df, timeframe="H4", regime="unknown", swing_n=5):
             "structure": {"direction": "neutral", "event": "none",
                           "strength": 0.0, "multiplier": 1.0},
             "conflict": False, "m_detail": {},
+            "filter_ok": False,
         }
 
     # ── Signal scores ─────────────────────────────────────────────────────────
@@ -370,6 +371,7 @@ def score_pair(df, timeframe="H4", regime="unknown", swing_n=5):
         "conflict":       conflict,
         "structure":      structure,
         "m_detail":       m_detail,
+        "filter_ok":      True,
     }
 
 
