@@ -25,7 +25,7 @@ header h1{font-size:18px;font-weight:600;}
 #session-row{display:flex;gap:6px;flex-wrap:wrap;}
 .s-chip{font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;border:1px solid var(--border);color:var(--muted);}
 .s-chip.on{border-color:#388bfd;color:#58a6ff;background:rgba(56,139,253,.1);}
-#mkt-closed{display:none;font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;border:1px solid #f85149;color:#f85149;background:rgba(248,81,73,.28);}
+#mkt-closed{display:none;font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;background:rgba(248,81,73,.2);border:1px solid rgba(248,81,73,.45);color:var(--sell);}
 #regime-pill{font-size:var(--f-pill);font-weight:600;padding:3px 14px;border-radius:12px;border:1px solid var(--border);color:var(--muted);cursor:pointer;display:inline-block;}
 .pill{display:inline-block;padding:3px 12px;border-radius:12px;font-size:var(--f-pill);font-weight:600;cursor:pointer;user-select:none;}
 .pill-SB{background:rgba(35,134,54,.2);border:1px solid rgba(35,134,54,.45);color:var(--buy);}
@@ -62,7 +62,7 @@ td{padding:8px 12px;border-bottom:1px solid #21262d;white-space:nowrap;vertical-
 tr:last-child td{border-bottom:none;}
 .pair-cell{font-weight:600;font-size:var(--f-primary);}
 .s-num{font-size:var(--f-info);margin-top:3px;font-weight:600;}
-.sig-tbl{table-layout:fixed;width:100%;}.sig-tbl th{padding:5px 1px;}.sig-tbl td{padding:4px 1px;}.sig-tbl td:first-child,.sig-tbl th:first-child{width:22%;}.sig-tbl .pair-cell{font-size:10px;overflow:hidden;text-overflow:ellipsis;}
+.sig-tbl{table-layout:fixed;width:100%;}.sig-tbl th{padding:5px 4px;}.sig-tbl td{padding:4px 2px;}.sig-tbl .pill{min-width:28px;text-align:center;padding:3px 6px;}
 #csm-grid{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;position:relative;}
 .csm-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:4px;padding:2px 4px;margin:0 -4px;}
 .csm-row:hover{background:#21262d;}
@@ -168,7 +168,15 @@ tr:last-child td{border-bottom:none;}
     <table class="sig-tbl"><thead><tr><th>Pair</th><th>H1</th><th>H4</th><th>D1</th></tr></thead>
     <tbody id="sig-tbody"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody></table>
   </div>
-  <div class="sec" style="margin-top:20px;">Latest Signals</div>
+  <div style="font-size:10px;color:var(--muted);margin:4px 0 14px;padding:0 2px;letter-spacing:.02em;">
+    <span style="color:var(--buy);font-weight:600;">SB</span> Strong Buy &nbsp;·&nbsp;
+    <span style="color:var(--buy);font-weight:600;">B</span> Buy &nbsp;·&nbsp;
+    <span style="color:var(--muted);font-weight:600;">N</span> Neutral &nbsp;·&nbsp;
+    <span style="color:var(--sell);font-weight:600;">S</span> Sell &nbsp;·&nbsp;
+    <span style="color:var(--sell);font-weight:600;">SS</span> Strong Sell &nbsp;·&nbsp;
+    <span style="color:#e3b341;font-weight:600;">CF</span> Conflict
+  </div>
+  <div class="sec" style="margin-top:4px;">Latest Signals</div>
   <div id="blurb-grid"><div class="loading">No alerts yet.</div></div>
 </div>
 
@@ -319,6 +327,7 @@ function toggleRegimeDrop(){
 }
 
 // PATCH 2: conflict case added
+function pillAbbr(lbl){if(!lbl||lbl==="N/A")return"—";const l=lbl.toLowerCase();if(l==="strong buy")return"SB";if(l==="buy")return"B";if(l==="strong sell")return"SS";if(l==="sell")return"S";if(l==="conflict")return"CF";if(l==="filtered")return"—";return"N";}
 function pillClass(lbl){if(!lbl||lbl==="N/A")return"pill-N";const l=lbl.toLowerCase();if(l==="strong buy")return"pill-SB";if(l==="buy")return"pill-B";if(l==="strong sell")return"pill-SS";if(l==="sell")return"pill-S";if(l==="conflict")return"pill-CF";return"pill-N";}
 function sv(v){if(v===1)return'<span class="dv-g">&#9650; Bull</span>';if(v===-1)return'<span class="dv-r">&#9660; Bear</span>';return'<span class="dv-n">&#8594; Neu</span>';}
 
@@ -385,7 +394,7 @@ function tfCell(data,uid,pos){
     rows+=`<div class="dr"><span class="dn" style="color:#e3b341">&#9888; Conflict</span><span style="color:#e3b341;font-weight:600">Structure vs Momentum</span></div>`;
   }
   if(ext){rows+=`<div class="ddiv"></div><div class="dr"><span class="dn" style="color:#e3b341">&#9888;&#65039; Extended</span><span style="color:#e3b341;font-weight:600">Yes</span></div>`;}
-  return`<td><div class="pill-wrap"><span class="pill ${pillClass(data.label)}" onclick="togglePillDrop('${uid}')">${data.label||"N/A"}</span><div class="drop" id="d-${uid}" data-pos="${pos}">${rows}</div></div><div class="s-num" style="color:${col}">${num}</div></td>`;
+  return`<td><div class="pill-wrap"><span class="pill ${pillClass(data.label)}" onclick="togglePillDrop('${uid}')">${pillAbbr(data.label)}</span><div class="drop" id="d-${uid}" data-pos="${pos}">${rows}</div></div><div class="s-num" style="color:${col}">${num}</div></td>`;
 }
 
 function renderCSM(csm){
