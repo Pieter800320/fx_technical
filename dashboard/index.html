@@ -180,6 +180,9 @@ tr:last-child td{border-bottom:none;}
         <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
         <option>USD/CHF</option><option>AUD/USD</option><option>USD/CAD</option>
         <option>NZD/USD</option><option>EUR/JPY</option><option>GBP/JPY</option>
+        <option>AUD/JPY</option>
+        <option>NZD/JPY</option>
+        <option>CAD/JPY</option>
       </select></div>
       <div class="fg"><label>Direction</label><select id="j-dir"><option>BUY</option><option>SELL</option></select></div>
       <div class="fg"><label>AI Rec</label><select id="j-ai-rec"><option>Edge</option><option>Flaw</option></select></div>
@@ -238,7 +241,7 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <script>
-const PAIRS=["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY"];
+const PAIRS=["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","AUD/JPY","NZD/JPY","CAD/JPY"];
 const GH_API="https://api.github.com/repos/Pieter800320/fx_technical/contents/data";
 const SIGS={EMA200:"EMA 200",EMA50:"EMA 50",RSI:"RSI>50",MACD:"MACD",DMI:"DMI+/-",Structure:"Structure"};
 const SESS={Sydney:[21,6],Tokyo:[0,9],London:[7,16],"New York":[12,21]};
