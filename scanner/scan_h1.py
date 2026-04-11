@@ -28,7 +28,6 @@ def main():
 
     now = datetime.datetime.utcnow()
 
-    # Weekend guard
     day, hour = now.weekday(), now.hour
     if day == 5 or (day == 6 and hour < 22) or (day == 4 and hour >= 22):
         print("  Market closed (weekend) — exiting.")
@@ -56,9 +55,13 @@ def main():
         levels    = find_levels(df)
 
         h1_results[pair] = {
-            "score":     result["score"], "label": label, "direction": direction,
-            "raw":       result["raw"], "signals": result["signals"],
-            "filter_ok": result["filter_ok"], "extended": ext_data,
+            "score":     result["score"],
+            "label":     label,
+            "direction": direction,
+            "raw":       result["raw"],
+            "signals":   result["signals"],
+            "filter_ok": result["filter_ok"],
+            "extended":  ext_data,
             "updated":   now.isoformat(),
         }
         print(f"  {display}: {result['score']:+d} → {label}")
@@ -79,6 +82,9 @@ def main():
         if is_on_cooldown(pair, direction):
             print(f"    ↳ Suppressed: on cooldown"); continue
 
+        # Pull H4 structure/conflict for the alert context
+        h4_result_data = h4_data.get(pair, {})
+
         print(f"    ↳ ALERT: {direction.upper()} — fetching news context...")
         ctx = get_alert_context(pair)
         adx_val = result["raw"].get("adx")
@@ -88,6 +94,9 @@ def main():
             session_names=active_sessions, adx_val=adx_val,
             atr_ok=result["filter_ok"], headline=ctx["headline"],
             events=ctx["events"], extended=ext_data, regime=regime,
+            conflict=h4_result_data.get("conflict", False),
+            structure=h4_result_data.get("structure"),
+            adx_weight=result.get("adx_weight"),
         )
         send_telegram(msg)
         record_alert(pair, direction)
