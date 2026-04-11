@@ -12,17 +12,29 @@ MAJOR_PAIRS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD", "EUR/JPY", "GBP/JPY",
     "AUD/JPY", "NZD/JPY", "CAD/JPY",
+    "EUR/GBP", "EUR/CHF",
 ]
 
+# CSM_EXTRA_PAIRS — not traded/scanned, CSM calculation only
+# scan_d1.py adds these to the D1 fetch so compute_currency_strength
+# gets a complete data set.
+CSM_EXTRA_PAIRS = ["EUR/GBP", "EUR/CHF"]
+
 # STRENGTH_PAIRS — drives the CSM score calculation
-# AUD/JPY, NZD/JPY, CAD/JPY added:
-#   - Pure cross pairs give independent readings for AUD/NZD/CAD vs JPY
-#   - Removes USD-only bias from commodity currency scores
-#   - AUD/JPY and NZD/JPY are the most regime-sensitive pairs in G10
+# Coverage per currency after additions:
+#   EUR : EUR/USD, EUR/JPY, EUR/GBP, EUR/CHF  (4 observations)
+#   GBP : GBP/USD, GBP/JPY, EUR/GBP           (3 observations)
+#   USD : EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD, NZD/USD (7)
+#   JPY : USD/JPY, EUR/JPY, GBP/JPY, AUD/JPY, NZD/JPY, CAD/JPY          (6)
+#   CHF : USD/CHF, EUR/CHF                     (2 observations)
+#   AUD : AUD/USD, AUD/JPY                     (2 observations)
+#   CAD : USD/CAD, CAD/JPY                     (2 observations)
+#   NZD : NZD/USD, NZD/JPY                     (2 observations)
 STRENGTH_PAIRS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD",
     "AUD/JPY", "NZD/JPY", "CAD/JPY",
+    "EUR/GBP", "EUR/CHF",
 ]
 
 
