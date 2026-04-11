@@ -102,7 +102,9 @@ def main():
         record_alert(pair, direction)
         log_alert(pair, direction, label, h4_label, d1_label,
                   ctx["headline"], levels=levels, extended=ext_data,
-                  regime=regime, adx_val=adx_val, atr_ok=result["filter_ok"])
+                  regime=regime, adx_val=adx_val, atr_ok=result["filter_ok"],
+                  conflict=h4_result_data.get("conflict", False),
+                  structure=h4_result_data.get("structure", {}))
 
     with open(H1_OUTPUT, "w") as f:
         json.dump(h1_results, f, indent=2)
