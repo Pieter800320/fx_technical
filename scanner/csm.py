@@ -12,29 +12,29 @@ MAJOR_PAIRS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD", "EUR/JPY", "GBP/JPY",
     "AUD/JPY", "NZD/JPY", "CAD/JPY",
-    "EUR/GBP", "EUR/CHF",
+    "EUR/GBP", "EUR/CHF", "GBP/CHF",
 ]
 
 # CSM_EXTRA_PAIRS — not traded/scanned, CSM calculation only
 # scan_d1.py adds these to the D1 fetch so compute_currency_strength
 # gets a complete data set.
-CSM_EXTRA_PAIRS = ["EUR/GBP", "EUR/CHF"]
+CSM_EXTRA_PAIRS = ["EUR/GBP", "EUR/CHF", "GBP/CHF"]
 
 # STRENGTH_PAIRS — drives the CSM score calculation
 # Coverage per currency after additions:
-#   EUR : EUR/USD, EUR/JPY, EUR/GBP, EUR/CHF  (4 observations)
-#   GBP : GBP/USD, GBP/JPY, EUR/GBP           (3 observations)
+#   EUR : EUR/USD, EUR/JPY, EUR/GBP, EUR/CHF        (4 observations)
+#   GBP : GBP/USD, GBP/JPY, EUR/GBP, GBP/CHF       (4 observations)
 #   USD : EUR/USD, GBP/USD, USD/JPY, USD/CHF, AUD/USD, USD/CAD, NZD/USD (7)
 #   JPY : USD/JPY, EUR/JPY, GBP/JPY, AUD/JPY, NZD/JPY, CAD/JPY          (6)
-#   CHF : USD/CHF, EUR/CHF                     (2 observations)
-#   AUD : AUD/USD, AUD/JPY                     (2 observations)
-#   CAD : USD/CAD, CAD/JPY                     (2 observations)
-#   NZD : NZD/USD, NZD/JPY                     (2 observations)
+#   CHF : USD/CHF, EUR/CHF, GBP/CHF                 (3 observations)
+#   AUD : AUD/USD, AUD/JPY                          (2 observations)
+#   CAD : USD/CAD, CAD/JPY                          (2 observations)
+#   NZD : NZD/USD, NZD/JPY                          (2 observations)
 STRENGTH_PAIRS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD",
     "AUD/JPY", "NZD/JPY", "CAD/JPY",
-    "EUR/GBP", "EUR/CHF",
+    "EUR/GBP", "EUR/CHF", "GBP/CHF",
 ]
 
 
