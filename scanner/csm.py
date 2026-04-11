@@ -1,4 +1,3 @@
-"""scanner/csm.py"""
 import numpy as np
 import pandas as pd
 from config.pairs import CURRENCIES
@@ -8,14 +7,24 @@ ATR_PERIOD = 14
 D1_WEIGHT  = 0.7
 H4_WEIGHT  = 0.3
 
+# MAJOR_PAIRS — used for H4 fetch in scan_d1 and breakdown display
 MAJOR_PAIRS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD", "EUR/JPY", "GBP/JPY",
+    "AUD/JPY", "NZD/JPY", "CAD/JPY",
 ]
+
+# STRENGTH_PAIRS — drives the CSM score calculation
+# AUD/JPY, NZD/JPY, CAD/JPY added:
+#   - Pure cross pairs give independent readings for AUD/NZD/CAD vs JPY
+#   - Removes USD-only bias from commodity currency scores
+#   - AUD/JPY and NZD/JPY are the most regime-sensitive pairs in G10
 STRENGTH_PAIRS = [
     "EUR/USD", "GBP/USD", "USD/JPY", "USD/CHF",
     "AUD/USD", "USD/CAD", "NZD/USD",
+    "AUD/JPY", "NZD/JPY", "CAD/JPY",
 ]
+
 
 def _atr(df, period=ATR_PERIOD):
     high  = df["high"].astype(float)
@@ -29,6 +38,7 @@ def _atr(df, period=ATR_PERIOD):
     val = tr.rolling(period).mean().iloc[-1]
     return float(val) if not np.isnan(val) else 1.0
 
+
 def _adj_return(df):
     if df is None or len(df) < LOOKBACK + ATR_PERIOD + 1:
         return None
@@ -38,6 +48,7 @@ def _adj_return(df):
     if atr == 0:
         return None
     return ret / atr
+
 
 def compute_currency_strength(d1_ohlcv, h4_ohlcv=None):
     raw_scores = {c: [] for c in CURRENCIES}
@@ -75,6 +86,7 @@ def compute_currency_strength(d1_ohlcv, h4_ohlcv=None):
 
     ranked = dict(sorted(normalized.items(), key=lambda x: x[1], reverse=True))
 
+    # Breakdown uses MAJOR_PAIRS for per-pair drill-down in dashboard
     breakdown = {c: [] for c in CURRENCIES}
     for pair in MAJOR_PAIRS:
         base, quote = pair.split("/")
