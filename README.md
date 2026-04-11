@@ -10,7 +10,7 @@ An automated forex technical analysis system built on free infrastructure. Teleg
 
 **D1 = Bias. H4 = Confirmation. H1 = Execution.**
 
-No alert fires unless all relevant timeframes agree. Hard filters eliminate ranging and low-participation markets entirely. The dashboard is the market brief — everything essential visible without scrolling.
+No alert fires unless all relevant timeframes agree. Hard filters eliminate ranging and low-participation markets entirely. Structure must confirm momentum — if they disagree, the signal is suppressed. The dashboard is the market brief — everything essential visible without scrolling.
 
 ---
 
@@ -23,11 +23,11 @@ Four tabs:
 - Regime with signal breakdown (tap to expand)
 - Market Brief — tap to generate auto-brief, Copy Prompt sends it to Claude.ai with web search for live VIX/DXY/SPX context
 
-Below that: Currency Strength bars with per-pair breakdown, and a Shortlist showing the top 1-2 correlation-filtered trade candidates.
+Below that: Currency Strength bars with per-pair breakdown (tap any currency), and a Shortlist showing the top 1–2 correlation-filtered trade candidates.
 
-**Correlation** — 9×9 pairwise correlation matrix of H4 returns over 50 bars. Red = high positive (same bet), blue = high negative (natural hedge), grey = uncorrelated (genuine diversification). Inline warning when active signals are correlated.
+**Correlation** — Lollipop chart. Tap any pair button to see its correlation with all other pairs. Red = high positive (same bet), blue = high negative (natural hedge), grey = uncorrelated. Pair buttons at top, 50-bar H4 returns.
 
-**Signals** — Technical Scores table (H1/H4/D1 per pair, tap any pill for 6-signal breakdown + ADX/ATR) and latest alert cards with clickable BUY/SELL pills showing full Telegram-equivalent context.
+**Signals** — Technical Scores table (H1/H4/D1 per pair, abbreviated pills SB/B/N/S/SS/CF with score inside, tap any pill for full breakdown including ADX, ATR, structure event, conflict flag). Latest alert cards with clickable BUY/SELL labels showing full Telegram-equivalent context.
 
 **Journal** — Trade log with snapshot of market conditions at entry time, R-multiple calculation, Win/Loss/Early-Close outcome buttons, edit modal for post-trade notes, delete with restore, CSV export, and performance stats (win rate, avg R, expectancy).
 
@@ -49,43 +49,93 @@ H1 and H4 share a 4-hour cooldown per pair. No alerts fire on weekends (Friday 2
 
 ## Instruments
 
-**Forex (9 pairs):** EURUSD · GBPUSD · USDJPY · USDCHF · AUDUSD · USDCAD · NZDUSD · EURJPY · GBPJPY
+**Forex (12 pairs):** EURUSD · GBPUSD · USDJPY · USDCHF · AUDUSD · USDCAD · NZDUSD · EURJPY · GBPJPY · AUDJPY · NZDJPY · CADJPY
 
 ---
 
 ## Scoring Engine
 
-6 independent signals per timeframe — each votes +1 (bull) or -1 (bear):
+Three independent signal components — each contributes a continuous score, not a binary vote:
 
-| Signal | Logic |
+| Component | Logic | Weight |
+|---|---|---|
+| EMA200 | Price above = +1.5, below = -1.5 | ±1.5 |
+| Momentum group | EMA50 + DMI + MACD histogram majority vote. All three agree = ±2.0, two of three = ±1.0 | ±2.0 |
+| RSI graduated | ≥70=+2.0, ≥60=+1.0, ≥50=+0.5, ≥40=-0.5, ≥30=-1.0, <30=-2.0 | ±2.0 |
+
+**Raw maximum: ±5.5**
+
+**ADX graduated weight** scales the raw score before the structure multiplier is applied. This replaces the old binary gate — markets with weak trends produce proportionally weaker scores rather than a hard cut-off:
+
+| ADX | Weight |
 |---|---|
-| EMA200 | Price above = bull |
-| EMA50 | Price above = bull |
-| RSI vs 50 | RSI > 50 = bull |
-| MACD | MACD line above signal = bull |
-| DMI+/DMI- | DMI+ > DMI- = bull |
-| Structure | HH+HL = bull, LH+LL = bear (H4/D1 only) |
+| < 15 | ×0.0 — score zeroed |
+| 15–20 | ×0.5 — halved |
+| 20–25 | ×0.75 — developing trend |
+| ≥ 25 | ×1.0 — full score |
 
-**Score → Label:** ±5–6 = Strong Buy/Sell · ±3–4 = Buy/Sell · -2 to +2 = Neutral
+**ATR hard filter** — if current ATR < 70% of its 14-bar average, the pair is suppressed entirely. Low participation is genuinely binary.
 
-**Hard filters** suppress alerts regardless of score:
-- ADX < 20 — no trend present
-- ATR < 70% of 14-bar average — low participation
+---
 
-**Extension detection** flags overextended signals:
-- Price > 2.0× ATR from EMA200
-- RSI > 75 (bull) or < 25 (bear)
-- 8+ consecutive bars beyond EMA50
+## Structure Engine
+
+Structure is not a voting signal — it is a score multiplier. This is the architectural difference from most retail systems.
+
+**Structure detection (H4 and D1 only):**
+
+Swing highs/lows are identified using a lookback window (5 bars on H4, 10 bars on D1 for more robust institutional pivots). Two events are detected:
+
+| Event | Meaning | Multiplier |
+|---|---|---|
+| BOS — Break of Structure | Price breaks the last swing high/low in the trend direction. Confirms continuation. | ×1.00 – ×1.30 |
+| CHOCH — Change of Character | Price breaks against the prior trend sequence. Warning of potential reversal. | ×0.40 – ×1.00 |
+| None | No structural event detected. | ×1.00 |
+
+Multiplier magnitude scales with **strength** — how far price cleared the structural level relative to ATR (0–100%).
+
+**Conflict detection:**
+
+If the structural sequence direction contradicts the momentum group majority (EMA50 + DMI + MACD), the multiplier is forced to ×0.00. The score is zeroed, the label becomes **Conflict (CF)**, and no alert fires. The system treats structure-momentum disagreement as a non-tradeable state.
+
+**Final score maximum: ±7.15** (after BOS ×1.30 at full ADX weight)
+
+**Score → Label** (regime-aware thresholds):
+
+| Regime | Strong Buy/Sell | Buy/Sell |
+|---|---|---|
+| Risk-On / Risk-Off | ±4.5 | ±3.0 |
+| Ranging / Mixed | ±5.5 | ±4.0 |
 
 ---
 
 ## Currency Strength Model
 
-ATR-adjusted, multi-timeframe weighted model.
+ATR-adjusted, multi-timeframe weighted model with 12 observation pairs.
+
+**Strength pairs:**
+
+| Category | Pairs |
+|---|---|
+| USD base | EURUSD, GBPUSD, USDJPY, USDCHF, AUDUSD, USDCAD, NZDUSD |
+| JPY crosses | AUDJPY, NZDJPY, CADJPY |
+| EUR/GBP/CHF cross-validation | EURGBP, EURCHF |
+
+**Coverage per currency:**
+
+| Currency | Observations |
+|---|---|
+| USD | 7 |
+| JPY | 6 |
+| EUR | 4 (EURUSD, EURJPY, EURGBP, EURCHF) |
+| GBP | 3 (GBPUSD, GBPJPY, EURGBP) |
+| AUD / NZD / CAD / CHF | 2 each |
+
+EURGBP and EURCHF are CSM-only — they contribute to EUR/GBP/CHF strength scores but are not scanned for signals or shown in correlation.
 
 For each pair: compute % return over 14 bars on D1 and H4, divide by ATR(14) to normalise for volatility, weight D1 × 0.7 + H4 × 0.3. Base currency adds the score, quote subtracts. Normalise all 8 currencies to 0–100.
 
-Tap any currency bar on the dashboard to see the per-pair breakdown — the score shown is the ATR-adjusted contribution of each pair. Positive = supporting the currency's strength. Negative = contesting it.
+Tap any currency bar on the dashboard to see the per-pair breakdown.
 
 ---
 
@@ -97,27 +147,23 @@ Five signals vote for Risk-On or Risk-Off:
 
 | Signal | Source | Weight |
 |---|---|---|
-| Safe-haven divergence: (JPY+CHF)/2 - (AUD+NZD+CAD)/3 | CSM | ×2 |
-| USD proxy: USD pair directions averaged | D1 scores | ×2 |
-| Risk basket: AUDUSD + NZDUSD + GBPJPY + EURJPY avg | D1 scores | ×1 |
+| Safe-haven divergence: (JPY+CHF)/2 − (AUD+NZD+CAD)/3 | CSM rankings | ×2 |
+| USD proxy: USD-long pairs avg − USD-short pairs avg | D1 scores | ×2 |
+| Risk basket: AUDUSD + NZDUSD + GBPJPY + EURJPY + AUDJPY + NZDJPY avg | D1 scores | ×1 |
 | Gold direction | XAUUSD D1 score | ×1 |
 | Volatility confidence modifier | Avg ADX | scales votes |
 
-**Override rule:** when average ADX > 30 (elevated volatility), regime confidence is halved and H4 data is used instead of D1. Reverts when ADX drops below 22 (hysteresis).
+**Override rule:** when average ADX > 30, regime confidence is halved and H4 data is used instead of D1. Reverts when ADX drops below 1.1× threshold (hysteresis).
 
 **Output:** Risk-Off / Risk-On / Ranging / Mixed + confidence (High / Medium / Low) + data source (D1 / H4)
-
-Tap the regime chip on the dashboard to see all six underlying signal values.
 
 ---
 
 ## Correlation Matrix
 
-Pairwise Pearson correlation of 50-bar H4 returns across all 9 pairs. Updated every 4 hours.
+Pairwise Pearson correlation of 50-bar H4 returns across all 12 pairs. Updated every 4 hours.
 
-Reading it: +100 means two pairs move identically — picking both is doubling up on one bet. -100 is a natural hedge. 0 is genuinely uncorrelated — both can be traded independently.
-
-The dashboard Shortlist uses correlation filtering automatically: signals are ranked by score, then correlated duplicates are removed. The Shortlist shows the 1-2 best independent opportunities and lists what was dropped and why.
+Displayed as a lollipop chart: tap any pair to see its correlation with all other 11 pairs. Bars extend right (positive) or left (negative) from a centre zero line. Red = same direction bet (≥70), blue = natural hedge (≤-70), grey = uncorrelated.
 
 ---
 
@@ -133,28 +179,51 @@ The dashboard Shortlist uses correlation filtering automatically: signals are ra
 ## Alert Format
 
 ```
-🔴 SELL AUDUSD
+🟢 BUY AUDUSD
 
-D1: Sell  |  H4: Strong Sell  |  H1: Sell
+D1: Strong Buy  |  H4: Strong Buy  |  H1: Buy
 
-ADX: 26.3  |  ATR: Normal
-Session: New York
-Regime: Risk-Off (Medium)
-⚠️ Extended: Price 2.4x ATR from EMA200
+ADX: 44.4  |  ATR: Normal
+Structure: BOS (bull, strength 0.74, ×1.28)
+Session: Sydney
+Regime: Risk-On (Medium)
 
-📰 "AUD slides as risk aversion grips markets" — DailyFX
-No high-impact events in next 12h.
+📰 "AUD surges on risk appetite recovery" — DailyFX
+✅ No high-impact events in next 12h.
 
-Dashboard →
+📊 Dashboard →
 ```
+
+When a **Conflict** is active, the alert includes:
+```
+⚠️ Conflict: Structure contradicts momentum — treat with caution
+```
+
+---
+
+## Dropdown Breakdown
+
+Tap any pill in the Signals tab to see the full analysis:
+
+**Always shown:**
+- Six signal votes (EMA200, EMA50, RSI, MACD, DMI, Structure) — ▲ Bull / ▼ Bear / → Neutral
+- ADX value with graduated weight applied (green ≥20, amber 15–20, red <15)
+- ATR status (Normal / Contracted)
+
+**Shown when detected (H4 / D1 only):**
+- Structure event: BOS or CHOCH, direction, strength %, and multiplier applied
+- Conflict flag: fires when structure direction ≠ momentum majority
+
+**Shown when extended (any timeframe):**
+- Extension warning: price >2× ATR from EMA200, RSI >75/<25, or 8+ bars beyond EMA50
 
 ---
 
 ## AI Workflow
 
-**Per-signal:** Tap Copy Prompt on any Signals card. Paste into Claude.ai (with web search enabled). The prompt includes pair, direction, all TF scores, ADX, ATR, extension flag, regime, correlated pairs, and news headline. Claude searches for live VIX, DXY, and pair-specific macro context and returns a 40-word verdict.
+**Per-signal:** Tap Copy Prompt on any Signals card. Paste into Claude.ai (web search enabled). Returns a 40-word verdict: Regime / Edge or Flaw / Verdict.
 
-**Market Brief:** Tap Market Brief on the Dashboard tab to see the auto-generated brief, or Copy Prompt to validate it with live data in Claude.ai. The prompt includes currency strength rankings, all directional scores, regime signal values, the pre-filtered shortlist with correlation reasoning, and asks for a regime classification, key driver, 9-pair bias table, and one caution in under 100 words.
+**Market Brief:** Tap Market Brief on the Dashboard tab, or Copy Prompt to validate with live data in Claude.ai. The prompt includes currency strength rankings, regime signal values, all directional scores, conflict pairs, the pre-filtered shortlist with correlation reasoning, and requests: regime classification, key driver, 9-pair bias table, one caution, shortlist confirmation — in under 100 words.
 
 ---
 
@@ -197,13 +266,14 @@ Settings → Danger Zone → Change visibility → Make public
 
 ```
 config/
-  pairs.py                # Instruments, sessions, display names
+  pairs.py                # 12 instruments, sessions, display names
 scanner/
   fetch.py                # Twelvedata OHLCV fetcher
-  score.py                # 6-signal engine + ADX/ATR filters + extension detection
-  csm.py                  # ATR-adjusted currency strength model
+  score.py                # 3-component scoring engine + ADX weight + structure multiplier
+  structure.py            # BOS/CHOCH event detection with swing pivot lookback
+  csm.py                  # ATR-adjusted currency strength model (12 strength pairs)
   correlate.py            # Pairwise Pearson correlation matrix
-  regime.py               # Proxy market regime detector
+  regime.py               # Proxy market regime detector (6-signal risk basket)
   levels.py               # Swing high/low S/R detection
   cooldown.py             # 4-hour alert cooldown guard
   scan_h1.py              # H1 scan runner
@@ -211,8 +281,8 @@ scanner/
   scan_d1.py              # D1 scan runner (also computes CSM and regime)
 alerts/
   news.py                 # RSS headlines + ForexFactory calendar
-  telegram.py             # Message builder + Telegram sender
-  log.py                  # alerts.json writer
+  telegram.py             # Message builder + Telegram sender (includes structure/conflict)
+  log.py                  # alerts.json writer (includes structure/conflict fields)
 dashboard/
   index.html              # GitHub Pages dashboard (Forex1212)
 data/                     # Auto-committed JSON outputs
@@ -238,7 +308,7 @@ requirements.txt
 
 | Service | Cost |
 |---|---|
-| Twelvedata API | Free (800 req/day — ~400 used) |
+| Twelvedata API | Free (~416 req/day of 800 limit) |
 | GitHub Actions | Free |
 | GitHub Pages | Free |
 | Telegram | Free |
