@@ -132,8 +132,8 @@ tr:last-child td{border-bottom:none;}
       <span class="s-chip" id="s-tokyo">Tokyo</span>
       <span class="s-chip" id="s-london">London</span>
       <span class="s-chip" id="s-newyork">New York</span>
-      <span id="mkt-closed">Market Closed</span>
     </div>
+    <span id="mkt-closed" style="margin-top:6px;">Market Closed</span>
   </div>
   <div class="module">
     <div id="regime-wrap" style="position:relative;display:inline-block;">
@@ -168,15 +168,7 @@ tr:last-child td{border-bottom:none;}
     <table class="sig-tbl"><thead><tr><th>Pair</th><th>H1</th><th>H4</th><th>D1</th></tr></thead>
     <tbody id="sig-tbody"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody></table>
   </div>
-  <div style="font-size:10px;color:var(--muted);margin:4px 0 14px;padding:0 2px;letter-spacing:.02em;">
-    <span style="color:var(--buy);font-weight:600;">SB</span> Strong Buy &nbsp;·&nbsp;
-    <span style="color:var(--buy);font-weight:600;">B</span> Buy &nbsp;·&nbsp;
-    <span style="color:var(--muted);font-weight:600;">N</span> Neutral &nbsp;·&nbsp;
-    <span style="color:var(--sell);font-weight:600;">S</span> Sell &nbsp;·&nbsp;
-    <span style="color:var(--sell);font-weight:600;">SS</span> Strong Sell &nbsp;·&nbsp;
-    <span style="color:#e3b341;font-weight:600;">CF</span> Conflict
-  </div>
-  <div class="sec" style="margin-top:4px;">Latest Signals</div>
+  <div class="sec" style="margin-top:20px;">Latest Signals</div>
   <div id="blurb-grid"><div class="loading">No alerts yet.</div></div>
 </div>
 
@@ -368,7 +360,7 @@ document.addEventListener("click",e=>{
 
 // PATCH 3: structure and conflict rows in dropdown
 function tfCell(data,uid,pos){
-  if(!data)return`<td><span class="pill pill-N">N/A</span><div class="s-num" style="color:var(--muted)"> - </div></td>`;
+  if(!data)return`<td><span class="pill pill-N">&#8212;</span></td>`;
   const num=data.score>0?"+"+data.score:String(data.score);
   const col=data.score>0?"var(--buy)":data.score<0?"var(--sell)":"var(--muted)";
   const sigs=data.signals||{},raw=data.raw||{};
@@ -394,7 +386,7 @@ function tfCell(data,uid,pos){
     rows+=`<div class="dr"><span class="dn" style="color:#e3b341">&#9888; Conflict</span><span style="color:#e3b341;font-weight:600">Structure vs Momentum</span></div>`;
   }
   if(ext){rows+=`<div class="ddiv"></div><div class="dr"><span class="dn" style="color:#e3b341">&#9888;&#65039; Extended</span><span style="color:#e3b341;font-weight:600">Yes</span></div>`;}
-  return`<td><div class="pill-wrap"><span class="pill ${pillClass(data.label)}" onclick="togglePillDrop('${uid}')">${pillAbbr(data.label)}</span><div class="drop" id="d-${uid}" data-pos="${pos}">${rows}</div></div><div class="s-num" style="color:${col}">${num}</div></td>`;
+  return`<td><div class="pill-wrap"><span class="pill ${pillClass(data.label)}" onclick="togglePillDrop('${uid}')">${pillAbbr(data.label)} ${num}</span><div class="drop" id="d-${uid}" data-pos="${pos}">${rows}</div></div></td>`;
 }
 
 function renderCSM(csm){
