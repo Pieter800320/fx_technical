@@ -25,7 +25,7 @@ header h1{font-size:18px;font-weight:600;}
 #session-row{display:flex;gap:6px;flex-wrap:wrap;}
 .s-chip{font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;border:1px solid var(--border);color:var(--muted);}
 .s-chip.on{border-color:#388bfd;color:#58a6ff;background:rgba(56,139,253,.1);}
-#mkt-closed{display:none;font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;background:rgba(248,81,73,.2);border:1px solid rgba(248,81,73,.45);color:var(--sell);}
+#mkt-closed{display:none;font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;background:rgba(248,81,73,.13);border:1px solid rgba(248,81,73,.3);color:#f85149;}
 #regime-pill{font-size:var(--f-pill);font-weight:600;padding:3px 14px;border-radius:12px;border:1px solid var(--border);color:var(--muted);cursor:pointer;display:inline-block;}
 .pill{display:inline-block;padding:3px 12px;border-radius:12px;font-size:var(--f-pill);font-weight:600;cursor:pointer;user-select:none;}
 .pill-SB{background:rgba(35,134,54,.2);border:1px solid rgba(35,134,54,.45);color:var(--buy);}
@@ -63,7 +63,7 @@ tr:last-child td{border-bottom:none;}
 .pair-cell{font-weight:600;font-size:var(--f-primary);}
 .s-num{font-size:var(--f-info);margin-top:3px;font-weight:600;}
 .sig-tbl{table-layout:fixed;width:100%;}.sig-tbl th{padding:6px 4px;}.sig-tbl td{padding:6px 2px;}.sig-tbl td:first-child{padding-left:12px;}.sig-tbl th:first-child{padding-left:12px;width:28%;}.sig-tbl .pill{width:50px;text-align:center;padding:3px 2px;}
-#csm-grid{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;position:relative;}
+#csm-grid{display:flex;flex-direction:column;gap:6px;position:relative;}
 .csm-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:4px;padding:2px 4px;margin:0 -4px;}
 .csm-row:hover{background:#21262d;}
 .csm-lbl{width:36px;font-weight:600;font-size:var(--f-primary);}
@@ -123,6 +123,7 @@ tr:last-child td{border-bottom:none;}
   <div class="tab" onclick="go('correlation')">Correlation</div>
   <div class="tab" onclick="go('signals')">Signals</div>
   <div class="tab" onclick="go('journal')">Journal</div>
+  <div class="tab" onclick="go('log')">Log</div>
 </div>
 
 <div id="tab-dashboard" class="tab-panel active">
@@ -136,19 +137,20 @@ tr:last-child td{border-bottom:none;}
     <span id="mkt-closed" style="margin-top:6px;">Market Closed</span>
   </div>
   <div class="module">
-    <div id="regime-wrap" style="position:relative;display:inline-block;">
-      <span id="regime-pill" onclick="toggleRegimeDrop()">Regime: &#8212;</span>
-      <div class="drop" id="regime-drop"></div>
-    </div>
-  </div>
-  <div class="module">
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button class="btn" onclick="toggleBrief()">Market Brief</button>
       <button class="btn" id="dash-copy-btn" onclick="copyBriefPrompt()">Copy Prompt</button>
     </div>
     <div id="brief-text" style="display:none;margin-top:12px;font-size:12px;line-height:1.9;color:var(--text);white-space:pre-wrap;padding:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);"></div>
   </div>
-  <div id="csm-grid" style="padding-top:12px;"><div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">Currency Strength</div><div class="loading">Loading...</div></div>
+  <div class="module">
+    <span id="regime-pill" onclick="toggleRegimeDrawer()" style="cursor:pointer;">Regime: &#8212;</span>
+    <div id="regime-drawer" style="display:none;margin-top:12px;padding:10px 12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);font-size:var(--f-info);line-height:2.0;"></div>
+  </div>
+  <div class="module" style="padding:10px 14px 14px;">
+    <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">Currency Strength</div>
+    <div id="csm-grid"><div class="loading">Loading...</div></div>
+  </div>
   <div id="shortlist-wrap" style="display:none;margin-top:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Shortlist</div>
     <div id="shortlist-picks" style="font-size:var(--f-pill);line-height:2;"></div>
@@ -201,7 +203,10 @@ tr:last-child td{border-bottom:none;}
       <button class="btn" onclick="exportCSV()">Export CSV</button>
     </div>
   </div>
-  <div class="module" style="padding:0;overflow:hidden;margin-top:4px;">
+</div>
+
+<div id="tab-log" class="tab-panel">
+  <div class="module" style="padding:0;overflow:hidden;">
   <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px 8px;border-bottom:1px solid var(--border);">Trade Log</div>
   <div id="j-tbl-wrap" style="overflow-x:auto;">
     <table id="j-tbl">
@@ -262,7 +267,7 @@ function go(name){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  const idx={dashboard:0,correlation:1,signals:2,journal:3}[name]||0;
+  const idx={dashboard:0,correlation:1,signals:2,journal:3,log:4}[name]||0;
   document.querySelectorAll('.tab')[idx].classList.add('active');
   if(name==='correlation'){renderCorr(D.corr);renderCorrWarning();}
   if(name==='journal') updateSnap();
@@ -295,35 +300,35 @@ function renderSessions(){
   });
 }
 
-let regDropOpen=false;
 function renderRegime(r){
   if(!r||!r.regime)return;
   const pill=document.getElementById("regime-pill");
   const c=RC[r.regime]||RC["Mixed"];
   pill.style.background=c.bg;pill.style.borderColor=c.b;pill.style.color=c.c;
+  pill.style.border="1px solid "+c.b;
   pill.textContent="Regime: "+r.regime+"  "+(r.confidence||"");
   const s=r.signals||{};
   const rows=[
-    ["SH Divergence",s.sh_divergence],["USD Proxy",s.usd_proxy],
-    ["Risk Basket",s.risk_basket],["Gold",s.gold_direction||" - "],
-    null,
+    ["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],
+    ["Risk basket",s.risk_basket],["Gold",s.gold_direction||"-"],
     ["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],
-    ["Dispersion",s.dispersion],["Risk-Off pts",s.risk_off_votes],["Risk-On pts",s.risk_on_votes],
-    null,["Data source",r.data_source||"D1"],["Vol ratio",r.vol_ratio],
+    ["Dispersion",s.dispersion],
+    ["Risk-Off pts",s.risk_off_votes],["Risk-On pts",s.risk_on_votes],
+    ["Data source",r.data_source||"D1"],["Vol ratio",r.vol_ratio],
   ];
-  const drop=document.getElementById("regime-drop");
-  drop.innerHTML='<div class="drop-hd">Regime Signals</div>'+rows.map(r=>{
-    if(!r)return'<div class="ddiv"></div>';
-    const[k,v]=r;const vStr=v!==null&&v!==undefined?v:" - ";
+  const drawer=document.getElementById("regime-drawer");
+  if(!drawer)return;
+  drawer.innerHTML=rows.map(row=>{
+    if(!row)return"";
+    const[k,v]=row;const vStr=v!==null&&v!==undefined?String(v):"-";
     const n=parseFloat(vStr);const col=!isNaN(n)?n>0?"var(--buy)":n<0?"var(--sell)":"var(--muted)":"var(--muted)";
     return`<div class="dr"><span class="dn">${k}</span><span style="color:${col};font-weight:600">${vStr}</span></div>`;
   }).join("");
 }
-function toggleRegimeDrop(){
-  const drop=document.getElementById("regime-drop");
-  regDropOpen=!regDropOpen;
-  if(regDropOpen){drop.style.cssText="display:block;visibility:hidden;position:fixed;top:-9999px;left:-9999px;";const dW=drop.offsetWidth,dH=drop.offsetHeight,a=document.getElementById("regime-pill").getBoundingClientRect();let left=a.left;left=Math.max(8,Math.min(left,window.innerWidth-dW-8));const top=a.bottom+4+dH>window.innerHeight-8?a.top-dH-4:a.bottom+4;drop.style.cssText="";drop.style.position="fixed";drop.style.left=left+"px";drop.style.top=top+"px";drop.classList.add("open");}
-  else{drop.classList.remove("open");}
+function toggleRegimeDrawer(){
+  const drawer=document.getElementById("regime-drawer");
+  if(!drawer)return;
+  drawer.style.display=drawer.style.display==="none"?"block":"none";
 }
 
 // PATCH 2: conflict case added
@@ -362,7 +367,7 @@ document.addEventListener("click",e=>{
   if(!e.target.classList.contains("pill")&&!e.target.closest(".csm-row")&&!e.target.closest("#regime-wrap")){
     if(openDrop){openDrop.classList.remove("open");openDrop=null;}
     if(openCsm){openCsm.classList.remove("open");openCsm=null;}
-    if(regDropOpen){document.getElementById("regime-drop").classList.remove("open");regDropOpen=false;}
+
   }
 });
 
