@@ -81,11 +81,11 @@ tr:last-child td{border-bottom:none;}
 #brief-text{display:none;margin-top:12px;font-size:var(--f-body);line-height:1.9;color:var(--text);white-space:pre-wrap;padding:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);}
 #shortlist-picks{font-size:var(--f-pill);line-height:2.0;}
 #shortlist-dropped{font-size:var(--f-info);color:var(--muted);margin-top:4px;}
-#j-form{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px;}.j-inner{background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:12px;margin-bottom:8px;}
+#j-form{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px;}
 .f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;}
 .fg{display:flex;flex-direction:column;gap:3px;margin-bottom:8px;}
 .fg label{font-size:var(--f-th);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
-.fg input,.fg select,.fg textarea{background:#21262d;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:var(--f-input);}
+.fg input,.fg select,.fg textarea{background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:var(--f-input);}
 .fg textarea{resize:vertical;min-height:56px;font-family:inherit;}
 #j-snap{font-size:var(--f-info);color:var(--muted);margin-bottom:10px;line-height:1.8;}
 #j-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-bottom:16px;}
@@ -149,28 +149,26 @@ tr:last-child td{border-bottom:none;}
       <div id="live-content"><div class="loading">Loading...</div></div>
     </div>
   </div>
-  <div class="module">
-    <span id="regime-pill" onclick="toggleRegimeDrawer()" style="cursor:pointer;">Regime: &#8212;</span>
-    <div id="regime-drawer" style="display:none;margin-top:12px;padding:10px 12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);font-size:var(--f-info);line-height:2.0;"></div>
-  </div>
-  <div class="module" style="padding:10px 14px 14px;">
-    <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">Currency Strength</div>
-    <div id="csm-grid"><div class="loading">Loading...</div></div>
-  </div>
-  <div id="shortlist-wrap" style="display:none;margin-top:14px;padding:12px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
+  <div id="shortlist-wrap" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Shortlist</div>
     <div style="background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:4px;">
       <div id="shortlist-picks" style="font-size:var(--f-pill);line-height:2;"></div>
       <div id="shortlist-dropped" style="font-size:11px;color:var(--muted);margin-top:4px;"></div>
     </div>
   </div>
+  <div class="module" style="padding:10px 14px 14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+      <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Currency Strength</div>
+      <span id="regime-pill" onclick="toggleRegimeDrawer()" style="cursor:pointer;font-size:var(--f-pill);">Regime: &#8212;</span>
+    </div>
+    <div id="regime-drawer" style="display:none;margin-bottom:10px;padding:10px 12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);font-size:var(--f-info);line-height:2.0;"></div>
+    <div id="csm-grid"><div class="loading">Loading...</div></div>
+  </div>
 </div>
 
 <div id="tab-correlation" class="tab-panel">
-  <div class="module" id="corr-warning-wrap" style="display:none;">
-    <span id="corr-warning" style="font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;background:rgba(248,81,73,.13);border:1px solid rgba(248,81,73,.3);color:#f85149;"></span>
-  </div>
-  <div class="module" id="corr-pairs-wrap" style="display:none;padding:10px 10px 6px;"></div>
+  <div id="corr-warning-wrap" style="display:none;"><span id="corr-warning"></span></div>
+  <div class="module" id="corr-pairs-wrap" style="display:none;padding:10px 14px 6px;"></div>
   <div class="module" id="corr-chart-wrap"><div class="loading">Loads after next H4 scan.</div></div>
 </div>
 
@@ -189,7 +187,6 @@ tr:last-child td{border-bottom:none;}
 <div id="tab-journal" class="tab-panel">
   <div id="j-form">
   <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;">New Trade Entry</div>
-    <div class="j-inner">
     <div class="f3">
       <div class="fg"><label>Pair</label><select id="j-pair" onchange="updateSnap()">
         <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
@@ -206,7 +203,6 @@ tr:last-child td{border-bottom:none;}
     <div class="fg"><label>Stop Loss</label><input id="j-sl" type="number" step="0.00001" placeholder="e.g. 1.08100"/></div>
     <div class="fg"><label>Take Profit</label><input id="j-tp" type="number" step="0.00001" placeholder="e.g. 1.09200"/></div>
     <div class="fg"><label>Notes</label><textarea id="j-notes" placeholder="Setup rationale..."></textarea></div>
-    </div>
     <div id="j-snap"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn" onclick="addTrade()">Add to Journal</button>
@@ -693,7 +689,7 @@ function renderCorr(corr){
   const row=matrix[idx];
   if(pairsWrap){
     pairsWrap.style.display="block";
-    let ph='<div style="display:flex;gap:5px;flex-wrap:wrap;">';
+    let ph='<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;">';
     pairs.forEach(p=>{
       const act=p===corrSelectedPair;
       ph+=`<button onclick="corrSelectedPair='${p}';renderCorr(D.corr)" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;cursor:pointer;border:1px solid ${act?"#58a6ff":"var(--border)"};background:${act?"rgba(56,139,253,.15)":"transparent"};color:${act?"#58a6ff":"var(--muted)"};">${p.replace("/","")}</button>`;
