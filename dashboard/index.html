@@ -127,14 +127,14 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <div id="tab-dashboard" class="tab-panel active">
-  <div class="module">
-    <div id="session-row" onclick="toggleSessions()" style="cursor:pointer;">
+  <div class="module" style="padding:10px 14px;">
+    <div id="session-row" onclick="toggleSessions()" style="cursor:pointer;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
       <span class="s-chip" id="s-sydney">Sydney</span>
       <span class="s-chip" id="s-tokyo">Tokyo</span>
       <span class="s-chip" id="s-london">London</span>
       <span class="s-chip" id="s-newyork">New York</span>
+      <span id="mkt-closed">Market Closed</span>
     </div>
-    <span id="mkt-closed" style="margin-top:6px;">Market Closed</span>
   </div>
   <div class="module">
     <div style="display:flex;gap:10px;">
@@ -295,7 +295,13 @@ let sessExpanded=false;
 function renderSessions(){
   const isClosed=closed();
   const mcEl=document.getElementById("mkt-closed");
+  const row=document.getElementById("session-row");
+  const h=new Date().getUTCHours();
+  const act=Object.entries(SESS).filter(([,[s,e]])=>s>e?(h>=s||h<e):(h>=s&&h<e)).map(([n])=>n);
+
   if(isClosed){
+    // Hide all session chips, show Market Closed with countdown
+    Object.values(SESS_IDS).forEach(id=>document.getElementById(id).style.display="none");
     let target=new Date();
     const dow=target.getUTCDay();
     const daysUntilSun=dow===0?0:(7-dow);
@@ -305,25 +311,26 @@ function renderSessions(){
     const diffMs=target-new Date();
     const diffH=Math.floor(diffMs/3600000),diffM=Math.floor((diffMs%3600000)/60000);
     mcEl.textContent="Market Closed · opens in "+(diffH>0?diffH+"h "+diffM+"m":diffM+"m");
-    mcEl.style.display="inline-block";
-  } else {
-    mcEl.style.display="none";mcEl.textContent="Market Closed";
+    mcEl.style.display="inline-flex";
+    row.style.opacity="1";
+    return;
   }
-  const h=new Date().getUTCHours();
-  const act=Object.entries(SESS).filter(([,[s,e]])=>s>e?(h>=s||h<e):(h>=s&&h<e)).map(([n])=>n);
-  document.getElementById("session-row").style.opacity=isClosed?"0.4":"1";
+
+  // Market open
+  mcEl.style.display="none";
+  row.style.opacity="1";
+
   Object.entries(SESS_IDS).forEach(([n,id])=>{
     const el=document.getElementById(id);
-    const isActive=act.includes(n)&&!isClosed;
+    const isActive=act.includes(n);
     el.classList.toggle("on",isActive);
     if(sessExpanded){
-      el.style.display="inline-block";
-      if(isClosed){el.textContent=n;}
-      else if(isActive){const[,e]=SESS[n];const t=minsUntil(e);el.textContent=n+(t?" · closes "+t:"");}
+      el.style.display="inline-flex";
+      if(isActive){const[,e]=SESS[n];const t=minsUntil(e);el.textContent=n+(t?" · closes "+t:"");}
       else{const[s]=SESS[n];const t=minsUntil(s);el.textContent=n+(t?" · opens "+t:"");}
     } else {
-      if(isActive&&!isClosed){
-        el.style.display="inline-block";
+      if(isActive){
+        el.style.display="inline-flex";
         const[,e]=SESS[n];const t=minsUntil(e);
         el.textContent=n+(t?" · closes "+t:"");
       } else {
@@ -331,10 +338,12 @@ function renderSessions(){
       }
     }
   });
-  if(!sessExpanded&&!isClosed&&!act.length){
-    const [firstN,firstId]=Object.entries(SESS_IDS)[0];
+
+  // If no active session and collapsed, show first upcoming
+  if(!sessExpanded&&!act.length){
+    const[firstN,firstId]=Object.entries(SESS_IDS)[0];
     const el=document.getElementById(firstId);
-    el.style.display="inline-block";
+    el.style.display="inline-flex";el.classList.remove("on");
     const[s]=SESS[firstN];const t=minsUntil(s);
     el.textContent=firstN+(t?" · opens "+t:"");
   }
@@ -490,9 +499,8 @@ function renderSignals(blurbs){
           const h4d=D.h4&&D.h4[a.pair];
           const st=h4d&&h4d.structure;
           const cf=h4d&&h4d.conflict;
-          const em=isBull?"🟢":"🔴";
           let L=[];
-          L.push("<b>"+em+" "+dLabel+" "+a.pair.replace("/","")+"</b>");
+          L.push("<b>"+dLabel+" "+a.pair.replace("/","")+"</b>");
           L.push("D1: "+(a.d1_label||"N/A")+"&nbsp;&nbsp;H4: "+(a.h4_label||"N/A")+"&nbsp;&nbsp;H1: "+(a.h1_label||"N/A"));
           L.push("ADX: "+adxS+"&nbsp;&nbsp;ATR: "+(atrOk?"Normal":"Contracted"));
           if(ext)L.push("<span style='color:#e3b341'>&#9888;&#65039; Extended</span>");
@@ -654,7 +662,7 @@ function renderLive(){
       <span style="width:58px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${r.pair.replace("/","")}</span>
       <span style="flex:1;font-size:var(--f-info);color:var(--muted);">${r.nowClose.toFixed(r.dec)}</span>
       <span style="font-size:var(--f-info);font-weight:600;color:${r.col};min-width:50px;text-align:right;">${r.sign}${r.pips} pips</span>
-      <span style="font-size:var(--f-info);font-weight:700;color:${r.col};min-width:52px;text-align:right;">${r.sign}${Math.abs(r.pct).toFixed(2)}%</span>
+      <span style="font-size:var(--f-info);font-weight:700;color:${r.col};min-width:52px;text-align:right;">${r.diff<0?"-":""}${Math.abs(r.pct).toFixed(2)}%</span>
     </div>`).join("");
 }
 
