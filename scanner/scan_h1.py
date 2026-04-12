@@ -129,10 +129,10 @@ def main():
             bars_list = []
             for ts, row in bars.iterrows():
                 try:
-                    t = int(getattr(ts, "value", None) or 0) // 10**9
-                    if t <= 0:
-                        import calendar
-                        t = calendar.timegm(ts.timetuple())
+                    import calendar, datetime as _dt
+                    dt_raw = row.get("datetime") if hasattr(row, "get") else str(ts)
+                    dt_obj = _dt.datetime.fromisoformat(str(dt_raw))
+                    t = calendar.timegm(dt_obj.timetuple())
                     bars_list.append({
                         "time":  t,
                         "open":  round(float(row["open"]),  6),
