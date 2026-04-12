@@ -149,7 +149,7 @@ tr:last-child td{border-bottom:none;}
       <div id="live-content"><div class="loading">Loading...</div></div>
     </div>
   </div>
-  <div id="shortlist-wrap" style="display:none;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+  <div id="shortlist-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
     <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Shortlist</div>
     <div style="background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:4px;">
       <div id="shortlist-picks" style="font-size:var(--f-pill);line-height:2;"></div>
@@ -157,8 +157,8 @@ tr:last-child td{border-bottom:none;}
     </div>
   </div>
   <div class="module" style="padding:10px 14px 14px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Currency Strength</div>
+    <div style="margin-bottom:10px;">
+      <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:6px;">Currency Strength</div>
       <span id="regime-pill" onclick="toggleRegimeDrawer()" style="cursor:pointer;font-size:var(--f-pill);">Regime: &#8212;</span>
     </div>
     <div id="regime-drawer" style="display:none;margin-bottom:10px;padding:10px 12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);font-size:var(--f-info);line-height:2.0;"></div>
@@ -547,8 +547,11 @@ function renderShortlist(){
   const dropped=document.getElementById("shortlist-dropped");
   if(!wrap||!picks||!dropped)return;
   const{kept,dropped:dr}=buildRankedShortlist();
-  if(!kept.length&&!dr.length){wrap.style.display="none";return;}
-  wrap.style.display="block";
+  if(!kept.length&&!dr.length){
+    picks.innerHTML='<span style="color:var(--muted);font-size:var(--f-info);">No signals meet the threshold right now.</span>';
+    dropped.textContent="";
+    return;
+  }
   picks.innerHTML=kept.map(x=>{
     const col=x.dir==="bull"?"var(--buy)":"var(--sell)";
     const lbl=x.dir==="bull"?"BUY":"SELL";
@@ -557,16 +560,7 @@ function renderShortlist(){
   dropped.textContent=dr.length?"Dropped: "+dr.map(x=>x.pair.replace("/","")+" (+"+x.corrVal+" "+x.droppedBy.replace("/","")+ ")").join(" / "):"";
 }
 
-function renderCorrWarning(){
-  const wrap=document.getElementById("corr-warning-wrap");
-  const el=document.getElementById("corr-warning");
-  if(!wrap||!el)return;
-  const{kept,dropped:dr}=buildRankedShortlist();
-  const high=dr.filter(x=>x.corrVal>=70);
-  if(!high.length){wrap.style.display="none";return;}
-  wrap.style.display="block";
-  el.textContent="Correlated signals: "+high.map(x=>x.pair.replace("/","")+" + "+x.droppedBy.replace("/","")+" (+"+x.corrVal+")").join(", ");
-}
+function renderCorrWarning(){}
 
 function toggleBrief(){
   const el=document.getElementById("brief-text");if(!el)return;
