@@ -120,19 +120,34 @@ def main():
 
     # Embed last 100 OHLCV bars per pair inside h1_scores.json
     h1_ohlcv = {}
-    for pair in PAIRS:
-        df = ohlcv.get(pair)
-        if df is None or len(df) < 2:
-            continue
-        bars = df.tail(100).copy()
-        h1_ohlcv[pair] = [
-            {"time": int(pd.Timestamp(ts).replace(tzinfo=datetime.timezone.utc).timestamp()),
-             "open": round(float(row["open"]), 6),
-             "high": round(float(row["high"]), 6),
-             "low":  round(float(row["low"]), 6),
-             "close":round(float(row["close"]), 6)}
-            for ts, row in bars.iterrows()
-        ]
+    try:
+        for pair in PAIRS:
+            df = ohlcv.get(pair)
+            if df is None or len(df) < 2:
+                continue
+            bars = df.tail(100).copy()
+            bars_list = []
+            for ts, row in bars.iterrows():
+                try:
+                    t = int(getattr(ts, "value", None) or 0) // 10**9
+                    if t <= 0:
+                        import calendar
+                        t = calendar.timegm(ts.timetuple())
+                    bars_list.append({
+                        "time":  t,
+                        "open":  round(float(row["open"]),  6),
+                        "high":  round(float(row["high"]),  6),
+                        "low":   round(float(row["low"]),   6),
+                        "close": round(float(row["close"]), 6),
+                    })
+                except Exception as bar_err:
+                    print(f"    [OHLCV] bar error {pair}: {bar_err}")
+                    continue
+            if bars_list:
+                h1_ohlcv[pair] = bars_list
+        print(f"  OHLCV: {len(h1_ohlcv)} pairs saved")
+    except Exception as e:
+        print(f"  [OHLCV] ERROR: {e}")
     h1_output = {**h1_results, "_ohlcv": h1_ohlcv}
     with open(H1_OUTPUT, "w") as f:
         json.dump(h1_output, f, indent=2)
