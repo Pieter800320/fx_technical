@@ -700,8 +700,8 @@ function renderTabCharts(){
     return;
   }
   if(empty)empty.style.display='none';
-  const ohlcvKey=chartTf==='60'?'h1_ohlcv':'h4_ohlcv';
-  const ohlcvData=D[ohlcvKey]||{};
+  const ohlcvSrc=chartTf==='60'?D.h1:D.h4;
+  const ohlcvData={pairs:(ohlcvSrc&&ohlcvSrc._ohlcv)||{}};
   kept.forEach(s=>{
     const col=s.dir==='bull'?'var(--buy)':'var(--sell)';
     const lbl=s.dir==='bull'?'BUY':'SELL';
@@ -892,15 +892,14 @@ async function load(file,api=false){
 }
 async function init(){
   renderSessions();
-  const[h1,h4,d1,csm,alerts,regime,corr,h1_ohlcv,h4_ohlcv]=await Promise.all([
+  const[h1,h4,d1,csm,alerts,regime,corr]=await Promise.all([
     load("h1_scores.json",true),load("h4_scores.json",true),
     load("d1_scores.json"),load("csm.json"),load("alerts.json"),
     load("regime.json"),load("correlation.json"),
-    load("h1_ohlcv.json"),load("h4_ohlcv.json"),
   ]);
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v.updated):[]).filter(Boolean).sort();
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+new Date(ts[ts.length-1]).toLocaleString();
-  D={h1,h4,d1,csm,alerts,regime,corr,h1_ohlcv,h4_ohlcv};
+  D={h1,h4,d1,csm,alerts,regime,corr};
   renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
   if(document.getElementById('tab-charts').classList.contains('active'))renderTabCharts();
   renderShortlist();renderBrief();
