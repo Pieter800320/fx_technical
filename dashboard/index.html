@@ -451,13 +451,18 @@ function renderSignals(blurbs){
     return`<div class="bcard">
       <div class="bcard-hdr"><span class="bcard-pair">${a.pair.replace("/","")}</span><span class="bdir ${isBull?"bull":"bear"}" onclick="this.nextElementSibling.classList.toggle('open')">${dLabel}</span></div>
       <div class="binfo">
-        <span>D1: <b style="color:var(--text)">${a.d1_label||"N/A"}</b></span> &nbsp;|&nbsp;
-        <span>H4: <b style="color:var(--text)">${a.h4_label||"N/A"}</b></span> &nbsp;|&nbsp;
-        <span>H1: <b style="color:var(--text)">${a.h1_label||"N/A"}</b></span><br>
-        <span>ADX: <b style="color:${adxC}">${adxS}</b></span> &nbsp;|&nbsp;
-        <span>ATR: <b style="color:${atrOk?"var(--buy)":"var(--sell)"}">${atrOk?"Normal":"Contracted"}</b></span>
-        ${ext?` &nbsp;|&nbsp; <span style="color:#e3b341">&#9888;&#65039; Extended</span>`:""}
-        <br><span>Regime: <b style="color:${rC.c}">${aReg}${aConf?" ("+aConf+")":""}</b></span>
+        <div style="margin-bottom:6px;">
+          <span>D1: <b style="color:var(--text)">${a.d1_label||"N/A"}</b></span> &nbsp;|&nbsp;
+          <span>H4: <b style="color:var(--text)">${a.h4_label||"N/A"}</b></span> &nbsp;|&nbsp;
+          <span>H1: <b style="color:var(--text)">${a.h1_label||"N/A"}</b></span>
+        </div>
+        <div style="margin-bottom:6px;">
+          <span>ADX: <b style="color:${adxC}">${adxS}</b></span> &nbsp;|&nbsp;
+          <span>ATR: <b style="color:${atrOk?"var(--buy)":"var(--sell)"}">${atrOk?"Normal":"Contracted"}</b></span>
+          ${ext?` &nbsp;|&nbsp; <span style="color:#e3b341">&#9888; Extended</span>`:""}
+        </div>
+        ${(()=>{const h4d=D.h4&&D.h4[a.pair];const st=h4d&&h4d.structure;const cf=h4d&&h4d.conflict;let s="";if(st&&st.event&&st.event!=="none"){const evC=st.event==="BOS"?"var(--buy)":"#e3b341";s+=`<div style="margin-bottom:4px;"><span class="dn">Structure</span> <b style="color:${evC}">${st.event} (${st.direction})</b> &nbsp;·&nbsp; <span class="dn">strength</span> <b style="color:var(--muted)">${Math.round((st.strength||0)*100)}%</b> &nbsp;·&nbsp; <span class="dn">×${(st.multiplier||1).toFixed(2)}</span></div>`;}if(cf){s+=`<div style="color:#e3b341;margin-bottom:4px;">&#9888; Conflict: structure vs momentum</div>`;}return s;})()}
+        <div><span>Regime: <b style="color:${rC.c}">${aReg}${aConf?" ("+aConf+")":""}</b></span></div>
       </div>
       <div class="btext">${headline||"<em>No news.</em>"}</div>
       <div class="btime">${time}</div>
