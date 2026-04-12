@@ -136,11 +136,12 @@ def main():
             bars_list = []
             for ts, row in bars.iterrows():
                 try:
-                    # Use .value (nanoseconds since epoch) — most robust conversion
-                    t = int(getattr(ts, "value", None) or 0) // 10**9
-                    if t <= 0:
-                        import calendar
-                        t = calendar.timegm(ts.timetuple())
+                    # ts is a RangeIndex int; datetime is in the row's 'datetime' column
+                    import calendar
+                    dt_raw = row.get("datetime") if hasattr(row, "get") else str(ts)
+                    import datetime as _dt
+                    dt_obj = _dt.datetime.fromisoformat(str(dt_raw))
+                    t = calendar.timegm(dt_obj.timetuple())
                     bars_list.append({
                         "time":  t,
                         "open":  round(float(row["open"]),  6),
