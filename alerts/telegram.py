@@ -11,7 +11,8 @@ DIRECTION_WORD  = {"bull": "BUY", "bear": "SELL"}
 def build_message(pair, direction, h1_label, h4_label, d1_label,
                   session_names, adx_val=None, atr_ok=True,
                   headline=None, events=None, extended=None, regime=None,
-                  conflict=False, structure=None, adx_weight=None):
+                  conflict=False, structure=None, adx_weight=None,
+                  pct_change=None, d1_close=None, h1_close=None):
 
     emoji      = DIRECTION_EMOJI[direction]
     action     = DIRECTION_WORD[direction]
@@ -32,6 +33,15 @@ def build_message(pair, direction, h1_label, h4_label, d1_label,
 
     if regime and regime.get("regime"):
         lines.append(f"Regime: {regime['regime']} ({regime.get('confidence', '')})")
+
+    # % change vs daily close — only show if meaningful move
+    if pct_change is not None:
+        sign = "+" if pct_change >= 0 else ""
+        is_jpy = "JPY" in pair
+        threshold = 1.2 if is_jpy else 0.8
+        if abs(pct_change) >= threshold:
+            marker = " ●" if abs(pct_change) >= threshold * 1.5 else ""
+            lines.append(f"Move today: {sign}{pct_change:.2f}%{marker} vs yesterday close")
 
     # Structure event line (BOS / CHOCH)
     if structure and structure.get("event") in ("BOS", "CHOCH"):
