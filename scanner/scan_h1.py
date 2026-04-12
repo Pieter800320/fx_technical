@@ -1,21 +1,21 @@
-"""scanner/scan_h4.py — H4 scan, D1+H4 gate"""
+"""scanner/scan_h1.py — H1 scan, D1+H4+H1 gate"""
 import json, os, sys, datetime
+import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from config.pairs import PAIRS, pair_display, is_pair_active, get_active_sessions
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, is_extended
-from scanner.correlate import compute_correlation
 from scanner.levels import find_levels
 from scanner.cooldown import is_on_cooldown, record_alert
 from alerts.news import get_alert_context
 from alerts.telegram import build_message, send_telegram
 from alerts.log import log_alert
 
-DATA_DIR    = os.path.join(os.path.dirname(__file__), "..", "data")
-H4_OUTPUT   = os.path.join(DATA_DIR, "h4_scores.json")
-CORR_OUTPUT = os.path.join(DATA_DIR, "correlation.json")
-H1_SCORES   = os.path.join(DATA_DIR, "h1_scores.json")
+DATA_DIR      = os.path.join(os.path.dirname(__file__), "..", "data")
+H1_OUTPUT     = os.path.join(DATA_DIR, "h1_scores.json")
+H1_OHLCV_OUT  = os.path.join(DATA_DIR, "h1_ohlcv.json")
+H4_SCORES   = os.path.join(DATA_DIR, "h4_scores.json")
 D1_SCORES   = os.path.join(DATA_DIR, "d1_scores.json")
 REGIME_FILE = os.path.join(DATA_DIR, "regime.json")
 
@@ -25,7 +25,7 @@ def load_scores(path):
     except: return {}
 
 def main():
-    print(f"\n=== H4 Scan — {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC ===")
+    print(f"\n=== H1 Scan — {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC ===")
     os.makedirs(DATA_DIR, exist_ok=True)
 
     now = datetime.datetime.utcnow()
@@ -35,18 +35,18 @@ def main():
         print("  Market closed (weekend) — exiting.")
         return
 
-    ohlcv           = fetch_all_pairs(PAIRS, "H4")
-    h1_data         = load_scores(H1_SCORES)
+    ohlcv           = fetch_all_pairs(PAIRS, "H1")
+    h4_data         = load_scores(H4_SCORES)
     d1_data         = load_scores(D1_SCORES)
     regime          = load_scores(REGIME_FILE)
     active_sessions = get_active_sessions(now)
-    h4_results      = {}
+    h1_results      = {}
 
     for pair in PAIRS:
         df = ohlcv.get(pair)
         if df is None:
             print(f"  {pair_display(pair)}: no data"); continue
-        result = score_pair(df, timeframe="H4")
+        result = score_pair(df, timeframe="H1")
         if result is None:
             print(f"  {pair_display(pair)}: insufficient bars"); continue
 
@@ -56,22 +56,23 @@ def main():
         ext_data  = is_extended(df, direction)
         levels    = find_levels(df)
 
-        h4_results[pair] = {
-            "score":      result["score"],
-            "label":      label,
-            "direction":  direction,
-            "raw":        result["raw"],
-            "signals":    result["signals"],
-            "filter_ok":  result["filter_ok"],
-            "extended":   ext_data,
-            "conflict":   result.get("conflict", False),
-            "structure":  result.get("structure", {}),
-            "adx_weight": result.get("adx_weight", 1.0),
-            "updated":    now.isoformat(),
+        h1_results[pair] = {
+            "score":     result["score"],
+            "label":     label,
+            "direction": direction,
+            "raw":       result["raw"],
+            "signals":   result["signals"],
+            "filter_ok": result["filter_ok"],
+            "extended":  ext_data,
+            "updated":   now.isoformat(),
         }
         print(f"  {display}: {result['score']:+d} → {label}")
 
         if direction == "neutral": continue
+        h4_dir   = h4_data.get(pair, {}).get("direction", "neutral")
+        h4_label = h4_data.get(pair, {}).get("label", "N/A")
+        if h4_dir != direction:
+            print(f"    ↳ Suppressed: H4 is {h4_dir}"); continue
         d1_dir   = d1_data.get(pair, {}).get("direction", "neutral")
         d1_label = d1_data.get(pair, {}).get("label", "N/A")
         if d1_dir != direction:
@@ -83,51 +84,62 @@ def main():
         if is_on_cooldown(pair, direction):
             print(f"    ↳ Suppressed: on cooldown"); continue
 
-        h1_label = h1_data.get(pair, {}).get("label", "N/A")
-        adx_val  = result["raw"].get("adx")
-        # % change vs daily close (zero extra API calls — reuse fetched data)
-        h4_close = result["raw"].get("close")
+        # Pull H4 structure/conflict for the alert context
+        h4_result_data = h4_data.get(pair, {})
+
+        print(f"    ↳ ALERT: {direction.upper()} — fetching news context...")
+        ctx = get_alert_context(pair)
+        adx_val = result["raw"].get("adx")
+        # % change vs daily close
+        h1_close = result["raw"].get("close")
         d1_close = d1_data.get(pair, {}).get("raw", {}).get("close")
         pct_change = None
-        if h4_close and d1_close:
+        if h1_close and d1_close:
             try:
-                pct_change = round((float(h4_close) - float(d1_close)) / float(d1_close) * 100, 2)
+                pct_change = round((float(h1_close) - float(d1_close)) / float(d1_close) * 100, 2)
             except Exception:
                 pass
-        print(f"    ↳ H4 ALERT: {direction.upper()} — fetching news context...")
-        ctx = get_alert_context(pair)
         msg = build_message(
-            pair=pair, direction=direction, h1_label=h1_label,
-            h4_label=label, d1_label=d1_label,
+            pair=pair, direction=direction, h1_label=label,
+            h4_label=h4_label, d1_label=d1_label,
             session_names=active_sessions, adx_val=adx_val,
             atr_ok=result["filter_ok"], headline=ctx["headline"],
             events=ctx["events"], extended=ext_data, regime=regime,
-            conflict=result.get("conflict", False),
-            structure=result.get("structure"),
+            conflict=h4_result_data.get("conflict", False),
+            structure=h4_result_data.get("structure"),
             adx_weight=result.get("adx_weight"),
             pct_change=pct_change,
         )
         send_telegram(msg)
         record_alert(pair, direction)
-        log_alert(pair, direction, h1_label, label, d1_label,
+        log_alert(pair, direction, label, h4_label, d1_label,
                   ctx["headline"], levels=levels, extended=ext_data,
                   regime=regime, adx_val=adx_val, atr_ok=result["filter_ok"],
-                  conflict=result.get("conflict", False),
-                  structure=result.get("structure", {}))
+                  conflict=h4_result_data.get("conflict", False),
+                  structure=h4_result_data.get("structure", {}))
 
-    # Correlation matrix
-    print("\n  Computing correlation matrix...")
-    corr_result = compute_correlation(ohlcv)
-    with open(CORR_OUTPUT, "w") as f:
-        json.dump({"pairs": corr_result["pairs"], "matrix": corr_result["matrix"],
-                   "lookback": 50, "updated": now.isoformat()}, f, indent=2)
-    print(f"  Correlation matrix: {len(corr_result['pairs'])} pairs")
-
-    with open(H4_OUTPUT, "w") as f:
-        json.dump(h4_results, f, indent=2)
-    print(f"\n  Saved: {H4_OUTPUT}")
-    print(f"  Saved: {CORR_OUTPUT}")
-    print("=== H4 Scan complete ===\n")
+    # Save last 100 bars of OHLCV per pair for Lightweight Charts
+    h1_ohlcv = {}
+    for pair in PAIRS:
+        df = ohlcv.get(pair)
+        if df is None or len(df) < 2:
+            continue
+        bars = df.tail(100).copy()
+        bars.index = bars.index.astype(str)
+        h1_ohlcv[pair] = [
+            {"time": int(pd.Timestamp(row.name).timestamp()),
+             "open": round(float(row["open"]), 6),
+             "high": round(float(row["high"]), 6),
+             "low":  round(float(row["low"]), 6),
+             "close":round(float(row["close"]), 6)}
+            for _, row in bars.iterrows()
+        ]
+    with open(H1_OHLCV_OUT, "w") as f:
+        json.dump({"pairs": h1_ohlcv, "updated": now.isoformat()}, f)
+    with open(H1_OUTPUT, "w") as f:
+        json.dump(h1_results, f, indent=2)
+    print(f"\n  Saved: {H1_OUTPUT}")
+    print("=== H1 Scan complete ===\n")
 
 if __name__ == "__main__":
     main()
