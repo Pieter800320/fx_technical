@@ -125,26 +125,24 @@ def main():
                    "lookback": 50, "updated": now.isoformat()}, f, indent=2)
     print(f"  Correlation matrix: {len(corr_result['pairs'])} pairs")
 
-    # Save last 100 bars of OHLCV per pair for Lightweight Charts
+    # Embed last 100 OHLCV bars per pair inside h4_scores.json
     h4_ohlcv = {}
     for pair in PAIRS:
         df = ohlcv.get(pair)
         if df is None or len(df) < 2:
             continue
         bars = df.tail(100).copy()
-        bars.index = bars.index.astype(str)
         h4_ohlcv[pair] = [
-            {"time": int(pd.Timestamp(row.name).timestamp()),
+            {"time": int(pd.Timestamp(ts).replace(tzinfo=datetime.timezone.utc).timestamp()),
              "open": round(float(row["open"]), 6),
              "high": round(float(row["high"]), 6),
              "low":  round(float(row["low"]), 6),
              "close":round(float(row["close"]), 6)}
-            for _, row in bars.iterrows()
+            for ts, row in bars.iterrows()
         ]
-    with open(H4_OHLCV_OUT, "w") as f:
-        json.dump({"pairs": h4_ohlcv, "updated": now.isoformat()}, f)
+    h4_output = {**h4_results, "_ohlcv": h4_ohlcv}
     with open(H4_OUTPUT, "w") as f:
-        json.dump(h4_results, f, indent=2)
+        json.dump(h4_output, f, indent=2)
     print(f"\n  Saved: {H4_OUTPUT}")
     print(f"  Saved: {CORR_OUTPUT}")
     print("=== H4 Scan complete ===\n")
