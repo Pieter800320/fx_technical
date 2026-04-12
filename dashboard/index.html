@@ -686,45 +686,114 @@ function renderLwChart(container,pair,ohlcvData){
   ro.observe(container);
 }
 
+// Track which charts have been rendered and their instances
+const chartRendered={};
+const chartInstances={};
+
+function toggleChartCard(pair){
+  const pKey=pair.replace('/','');
+  const body=document.getElementById('chart-body-'+pKey);
+  if(!body)return;
+  const isOpen=body.style.display!=='none';
+  body.style.display=isOpen?'none':'block';
+  const arrow=document.getElementById('chart-arrow-'+pKey);
+  if(arrow)arrow.textContent=isOpen?'▶':'▼';
+  if(!isOpen&&!chartRendered[pair]){
+    const container=document.getElementById('chart-canvas-'+pKey);
+    if(container)renderChartForPair(container,pair);
+  }
+}
+
+function renderChartForPair(container,pair){
+  const ohlcvSrc=chartTf==='60'?D.h1:D.h4;
+  const pairData=(ohlcvSrc&&ohlcvSrc._ohlcv&&ohlcvSrc._ohlcv[pair])||[];
+  if(pairData.length){
+    if(chartInstances[pair]){try{chartInstances[pair].remove();}catch(e){}}
+    container.innerHTML='';
+    const chart=LightweightCharts.createChart(container,{
+      width:container.clientWidth||350,height:220,
+      layout:{background:{color:'transparent'},textColor:'#8b949e'},
+      grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
+      crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+      rightPriceScale:{borderColor:'#30363d'},
+      timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
+      handleScroll:true,handleScale:true,
+    });
+    chartInstances[pair]=chart;
+    lwChartInstances.push(chart);
+    const candles=chart.addCandlestickSeries({
+      upColor:'#3fb950',downColor:'#f85149',
+      borderUpColor:'#3fb950',borderDownColor:'#f85149',
+      wickUpColor:'#3fb950',wickDownColor:'#f85149',
+    });
+    candles.setData(pairData);
+    chart.timeScale().fitContent();
+    const ro=new ResizeObserver(()=>chart.applyOptions({width:container.clientWidth}));
+    ro.observe(container);
+    chartRendered[pair]=true;
+  } else {
+    const hasKey=ohlcvSrc&&ohlcvSrc._ohlcv!==undefined;
+    container.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted);font-size:11px;text-align:center;padding:10px;">${hasKey?'No data for '+pair:'_ohlcv missing — re-run H'+(chartTf==='60'?'1':'4')+' scan'}</div>`;
+  }
+}
+
 function renderTabCharts(){
   const grid=document.getElementById('charts-tab-grid');
   const empty=document.getElementById('charts-tab-empty');
   if(!grid)return;
-  // Destroy old chart instances
-  lwChartInstances.forEach(c=>{try{c.remove();}catch(e){}});
-  lwChartInstances=[];
-  grid.innerHTML='';
-  const{kept}=buildRankedShortlist();
-  if(!kept.length){
-    if(empty)empty.style.display='block';
-    return;
-  }
   if(empty)empty.style.display='none';
-  const ohlcvSrc=chartTf==='60'?D.h1:D.h4;
-  const ohlcvData={pairs:(ohlcvSrc&&ohlcvSrc._ohlcv)||{}};
-  kept.forEach(s=>{
-    const col=s.dir==='bull'?'var(--buy)':'var(--sell)';
-    const lbl=s.dir==='bull'?'BUY':'SELL';
-    const pairData=(ohlcvData.pairs||{})[s.pair]||[];
-    const wrap=document.createElement('div');
-    wrap.style.cssText='border:1px solid var(--border);border-radius:8px;overflow:hidden;';
-    wrap.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--surface);">
-      <span style="font-weight:700;font-size:var(--f-primary);color:var(--text);">${s.pair.replace('/','')}</span>
-      <span style="font-size:var(--f-pill);font-weight:600;color:${col};">${lbl} &nbsp;·&nbsp; score ${s.score>0?'+':''}${s.score} &nbsp;·&nbsp; ADX ${s.adx.toFixed(0)}</span>
-    </div>
-    <div class="lw-chart-container" style="width:100%;height:220px;background:#0d1117;"></div>`;
-    grid.appendChild(wrap);
-    const container=wrap.querySelector('.lw-chart-container');
-    if(pairData.length){
-      setTimeout(()=>renderLwChart(container,s.pair,pairData),50);
-    } else {
-      const hasKey=ohlcvSrc&&ohlcvSrc._ohlcv!==undefined;
-      const nPairs=hasKey?Object.keys(ohlcvSrc._ohlcv||{}).length:0;
-      const msg=!hasKey?'_ohlcv missing from JSON — re-run H'+(chartTf==='60'?'1':'4')+' scan':nPairs===0?'_ohlcv empty — check scan logs':'No bars for '+s.pair+' ('+nPairs+' pairs in ohlcv)';
-      container.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:11px;text-align:center;padding:10px;">${msg}</div>`;
-    }
-  });
+  const{kept}=buildRankedShortlist();
+  const shortlistPairs=new Set(kept.map(s=>s.pair));
+  if(!grid.children.length){
+    PAIRS.forEach(pair=>{
+      const pKey=pair.replace('/','');
+      const scoreData=D.h4&&D.h4[pair];
+      const isShort=shortlistPairs.has(pair);
+      const score=scoreData?scoreData.score:null;
+      const dir=scoreData?scoreData.direction:'';
+      const adx=scoreData&&scoreData.raw?scoreData.raw.adx:null;
+      const label=scoreData?scoreData.label:'';
+      const col=dir==='bull'?'var(--buy)':dir==='bear'?'var(--sell)':'var(--muted)';
+      const scoreStr=score!==null?(score>0?'+':'')+score:'—';
+      const adxStr=adx!==null?adx.toFixed(0):'—';
+      const borderCol=isShort?'rgba(56,139,253,.4)':'var(--border)';
+      const bgCol=isShort?'rgba(56,139,253,.06)':'var(--surface)';
+      const wrap=document.createElement('div');
+      wrap.style.cssText=`border:1px solid ${borderCol};border-radius:8px;overflow:hidden;margin-bottom:4px;`;
+      wrap.innerHTML=`
+        <div onclick="toggleChartCard('${pair}')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:${bgCol};cursor:pointer;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span id="chart-arrow-${pKey}" style="color:var(--muted);font-size:10px;">${isShort?'▼':'▶'}</span>
+            <span style="font-weight:700;font-size:var(--f-primary);color:var(--text);">${pKey}</span>
+            ${isShort?'<span style="font-size:9px;font-weight:600;padding:1px 6px;border-radius:8px;background:rgba(56,139,253,.15);border:1px solid rgba(56,139,253,.3);color:#58a6ff;">SHORTLIST</span>':''}
+          </div>
+          <span style="font-size:var(--f-pill);font-weight:600;color:${col};">${label?label+' &middot; ':''} ${scoreStr} &middot; ADX ${adxStr}</span>
+        </div>
+        <div id="chart-body-${pKey}" style="display:${isShort?'block':'none'};">
+          <div id="chart-canvas-${pKey}" style="width:100%;height:220px;background:#0d1117;"></div>
+        </div>`;
+      grid.appendChild(wrap);
+      if(isShort){
+        setTimeout(()=>{
+          const container=document.getElementById('chart-canvas-'+pKey);
+          if(container)renderChartForPair(container,pair);
+        },80);
+      }
+    });
+  } else {
+    // Re-render open charts when tf changes
+    Object.keys(chartRendered).forEach(pair=>{
+      const pKey=pair.replace('/','');
+      const body=document.getElementById('chart-body-'+pKey);
+      if(body&&body.style.display!=='none'){
+        chartRendered[pair]=false;
+        const container=document.getElementById('chart-canvas-'+pKey);
+        if(container)renderChartForPair(container,pair);
+      }
+    });
+  }
 }
+
 
 function renderCharts(){
   // Dashboard tab charts-wrap — now just hidden, Charts is its own tab
