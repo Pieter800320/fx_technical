@@ -1,5 +1,6 @@
 """scanner/scan_h4.py — H4 scan, D1+H4 gate"""
 import json, os, sys, datetime
+import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from config.pairs import PAIRS, pair_display, is_pair_active, get_active_sessions
@@ -12,8 +13,9 @@ from alerts.news import get_alert_context
 from alerts.telegram import build_message, send_telegram
 from alerts.log import log_alert
 
-DATA_DIR    = os.path.join(os.path.dirname(__file__), "..", "data")
-H4_OUTPUT   = os.path.join(DATA_DIR, "h4_scores.json")
+DATA_DIR      = os.path.join(os.path.dirname(__file__), "..", "data")
+H4_OUTPUT     = os.path.join(DATA_DIR, "h4_scores.json")
+H4_OHLCV_OUT  = os.path.join(DATA_DIR, "h4_ohlcv.json")
 CORR_OUTPUT = os.path.join(DATA_DIR, "correlation.json")
 H1_SCORES   = os.path.join(DATA_DIR, "h1_scores.json")
 D1_SCORES   = os.path.join(DATA_DIR, "d1_scores.json")
@@ -123,6 +125,24 @@ def main():
                    "lookback": 50, "updated": now.isoformat()}, f, indent=2)
     print(f"  Correlation matrix: {len(corr_result['pairs'])} pairs")
 
+    # Save last 100 bars of OHLCV per pair for Lightweight Charts
+    h4_ohlcv = {}
+    for pair in PAIRS:
+        df = ohlcv.get(pair)
+        if df is None or len(df) < 2:
+            continue
+        bars = df.tail(100).copy()
+        bars.index = bars.index.astype(str)
+        h4_ohlcv[pair] = [
+            {"time": int(pd.Timestamp(row.name).timestamp()),
+             "open": round(float(row["open"]), 6),
+             "high": round(float(row["high"]), 6),
+             "low":  round(float(row["low"]), 6),
+             "close":round(float(row["close"]), 6)}
+            for _, row in bars.iterrows()
+        ]
+    with open(H4_OHLCV_OUT, "w") as f:
+        json.dump({"pairs": h4_ohlcv, "updated": now.isoformat()}, f)
     with open(H4_OUTPUT, "w") as f:
         json.dump(h4_results, f, indent=2)
     print(f"\n  Saved: {H4_OUTPUT}")
