@@ -34,8 +34,8 @@ def main():
 
     day, hour = now.weekday(), now.hour
     if day == 5 or (day == 6 and hour < 22) or (day == 4 and hour >= 22):
-        print("  Market closed (weekend) — exiting.")
-        return
+        print("  Market closed (weekend) — running anyway for OHLCV data generation.")
+        # TEMP: weekend gate removed for testing
 
     ohlcv           = fetch_all_pairs(PAIRS, "H4")
     h1_data         = load_scores(H1_SCORES)
