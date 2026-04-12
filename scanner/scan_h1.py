@@ -118,26 +118,24 @@ def main():
                   conflict=h4_result_data.get("conflict", False),
                   structure=h4_result_data.get("structure", {}))
 
-    # Save last 100 bars of OHLCV per pair for Lightweight Charts
+    # Embed last 100 OHLCV bars per pair inside h1_scores.json
     h1_ohlcv = {}
     for pair in PAIRS:
         df = ohlcv.get(pair)
         if df is None or len(df) < 2:
             continue
         bars = df.tail(100).copy()
-        bars.index = bars.index.astype(str)
         h1_ohlcv[pair] = [
-            {"time": int(pd.Timestamp(row.name).timestamp()),
+            {"time": int(pd.Timestamp(ts).replace(tzinfo=datetime.timezone.utc).timestamp()),
              "open": round(float(row["open"]), 6),
              "high": round(float(row["high"]), 6),
              "low":  round(float(row["low"]), 6),
              "close":round(float(row["close"]), 6)}
-            for _, row in bars.iterrows()
+            for ts, row in bars.iterrows()
         ]
-    with open(H1_OHLCV_OUT, "w") as f:
-        json.dump({"pairs": h1_ohlcv, "updated": now.isoformat()}, f)
+    h1_output = {**h1_results, "_ohlcv": h1_ohlcv}
     with open(H1_OUTPUT, "w") as f:
-        json.dump(h1_results, f, indent=2)
+        json.dump(h1_output, f, indent=2)
     print(f"\n  Saved: {H1_OUTPUT}")
     print("=== H1 Scan complete ===\n")
 
