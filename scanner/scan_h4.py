@@ -85,6 +85,15 @@ def main():
 
         h1_label = h1_data.get(pair, {}).get("label", "N/A")
         adx_val  = result["raw"].get("adx")
+        # % change vs daily close (zero extra API calls — reuse fetched data)
+        h4_close = result["raw"].get("close")
+        d1_close = d1_data.get(pair, {}).get("raw", {}).get("close")
+        pct_change = None
+        if h4_close and d1_close:
+            try:
+                pct_change = round((float(h4_close) - float(d1_close)) / float(d1_close) * 100, 2)
+            except Exception:
+                pass
         print(f"    ↳ H4 ALERT: {direction.upper()} — fetching news context...")
         ctx = get_alert_context(pair)
         msg = build_message(
@@ -96,6 +105,7 @@ def main():
             conflict=result.get("conflict", False),
             structure=result.get("structure"),
             adx_weight=result.get("adx_weight"),
+            pct_change=pct_change,
         )
         send_telegram(msg)
         record_alert(pair, direction)
