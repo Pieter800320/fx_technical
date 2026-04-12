@@ -347,7 +347,7 @@ function renderRegime(r){
   const c=RC[r.regime]||RC["Mixed"];
   pill.style.background=c.bg;pill.style.borderColor=c.b;pill.style.color=c.c;
   pill.style.border="1px solid "+c.b;
-  pill.textContent="Regime: "+r.regime+"  "+(r.confidence||"");
+  pill.textContent=r.regime+" · "+(r.confidence||"");
   const s=r.signals||{};
   const rows=[
     ["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],
@@ -484,7 +484,7 @@ function renderSignals(blurbs){
     const rC=RC[aReg]||RC["Mixed"];
     prompts[i]="You are an institutional FX trader with web search access.\n\nSIGNAL:\nPair: "+a.pair.replace("/","")+" | Direction: "+dLabel+"\nD1: "+(a.d1_label||"N/A")+" | H4: "+(a.h4_label||"N/A")+" | H1: "+(a.h1_label||"N/A")+"\nADX: "+adxS+" | ATR: "+(atrOk?"Normal":"Contracted")+" | Extended: "+(ext?"Yes":"No")+"\nRegime (proxy): "+aReg+" ("+aConf+")\nNews: \""+headline+"\"\nTime: "+time+"\n\nSearch current VIX, DXY, and "+a.pair.replace("/","")+" macro context.\nAssess: (1) does macro support this direction? (2) is price fresh or extended?\n\nOutput strictly:\nRegime / Edge or Flaw / Verdict\nMax 40 words. Be decisive.";
     return`<div class="bcard">
-      <div class="bcard-hdr"><span class="bcard-pair">${a.pair.replace("/","")}</span><span class="bdir ${isBull?"bull":"bear"}" onclick="this.nextElementSibling.classList.toggle('open')">${dLabel}</span></div>
+      <div class="bcard-hdr"><span class="bcard-pair">${a.pair.replace("/","")}</span><span class="bdir ${isBull?"bull":"bear"}" onclick="const bi=this.closest('.bcard').querySelector('.binfo');bi.classList.toggle('open')">${dLabel}</span></div>
       <div class="binfo">
         <div style="font-size:var(--f-info);line-height:1.9;">${(()=>{
           const h4d=D.h4&&D.h4[a.pair];
