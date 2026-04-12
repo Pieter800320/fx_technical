@@ -662,7 +662,7 @@ function renderLive(){
       <span style="width:58px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${r.pair.replace("/","")}</span>
       <span style="flex:1;font-size:var(--f-info);color:var(--muted);">${r.nowClose.toFixed(r.dec)}</span>
       <span style="font-size:var(--f-info);font-weight:600;color:${r.col};min-width:50px;text-align:right;">${r.sign}${r.pips} pips</span>
-      <span style="font-size:var(--f-info);font-weight:700;color:${r.col};min-width:52px;text-align:right;">${r.diff<0?"-":""}${Math.abs(r.pct).toFixed(2)}%</span>
+      <span style="font-size:var(--f-info);font-weight:700;color:${r.col};min-width:52px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pct).toFixed(2)}%</span>
     </div>`).join("");
 }
 
