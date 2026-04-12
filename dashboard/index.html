@@ -165,6 +165,18 @@ tr:last-child td{border-bottom:none;}
     <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">Currency Strength</div>
     <div id="csm-grid"><div class="loading">Loading...</div></div>
   </div>
+  <div id="charts-wrap" style="display:none;margin-top:10px;">
+    <div class="module" style="padding:12px 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Charts</div>
+        <div style="display:flex;gap:6px;">
+          <button id="chart-tf-h1" class="btn" onclick="setChartTf('60')" style="padding:2px 10px;font-size:10px;">H1</button>
+          <button id="chart-tf-h4" class="btn" onclick="setChartTf('240')" style="padding:2px 10px;font-size:10px;background:rgba(56,139,253,.25);border-color:#58a6ff;">H4</button>
+        </div>
+      </div>
+      <div id="charts-grid" style="display:flex;flex-direction:column;gap:10px;"></div>
+    </div>
+  </div>
 </div>
 
 <div id="tab-correlation" class="tab-panel">
@@ -609,9 +621,67 @@ function renderShortlist(){
     return`<div style="color:${col};font-weight:600;">${x.pair.replace("/","")} &mdash; ${lbl}</div>`;
   }).join("");
   dropped.textContent=dr.length?"Dropped: "+dr.map(x=>x.pair.replace("/","")+" (+"+x.corrVal+" "+x.droppedBy.replace("/","")+ ")").join(" / "):"";
+  renderCharts();
 }
 
 function renderCorrWarning(){}
+
+// ── TradingView Mini Charts ───────────────────────────────────────────────────
+let chartTf = '240'; // default H4
+const TV_SYMBOLS = {
+  'EUR/USD':'FX:EURUSD','GBP/USD':'FX:GBPUSD','USD/JPY':'FX:USDJPY',
+  'USD/CHF':'FX:USDCHF','AUD/USD':'FX:AUDUSD','USD/CAD':'FX:USDCAD',
+  'NZD/USD':'FX:NZDUSD','EUR/JPY':'FX:EURJPY','GBP/JPY':'FX:GBPJPY',
+  'AUD/JPY':'FX:AUDJPY','NZD/JPY':'FX:NZDJPY','CAD/JPY':'FX:CADJPY',
+};
+
+function setChartTf(tf){
+  chartTf=tf;
+  document.getElementById('chart-tf-h1').style.background=tf==='60'?'rgba(56,139,253,.25)':'';
+  document.getElementById('chart-tf-h1').style.borderColor=tf==='60'?'#58a6ff':'';
+  document.getElementById('chart-tf-h4').style.background=tf==='240'?'rgba(56,139,253,.25)':'';
+  document.getElementById('chart-tf-h4').style.borderColor=tf==='240'?'#58a6ff':'';
+  renderCharts();
+}
+
+function renderCharts(){
+  const{kept}=buildRankedShortlist();
+  const wrap=document.getElementById('charts-wrap');
+  const grid=document.getElementById('charts-grid');
+  if(!wrap||!grid)return;
+  if(!kept.length){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  grid.innerHTML='';
+  kept.forEach(s=>{
+    const sym=TV_SYMBOLS[s.pair];if(!sym)return;
+    const col=s.dir==='bull'?'var(--buy)':'var(--sell)';
+    const lbl=s.dir==='bull'?'BUY':'SELL';
+    const div=document.createElement('div');
+    div.style.cssText='border-radius:6px;overflow:hidden;border:1px solid var(--border);';
+    div.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:var(--surface);">
+      <span style="font-weight:700;font-size:var(--f-primary);color:var(--text);">${s.pair.replace('/','')}</span>
+      <span style="font-size:var(--f-pill);font-weight:600;color:${col};">${lbl} · score ${s.score>0?'+':''}${s.score} · ADX ${s.adx.toFixed(0)}</span>
+    </div>
+    <div class="tradingview-widget-container" style="height:220px;">
+      <div class="tradingview-widget-container__widget" style="height:100%;width:100%;"></div>
+    </div>`;
+    grid.appendChild(div);
+    // Inject TradingView script into widget container
+    const container=div.querySelector('.tradingview-widget-container__widget');
+    const script=document.createElement('script');
+    script.type='text/javascript';
+    script.src='https://s3.tradingview.com/external-embedding/embed-widget-mini-chart.js';
+    script.async=true;
+    script.innerHTML=JSON.stringify({
+      symbol:sym,width:'100%',height:'220',interval:chartTf,
+      colorTheme:'dark',isTransparent:true,locale:'en',
+      dateRange:'1M',trendLineColor:'rgba(56,139,253,0.8)',
+      underLineColor:'rgba(56,139,253,0.1)',underLineBottomColor:'transparent',
+      noTimeScale:false,autosize:false
+    });
+    div.querySelector('.tradingview-widget-container').appendChild(script);
+  });
+}
 
 function toggleBrief(){
   const el=document.getElementById("brief-text");if(!el)return;
@@ -784,7 +854,7 @@ async function init(){
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v.updated):[]).filter(Boolean).sort();
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+new Date(ts[ts.length-1]).toLocaleString();
   D={h1,h4,d1,csm,alerts,regime,corr};
-  renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
+  renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();renderCharts();
   renderShortlist();renderBrief();
   if(document.getElementById('tab-correlation').classList.contains('active'))renderCorrWarning();
   if(document.getElementById("tab-correlation").classList.contains("active"))renderCorr(corr);
