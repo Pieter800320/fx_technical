@@ -137,11 +137,17 @@ tr:last-child td{border-bottom:none;}
     <span id="mkt-closed" style="margin-top:6px;">Market Closed</span>
   </div>
   <div class="module">
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <button class="btn" onclick="toggleBrief()">Market Brief</button>
-      <button class="btn" id="dash-copy-btn" onclick="copyBriefPrompt()">Copy Prompt</button>
+    <div style="display:flex;gap:10px;">
+      <button class="btn" onclick="toggleBrief()" style="flex:1;text-align:center;">Market Brief</button>
+      <button class="btn" onclick="toggleLive()" style="flex:1;text-align:center;">Live</button>
     </div>
-    <div id="brief-text" style="display:none;margin-top:12px;font-size:12px;line-height:1.9;color:var(--text);white-space:pre-wrap;padding:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);"></div>
+    <div id="brief-text" style="display:none;margin-top:12px;font-size:12px;line-height:1.9;color:var(--text);white-space:pre-wrap;padding:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);">
+      <button class="btn" id="dash-copy-btn" onclick="copyBriefPrompt()" style="margin-bottom:10px;">Copy Prompt</button>
+      <div id="brief-content"></div>
+    </div>
+    <div id="live-drawer" style="display:none;margin-top:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);overflow:hidden;">
+      <div id="live-content"><div class="loading">Loading...</div></div>
+    </div>
   </div>
   <div class="module">
     <span id="regime-pill" onclick="toggleRegimeDrawer()" style="cursor:pointer;">Regime: &#8212;</span>
@@ -568,13 +574,62 @@ function renderCorrWarning(){
 
 function toggleBrief(){
   const el=document.getElementById("brief-text");if(!el)return;
-  if(el.style.display==="none"||!el.style.display){const text=generateBrief();if(text){el.textContent=text;el.style.display="block";}}
-  else{el.style.display="none";}
+  const live=document.getElementById("live-drawer");
+  if(el.style.display==="none"||!el.style.display){
+    const text=generateBrief();
+    if(text){
+      document.getElementById("brief-content").textContent=text;
+      el.style.display="block";
+      if(live)live.style.display="none";
+    }
+  } else {el.style.display="none";}
+}
+function toggleLive(){
+  const el=document.getElementById("live-drawer");if(!el)return;
+  const brief=document.getElementById("brief-text");
+  if(el.style.display==="none"||!el.style.display){
+    renderLive();
+    el.style.display="block";
+    if(brief)brief.style.display="none";
+  } else {el.style.display="none";}
+}
+function renderLive(){
+  const el=document.getElementById("live-content");if(!el)return;
+  const h1=D.h1||{},d1=D.d1||{};
+  const ts=[h1,d1].flatMap(x=>Object.values(x).map(v=>v&&v.updated)).filter(Boolean).sort();
+  const updated=ts.length?new Date(ts[ts.length-1]).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"--:--";
+  let rows=PAIRS.map(pair=>{
+    const h=h1[pair],d=d1[pair];
+    const nowClose=h&&h.raw?parseFloat(h.raw.close):null;
+    const prevClose=d&&d.raw?parseFloat(d.raw.close):null;
+    if(!nowClose||!prevClose)return null;
+    const diff=nowClose-prevClose;
+    const pct=diff/prevClose*100;
+    // Determine decimal places from price magnitude
+    const dec=nowClose>50?2:nowClose>5?3:5;
+    const pipDec=nowClose>50?0:2;
+    const pipMult=nowClose>50?100:10000;
+    const pips=Math.round(diff*pipMult);
+    const sign=diff>=0?"+":"";
+    const col=diff>=0?"var(--buy)":"var(--sell)";
+    return{pair,nowClose,diff,pct,pips,sign,col,dec,pipDec};
+  }).filter(Boolean);
+  if(!rows.length){el.innerHTML='<div class="loading">No H1 data yet.</div>';return;}
+  el.innerHTML=`<div style="font-size:var(--f-info);color:var(--muted);padding:8px 14px 4px;">Updated ${updated} · vs yesterday close</div>`+
+  rows.map(r=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 14px;border-top:1px solid #21262d;">
+      <span style="width:58px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${r.pair.replace("/","")}</span>
+      <span style="flex:1;font-size:var(--f-info);color:var(--muted);">${r.nowClose.toFixed(r.dec)}</span>
+      <span style="font-size:var(--f-info);font-weight:600;color:${r.col};min-width:50px;text-align:right;">${r.sign}${r.pips} pips</span>
+      <span style="font-size:var(--f-info);font-weight:700;color:${r.col};min-width:52px;text-align:right;">${r.sign}${Math.abs(r.pct).toFixed(2)}%</span>
+    </div>`).join("");
 }
 
 function renderBrief(){
-  const el=document.getElementById("brief-text");
-  if(el&&el.style.display!=="none"){const text=generateBrief();if(text)el.textContent=text;}
+  const outer=document.getElementById("brief-text");
+  const el=document.getElementById("brief-content");
+  if(outer&&outer.style.display!=="none"&&el){const text=generateBrief();if(text)el.textContent=text;}
+  if(document.getElementById("live-drawer")&&document.getElementById("live-drawer").style.display!=="none")renderLive();
 }
 
 function buildPrompt(){
@@ -685,7 +740,7 @@ async function init(){
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v.updated):[]).filter(Boolean).sort();
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+new Date(ts[ts.length-1]).toLocaleString();
   D={h1,h4,d1,csm,alerts,regime,corr};
-  renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);
+  renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
   renderShortlist();renderBrief();
   if(document.getElementById('tab-correlation').classList.contains('active'))renderCorrWarning();
   if(document.getElementById("tab-correlation").classList.contains("active"))renderCorr(corr);
