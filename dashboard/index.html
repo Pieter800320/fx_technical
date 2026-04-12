@@ -646,23 +646,26 @@ function renderLive(){
     if(!nowClose||!prevClose)return null;
     const diff=nowClose-prevClose;
     const pct=diff/prevClose*100;
-    // Determine decimal places from price magnitude
     const dec=nowClose>50?2:nowClose>5?3:5;
-    const pipDec=nowClose>50?0:2;
     const pipMult=nowClose>50?100:10000;
     const pips=Math.round(diff*pipMult);
-    const sign=diff>=0?"+":"";
     const col=diff>=0?"var(--buy)":"var(--sell)";
-    return{pair,nowClose,diff,pct,pips,sign,col,dec,pipDec};
+    // Threshold: JPY crosses > 1.2%, majors > 0.8%
+    const isJpy=pair.includes("JPY");
+    const threshold=isJpy?1.2:0.8;
+    const isMover=Math.abs(pct)>=threshold;
+    return{pair,nowClose,diff,pct,pips,col,dec,isMover};
   }).filter(Boolean);
+  // Sort by absolute % move descending
+  rows.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
   if(!rows.length){el.innerHTML='<div class="loading">No H1 data yet.</div>';return;}
-  el.innerHTML=`<div style="font-size:var(--f-info);color:var(--muted);padding:8px 14px 4px;">Updated ${updated} · vs yesterday close</div>`+
+  el.innerHTML=`<div style="font-size:var(--f-info);color:var(--muted);padding:8px 14px 4px;">Updated ${updated} · sorted by move · vs yesterday close</div>`+
   rows.map(r=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:7px 14px;border-top:1px solid #21262d;">
+    <div style="display:flex;align-items:center;gap:10px;padding:7px 14px;border-top:1px solid #21262d;${r.isMover?"background:rgba(255,255,255,.02);":""}">
       <span style="width:58px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${r.pair.replace("/","")}</span>
       <span style="flex:1;font-size:var(--f-info);color:var(--muted);">${r.nowClose.toFixed(r.dec)}</span>
-      <span style="font-size:var(--f-info);font-weight:600;color:${r.col};min-width:50px;text-align:right;">${r.sign}${r.pips} pips</span>
-      <span style="font-size:var(--f-info);font-weight:700;color:${r.col};min-width:52px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pct).toFixed(2)}%</span>
+      <span style="font-size:var(--f-info);font-weight:600;color:${r.col};min-width:50px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pips)} pips</span>
+      <span style="font-size:${r.isMover?"var(--f-primary)":"var(--f-info)"};font-weight:${r.isMover?"700":"600"};color:${r.col};min-width:52px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pct).toFixed(2)}%${r.isMover?" ●":""}</span>
     </div>`).join("");
 }
 
