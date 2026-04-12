@@ -718,7 +718,10 @@ function renderTabCharts(){
     if(pairData.length){
       setTimeout(()=>renderLwChart(container,s.pair,pairData),50);
     } else {
-      container.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:var(--f-info);">Run H${chartTf==='60'?'1':'4'} scan to load chart data</div>`;
+      const hasKey=ohlcvSrc&&ohlcvSrc._ohlcv!==undefined;
+      const nPairs=hasKey?Object.keys(ohlcvSrc._ohlcv||{}).length:0;
+      const msg=!hasKey?'_ohlcv missing from JSON — re-run H'+(chartTf==='60'?'1':'4')+' scan':nPairs===0?'_ohlcv empty — check scan logs':'No bars for '+s.pair+' ('+nPairs+' pairs in ohlcv)';
+      container.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);font-size:11px;text-align:center;padding:10px;">${msg}</div>`;
     }
   });
 }
