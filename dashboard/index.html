@@ -114,6 +114,30 @@ tr:last-child td{border-bottom:none;}
   th,td{padding:5px 6px;}
   .pair-cell{font-size:var(--f-body);}
 }
+/* ── Chart Tab ─────────────────────────────────── */
+.cpill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;font-size:var(--f-pill);font-weight:600;cursor:pointer;user-select:none;border:1px solid var(--border);color:var(--muted);background:transparent;transition:border-color .15s,color .15s,background .15s;white-space:nowrap;}
+.cpill.active{border-color:#58a6ff;color:#58a6ff;background:rgba(56,139,253,.15);}
+.cpill.watchlisted{border-color:rgba(227,179,65,.5);color:#e3b341;}
+.cpill.watchlisted.active{border-color:#e3b341;color:#e3b341;background:rgba(227,179,65,.12);}
+.cpill .star{font-size:10px;opacity:.4;transition:opacity .15s;}
+.cpill.watchlisted .star{opacity:1;}
+.tf-btn{font-size:10px;font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
+.tf-btn.active{background:rgba(56,139,253,.2);border-color:#58a6ff;color:#58a6ff;}
+.stat-chip{display:flex;flex-direction:column;align-items:center;background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:6px 10px;min-width:60px;}
+.stat-chip .sv2{font-size:14px;font-weight:700;}
+.stat-chip .sl2{font-size:9px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
+.compress-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:var(--f-info);font-weight:600;border:1px solid;}
+.compress-0{border-color:var(--border);color:var(--muted);background:rgba(139,148,158,.06);}
+.compress-1{border-color:rgba(227,179,65,.3);color:#e3b341;background:rgba(227,179,65,.08);}
+.compress-2{border-color:rgba(227,179,65,.5);color:#e3b341;background:rgba(227,179,65,.12);}
+.compress-3,.compress-4{border-color:rgba(56,139,253,.5);color:#58a6ff;background:rgba(56,139,253,.12);}
+.alert-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #21262d;font-size:var(--f-info);}
+.alert-row:last-child{border-bottom:none;}
+#chart-fullscreen{display:none;position:fixed;inset:0;background:#0d1117;z-index:3000;flex-direction:column;}
+#chart-fullscreen.open{display:flex;}
+@media(orientation:landscape) and (max-width:900px){
+  #chart-auto-fs-hint{display:block;}
+}
 </style>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
@@ -182,17 +206,71 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <div id="tab-charts" class="tab-panel">
-  <div class="module" style="padding:12px 14px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-      <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Charts</div>
-      <div style="display:flex;gap:6px;">
-        <button id="chart-tf-h1b" class="btn" onclick="setChartTf('60')" style="padding:2px 10px;font-size:10px;">H1</button>
-        <button id="chart-tf-h4b" class="btn" onclick="setChartTf('240')" style="padding:2px 10px;font-size:10px;background:rgba(56,139,253,.25);border-color:#58a6ff;">H4</button>
+
+  <!-- Box 1: Pair pills -->
+  <div class="module" style="padding:10px 12px 12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Select Pair</div>
+      <button id="wl-filter-btn" class="btn" onclick="toggleWatchlistFilter()" style="padding:2px 10px;font-size:10px;">★ All</button>
+    </div>
+    <div id="chart-pair-pills" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+  </div>
+
+  <!-- Box 2: Chart -->
+  <div class="module" id="chart-main-module" style="padding:0;overflow:hidden;">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px 7px;border-bottom:1px solid var(--border);">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span id="chart-pair-label" style="font-weight:700;font-size:var(--f-primary);color:var(--text);">—</span>
+        <span id="chart-dir-badge" style="display:none;font-size:var(--f-pill);font-weight:600;"></span>
+      </div>
+      <div style="display:flex;gap:4px;">
+        <button class="tf-btn" id="cht-tf-D1" onclick="setChartTabTf('D1')">D1</button>
+        <button class="tf-btn" id="cht-tf-H4" onclick="setChartTabTf('H4')">H4</button>
+        <button class="tf-btn active" id="cht-tf-H1" onclick="setChartTabTf('H1')">H1</button>
       </div>
     </div>
-    <div id="charts-tab-grid" style="display:flex;flex-direction:column;gap:14px;"></div>
-    <div id="charts-tab-empty" style="color:var(--muted);font-size:var(--f-info);font-style:italic;display:none;">No pairs on shortlist right now.</div>
+    <div id="chart-main-canvas" style="width:100%;height:240px;background:#0d1117;"></div>
+    <div style="padding:4px 10px 2px;background:#0d1117;border-top:1px solid #21262d;">
+      <span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">MACD (12/26/9)</span>
+    </div>
+    <div id="chart-macd-canvas" style="width:100%;height:90px;background:#0d1117;"></div>
   </div>
+
+  <!-- Box 3: Data panel -->
+  <div class="module" style="padding:12px 14px;">
+    <div id="chart-stats-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
+    <div id="chart-compress-row" style="margin-bottom:10px;"></div>
+    <div id="chart-news-row" style="margin-bottom:10px;font-size:var(--f-info);color:var(--muted);line-height:1.6;border-left:2px solid var(--border);padding-left:8px;display:none;"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+      <button class="cpbtn" id="chart-cp-btn" onclick="copyChartPrompt()">Copy Prompt</button>
+      <input id="alert-price-input" type="number" step="0.00001" placeholder="Level…" style="background:#0d1117;border:1px solid var(--border);border-radius:12px;color:var(--text);padding:4px 10px;font-size:var(--f-input);width:110px;"/>
+      <button id="alert-dir-btn" class="btn" onclick="cycleAlertDir()" style="padding:3px 9px;font-size:10px;">↑ Above</button>
+      <button class="btn btn-green" onclick="setLevelAlert()" style="padding:3px 9px;font-size:10px;">Set Alert</button>
+    </div>
+    <div id="chart-alerts-list" style="margin-top:8px;"></div>
+  </div>
+
+</div>
+
+<!-- Fullscreen chart overlay (landscape) -->
+<div id="chart-fullscreen">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span id="fs-pair-label" style="font-weight:700;font-size:var(--f-primary);"></span>
+      <span id="fs-dir-badge" style="font-size:var(--f-pill);font-weight:600;"></span>
+    </div>
+    <div style="display:flex;gap:4px;">
+      <button class="tf-btn" id="fs-tf-D1" onclick="setChartTabTf('D1')">D1</button>
+      <button class="tf-btn" id="fs-tf-H4" onclick="setChartTabTf('H4')">H4</button>
+      <button class="tf-btn active" id="fs-tf-H1" onclick="setChartTabTf('H1')">H1</button>
+      <button class="btn btn-red" onclick="exitFullscreenChart()" style="padding:2px 8px;font-size:10px;">✕</button>
+    </div>
+  </div>
+  <div id="fs-main-canvas" style="flex:1;"></div>
+  <div style="padding:3px 10px 2px;border-top:1px solid #21262d;flex-shrink:0;">
+    <span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">MACD</span>
+  </div>
+  <div id="fs-macd-canvas" style="height:80px;flex-shrink:0;"></div>
 </div>
 
 <div id="tab-correlation" class="tab-panel">
@@ -305,7 +383,7 @@ function go(name){
   const idx={dashboard:0,charts:1,correlation:2,signals:3,journal:4,log:5}[name]||0;
   document.querySelectorAll('.tab')[idx].classList.add('active');
   if(name==='correlation'){renderCorr(D.corr);renderCorrWarning();}
-  if(name==='charts')renderTabCharts();
+  if(name==='charts'){renderChartPills();if(!chartTabPair&&PAIRS.length)selectChartPair(PAIRS[0]);}
   if(name==='journal') updateSnap();
 }
 
@@ -638,32 +716,95 @@ function renderShortlist(){
     return`<div style="color:${col};font-weight:600;">${x.pair.replace("/","")} &mdash; ${lbl}</div>`;
   }).join("");
   dropped.textContent=dr.length?"Dropped: "+dr.map(x=>x.pair.replace("/","")+" (+"+x.corrVal+" "+x.droppedBy.replace("/","")+ ")").join(" / "):"";
-  renderCharts();
 }
+
+function renderCharts(){
+  const wrap=document.getElementById('charts-wrap');
+  if(wrap)wrap.style.display='none';
+}
+function setChartTf(tf){setChartTabTf(tf==='60'?'H1':'H4');}  // legacy shim
 
 function renderCorrWarning(){}
 
-// ── Lightweight Charts (TradingView open-source) ─────────────────────────────
-let chartTf='240'; // H4 default
-let lwChartInstances=[];
+// ── Chart Tab Engine ─────────────────────────────────────────────────────────
+const WL_KEY='fx1212_watchlist_v1';
+const LA_KEY='fx1212_level_alerts_v1';
+const wlLoad=()=>{try{return JSON.parse(localStorage.getItem(WL_KEY)||'[]');}catch{return[];}};
+const wlSave=a=>localStorage.setItem(WL_KEY,JSON.stringify(a));
+const laLoad=()=>{try{return JSON.parse(localStorage.getItem(LA_KEY)||'[]');}catch{return[];}};
+const laSave=a=>localStorage.setItem(LA_KEY,JSON.stringify(a));
 
-function setChartTf(tf){
-  chartTf=tf;
-  ['h1','h4'].forEach(t=>{
-    const b1=document.getElementById('chart-tf-'+t+'b');
-    const active=(t==='h1'&&tf==='60')||(t==='h4'&&tf==='240');
-    if(b1){b1.style.background=active?'rgba(56,139,253,.25)':'';b1.style.borderColor=active?'#58a6ff':'';}
-  });
-  renderTabCharts();
+let chartTabPair=null;
+let chartTabTf='H1';
+let chartTabWlOnly=false;
+let alertDir='above';
+let chartMainInst=null,chartMacdInst=null;
+let fsMainInst=null,fsMacdInst=null;
+
+// ── EMA + MACD computation ───
+function computeEMA(vals,period){
+  if(!vals.length)return[];
+  const k=2/(period+1);
+  const result=[vals[0]];
+  for(let i=1;i<vals.length;i++)result.push(vals[i]*k+result[i-1]*(1-k));
+  return result;
+}
+function computeMACD(ohlcv,fast=12,slow=26,sig=9){
+  if(!ohlcv||ohlcv.length<slow+sig)return[];
+  const closes=ohlcv.map(d=>d.close);
+  const ema12=computeEMA(closes,fast);
+  const ema26=computeEMA(closes,slow);
+  const macdLine=ema12.map((v,i)=>v-ema26[i]);
+  const macdTrimmed=macdLine.slice(slow-1);
+  const signalLine=computeEMA(macdTrimmed,sig);
+  const out=[];
+  for(let i=0;i<signalLine.length;i++){
+    const oi=i+(slow-1);
+    const mac=macdLine[oi],si=signalLine[i];
+    out.push({time:ohlcv[oi].time,macd:mac,signal:si,histogram:mac-si});
+  }
+  return out;
 }
 
-function renderLwChart(container,pair,ohlcvData){
-  if(!window.LightweightCharts||!ohlcvData||!ohlcvData.length)return;
-  // Destroy previous instance if any
+// ── Compression score (0-4) ───
+function computeCompressionScore(pair){
+  const h1d=D.h1&&D.h1[pair];
+  const ohlcv=(D.h1&&D.h1._ohlcv&&D.h1._ohlcv[pair])||[];
+  let score=0;
+  // 1. H1 ADX < 20
+  if(h1d&&h1d.raw&&h1d.raw.adx<20)score++;
+  // 2. H1 ATR contracted
+  if(h1d&&h1d.filter_ok===false)score++;
+  // 3. MACD histogram near zero (last 3 bars avg abs < 25% of 20-bar avg)
+  if(ohlcv.length>=30){
+    const macdData=computeMACD(ohlcv);
+    if(macdData.length>=20){
+      const last3=macdData.slice(-3).map(d=>Math.abs(d.histogram));
+      const last20=macdData.slice(-20).map(d=>Math.abs(d.histogram));
+      const avg3=last3.reduce((a,b)=>a+b,0)/3;
+      const avg20=last20.reduce((a,b)=>a+b,0)/20;
+      if(avg20>0&&avg3/avg20<0.35)score++;
+    }
+  }
+  // 4. Candle body compression (last 5 vs last 20)
+  if(ohlcv.length>=20){
+    const bodySize=d=>Math.abs(d.close-d.open);
+    const last5=ohlcv.slice(-5).map(bodySize);
+    const last20=ohlcv.slice(-20).map(bodySize);
+    const avg5=last5.reduce((a,b)=>a+b,0)/5;
+    const avg20=last20.reduce((a,b)=>a+b,0)/20;
+    if(avg20>0&&avg5/avg20<0.5)score++;
+  }
+  return score;
+}
+
+// ── Chart render helpers ───
+function clearChartInst(inst){if(inst){try{inst.remove();}catch(e){}}}
+
+function buildLwChart(container,height){
   container.innerHTML='';
-  const chart=LightweightCharts.createChart(container,{
-    width:container.clientWidth||350,
-    height:220,
+  return LightweightCharts.createChart(container,{
+    width:container.clientWidth||350,height,
     layout:{background:{color:'transparent'},textColor:'#8b949e'},
     grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
     crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
@@ -671,128 +812,320 @@ function renderLwChart(container,pair,ohlcvData){
     timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
     handleScroll:true,handleScale:true,
   });
-  lwChartInstances.push(chart);
-  const candles=chart.addCandlestickSeries({
-    upColor:'#3fb950',downColor:'#f85149',
-    borderUpColor:'#3fb950',borderDownColor:'#f85149',
-    wickUpColor:'#3fb950',wickDownColor:'#f85149',
+}
+
+function buildMacdChart(container,height,macdData){
+  container.innerHTML='';
+  if(!macdData||!macdData.length){container.style.background='#0d1117';return null;}
+  const chart=LightweightCharts.createChart(container,{
+    width:container.clientWidth||350,height,
+    layout:{background:{color:'transparent'},textColor:'#8b949e'},
+    grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.1,bottom:0.1}},
+    timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
+    handleScroll:true,handleScale:true,
   });
-  candles.setData(ohlcvData);
+  const hist=chart.addHistogramSeries({color:'#3fb950',priceScaleId:'right'});
+  hist.setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,.7)':'rgba(248,81,73,.7)'})));
+  const macdLine=chart.addLineSeries({color:'#58a6ff',lineWidth:1,priceScaleId:'right'});
+  macdLine.setData(macdData.map(d=>({time:d.time,value:d.macd})));
+  const sigLine=chart.addLineSeries({color:'#e3b341',lineWidth:1,priceScaleId:'right'});
+  sigLine.setData(macdData.map(d=>({time:d.time,value:d.signal})));
   chart.timeScale().fitContent();
-  // Resize on window resize
-  const ro=new ResizeObserver(()=>{
-    chart.applyOptions({width:container.clientWidth});
-  });
-  ro.observe(container);
+  new ResizeObserver(()=>chart.applyOptions({width:container.clientWidth})).observe(container);
+  return chart;
 }
 
-// Track which charts have been rendered and their instances
-const chartRendered={};
-const chartInstances={};
-
-function toggleChartCard(pair){
-  const pKey=pair.replace('/','');
-  const body=document.getElementById('chart-body-'+pKey);
-  if(!body)return;
-  const isOpen=body.style.display!=='none';
-  body.style.display=isOpen?'none':'block';
-  const arrow=document.getElementById('chart-arrow-'+pKey);
-  if(arrow)arrow.textContent=isOpen?'▶':'▼';
-  if(!isOpen&&!chartRendered[pair]){
-    const container=document.getElementById('chart-canvas-'+pKey);
-    if(container)renderChartForPair(container,pair);
-  }
+function getOhlcv(pair,tf){
+  if(tf==='H1')return(D.h1&&D.h1._ohlcv&&D.h1._ohlcv[pair])||[];
+  if(tf==='H4')return(D.h4&&D.h4._ohlcv&&D.h4._ohlcv[pair])||[];
+  if(tf==='D1')return(D.d1&&D.d1._ohlcv&&D.d1._ohlcv[pair])||[];
+  return[];
 }
 
-function renderChartForPair(container,pair){
-  const ohlcvSrc=chartTf==='60'?D.h1:D.h4;
-  const pairData=(ohlcvSrc&&ohlcvSrc._ohlcv&&ohlcvSrc._ohlcv[pair])||[];
-  if(pairData.length){
-    if(chartInstances[pair]){try{chartInstances[pair].remove();}catch(e){}}
-    container.innerHTML='';
-    const chart=LightweightCharts.createChart(container,{
-      width:container.clientWidth||350,height:220,
-      layout:{background:{color:'transparent'},textColor:'#8b949e'},
-      grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
-      crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
-      rightPriceScale:{borderColor:'#30363d'},
-      timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
-      handleScroll:true,handleScale:true,
-    });
-    chartInstances[pair]=chart;
-    lwChartInstances.push(chart);
-    const candles=chart.addCandlestickSeries({
-      upColor:'#3fb950',downColor:'#f85149',
-      borderUpColor:'#3fb950',borderDownColor:'#f85149',
-      wickUpColor:'#3fb950',wickDownColor:'#f85149',
-    });
-    candles.setData(pairData);
+function renderSingleChart(pair,tf,mainContainer,macdContainer,mainH,macdH){
+  const ohlcv=getOhlcv(pair,tf);
+  // Main chart
+  clearChartInst(mainContainer._lwInst);
+  if(ohlcv.length){
+    const chart=buildLwChart(mainContainer,mainH);
+    const candles=chart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149'});
+    candles.setData(ohlcv);
     chart.timeScale().fitContent();
-    const ro=new ResizeObserver(()=>chart.applyOptions({width:container.clientWidth}));
-    ro.observe(container);
-    chartRendered[pair]=true;
+    new ResizeObserver(()=>chart.applyOptions({width:mainContainer.clientWidth})).observe(mainContainer);
+    mainContainer._lwInst=chart;
   } else {
-    const hasKey=ohlcvSrc&&ohlcvSrc._ohlcv!==undefined;
-    container.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted);font-size:11px;text-align:center;padding:10px;">${hasKey?'No data for '+pair:'_ohlcv missing — re-run H'+(chartTf==='60'?'1':'4')+' scan'}</div>`;
+    mainContainer.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:${mainH}px;color:var(--muted);font-size:11px;">${pair} ${tf} — no OHLCV in JSON</div>`;
   }
+  // MACD chart
+  clearChartInst(macdContainer._lwInst);
+  const macdData=computeMACD(ohlcv);
+  const inst=buildMacdChart(macdContainer,macdH,macdData);
+  macdContainer._lwInst=inst;
 }
 
-function renderTabCharts(){
-  const grid=document.getElementById('charts-tab-grid');
-  const empty=document.getElementById('charts-tab-empty');
-  if(!grid)return;
-  if(empty)empty.style.display='none';
+function setChartTabTf(tf){
+  chartTabTf=tf;
+  ['D1','H4','H1'].forEach(t=>{
+    ['cht-tf-','fs-tf-'].forEach(pre=>{
+      const el=document.getElementById(pre+t);
+      if(el)el.classList.toggle('active',t===tf);
+    });
+  });
+  if(chartTabPair)renderCurrentChart();
+}
+
+function renderCurrentChart(){
+  if(!chartTabPair)return;
+  const mc=document.getElementById('chart-main-canvas');
+  const mm=document.getElementById('chart-macd-canvas');
+  if(mc&&mm)renderSingleChart(chartTabPair,chartTabTf,mc,mm,240,90);
+  // Fullscreen
+  if(document.getElementById('chart-fullscreen').classList.contains('open')){
+    const fc=document.getElementById('fs-main-canvas');
+    const fm=document.getElementById('fs-macd-canvas');
+    if(fc&&fm)renderSingleChart(chartTabPair,chartTabTf,fc,fm,window.innerHeight-160,80);
+  }
+  renderChartDataPanel(chartTabPair);
+}
+
+function selectChartPair(pair){
+  chartTabPair=pair;
+  // Update label
+  const lbl=document.getElementById('chart-pair-label');
+  const fsLbl=document.getElementById('fs-pair-label');
+  if(lbl)lbl.textContent=pair.replace('/','');
+  if(fsLbl)fsLbl.textContent=pair.replace('/','');
+  // Update direction badge
+  updateDirBadge(pair);
+  // Update pill selection
+  document.querySelectorAll('.cpill').forEach(el=>el.classList.toggle('active',el.dataset.pair===pair));
+  renderCurrentChart();
+}
+
+function updateDirBadge(pair){
+  const d=['chart-dir-badge','fs-dir-badge'].map(id=>document.getElementById(id));
+  const h4d=D.h4&&D.h4[pair];
+  const lbl=h4d?h4d.label:'';
+  d.forEach(el=>{
+    if(!el)return;
+    if(!lbl){el.style.display='none';return;}
+    el.style.display='inline';
+    el.textContent=lbl;
+    el.className='pill '+pillClass(lbl);
+  });
+}
+
+// ── Pair pills ───
+function renderChartPills(){
+  const container=document.getElementById('chart-pair-pills');
+  if(!container)return;
+  const wl=new Set(wlLoad());
+  const filterOn=chartTabWlOnly;
   const{kept}=buildRankedShortlist();
-  const shortlistPairs=new Set(kept.map(s=>s.pair));
-  if(!grid.children.length){
-    PAIRS.forEach(pair=>{
-      const pKey=pair.replace('/','');
-      const scoreData=D.h4&&D.h4[pair];
-      const isShort=shortlistPairs.has(pair);
-      const score=scoreData?scoreData.score:null;
-      const dir=scoreData?scoreData.direction:'';
-      const adx=scoreData&&scoreData.raw?scoreData.raw.adx:null;
-      const label=scoreData?scoreData.label:'';
-      const col=dir==='bull'?'var(--buy)':dir==='bear'?'var(--sell)':'var(--muted)';
-      const scoreStr=score!==null?(score>0?'+':'')+score:'—';
-      const adxStr=adx!==null?adx.toFixed(0):'—';
-      const borderCol=isShort?'rgba(56,139,253,.4)':'var(--border)';
-      const bgCol=isShort?'rgba(56,139,253,.06)':'var(--surface)';
-      const wrap=document.createElement('div');
-      wrap.style.cssText=`border:1px solid ${borderCol};border-radius:8px;overflow:hidden;margin-bottom:4px;`;
-      wrap.innerHTML=`
-        <div onclick="toggleChartCard('${pair}')" style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;background:${bgCol};cursor:pointer;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span id="chart-arrow-${pKey}" style="color:var(--muted);font-size:10px;">${isShort?'▼':'▶'}</span>
-            <span style="font-weight:700;font-size:var(--f-primary);color:var(--text);">${pKey}</span>
-
-          </div>
-          <span style="font-size:var(--f-pill);font-weight:600;color:${col};">${label?label+' &middot; ':''} ${scoreStr} &middot; ADX ${adxStr}</span>
-        </div>
-        <div id="chart-body-${pKey}" style="display:${isShort?'block':'none'};">
-          <div id="chart-canvas-${pKey}" style="width:100%;height:220px;background:#0d1117;"></div>
-        </div>`;
-      grid.appendChild(wrap);
-      if(isShort){
-        setTimeout(()=>{
-          const container=document.getElementById('chart-canvas-'+pKey);
-          if(container)renderChartForPair(container,pair);
-        },80);
-      }
-    });
-  } else {
-    // Re-render open charts when tf changes
-    Object.keys(chartRendered).forEach(pair=>{
-      const pKey=pair.replace('/','');
-      const body=document.getElementById('chart-body-'+pKey);
-      if(body&&body.style.display!=='none'){
-        chartRendered[pair]=false;
-        const container=document.getElementById('chart-canvas-'+pKey);
-        if(container)renderChartForPair(container,pair);
-      }
-    });
-  }
+  const shortPairs=new Set(kept.map(s=>s.pair));
+  let pairsToShow=filterOn?PAIRS.filter(p=>wl.has(p)):PAIRS;
+  container.innerHTML=pairsToShow.map(pair=>{
+    const pKey=pair.replace('/','');
+    const isWl=wl.has(pair);
+    const isActive=pair===chartTabPair;
+    const isShort=shortPairs.has(pair);
+    const h4d=D.h4&&D.h4[pair];
+    const lbl=h4d?h4d.label:'';
+    const scoreDot=lbl==='Strong Buy'?'<span style="color:var(--buy)">●</span> ':lbl==='Buy'?'<span style="color:var(--buy);opacity:.6">●</span> ':lbl==='Strong Sell'?'<span style="color:var(--sell)">●</span> ':lbl==='Sell'?'<span style="color:var(--sell);opacity:.6">●</span> ':'';
+    return`<div class="cpill${isActive?' active':''}${isWl?' watchlisted':''}" data-pair="${pair}" onclick="selectChartPair('${pair}')">
+      ${scoreDot}<span>${pKey}</span>
+      <span class="star" onclick="event.stopPropagation();toggleWatchlist('${pair}')" title="Watchlist">★</span>
+    </div>`;
+  }).join('');
+  if(filterOn&&pairsToShow.length===0)container.innerHTML='<span style="color:var(--muted);font-size:var(--f-info);">No watchlisted pairs.</span>';
 }
+
+function toggleWatchlist(pair){
+  const wl=wlLoad();
+  const idx=wl.indexOf(pair);
+  if(idx>=0)wl.splice(idx,1);else wl.push(pair);
+  wlSave(wl);
+  renderChartPills();
+}
+
+function toggleWatchlistFilter(){
+  chartTabWlOnly=!chartTabWlOnly;
+  const btn=document.getElementById('wl-filter-btn');
+  if(btn){btn.textContent=chartTabWlOnly?'★ Watchlist':'★ All';btn.style.borderColor=chartTabWlOnly?'#e3b341':'';btn.style.color=chartTabWlOnly?'#e3b341':'';}
+  renderChartPills();
+}
+
+// ── Data panel ───
+function renderChartDataPanel(pair){
+  const statsEl=document.getElementById('chart-stats-row');
+  const compEl=document.getElementById('chart-compress-row');
+  const newsEl=document.getElementById('chart-news-row');
+  if(!statsEl)return;
+
+  const h1d=D.h1&&D.h1[pair];
+  const h4d=D.h4&&D.h4[pair];
+  const d1d=D.d1&&D.d1[pair];
+
+  // Stat chips
+  const h1lbl=h1d?h1d.label:'—';
+  const h4lbl=h4d?h4d.label:'—';
+  const d1lbl=d1d?d1d.label:'—';
+  const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
+  const atrOk=h4d?h4d.filter_ok!==false:null;
+  const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
+  const struct=h4d&&h4d.structure;
+  const structLbl=struct&&struct.event&&struct.event!=='none'?struct.event:'—';
+  const structDir=struct&&struct.direction?struct.direction:'';
+
+  const chips=[
+    {label:'D1',val:d1lbl,color:pillScoreColor(d1lbl)},
+    {label:'H4',val:h4lbl,color:pillScoreColor(h4lbl)},
+    {label:'H1',val:h1lbl,color:pillScoreColor(h1lbl)},
+    {label:'ADX',val:adxV!==null?adxV.toFixed(1):'—',color:adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)'},
+    {label:'ATR',val:atrOk===null?'—':atrOk?'Normal':'Low',color:atrOk?'var(--buy)':'var(--sell)'},
+    {label:'Extended',val:ext?'Yes':'No',color:ext?'#e3b341':'var(--buy)'},
+    {label:'Structure',val:structLbl+(structDir?' '+structDir:''),color:structLbl==='BOS'?'var(--buy)':structLbl==='CHoCH'?'#e3b341':'var(--muted)'},
+  ];
+  statsEl.innerHTML=chips.map(c=>`<div class="stat-chip"><div class="sv2" style="color:${c.color}">${c.val}</div><div class="sl2">${c.label}</div></div>`).join('');
+
+  // Compression score (H1 TF only)
+  const cs=computeCompressionScore(pair);
+  const csLabels=['No squeeze','Slight squeeze','Squeeze forming','Squeeze active','Full squeeze'];
+  const csBullets=['H1 ADX','ATR','MACD hist','Body size'];
+  compEl.innerHTML=`<div class="compress-badge compress-${cs}">⚡ ${csLabels[cs]} (${cs}/4)</div>
+    <div style="margin-top:6px;font-size:10px;color:var(--muted);line-height:1.8;">${(()=>{
+      const h1d=D.h1&&D.h1[pair];
+      const ohlcv=(D.h1&&D.h1._ohlcv&&D.h1._ohlcv[pair])||[];
+      const bits=[];
+      if(h1d&&h1d.raw){bits.push('ADX '+(h1d.raw.adx<20?'<span style="color:#e3b341">':'<span style="color:var(--muted)">')+h1d.raw.adx.toFixed(1)+'</span>');}
+      if(h1d){bits.push('ATR '+(h1d.filter_ok===false?'<span style="color:#58a6ff">Low</span>':'<span style="color:var(--muted)">Normal</span>'));}
+      if(ohlcv.length>=30){const md=computeMACD(ohlcv);if(md.length>=20){const a3=md.slice(-3).map(d=>Math.abs(d.histogram)).reduce((a,b)=>a+b,0)/3;const a20=md.slice(-20).map(d=>Math.abs(d.histogram)).reduce((a,b)=>a+b,0)/20;const ratio=a20>0?(a3/a20).toFixed(2):'—';bits.push('MACD ratio <span style="color:'+(a20>0&&a3/a20<0.35?'#58a6ff':'var(--muted)')+'">'+ratio+'</span>');}}
+      if(ohlcv.length>=20){const bs=d=>Math.abs(d.close-d.open);const a5=ohlcv.slice(-5).map(bs).reduce((a,b)=>a+b,0)/5;const a20=ohlcv.slice(-20).map(bs).reduce((a,b)=>a+b,0)/20;const ratio=a20>0?(a5/a20).toFixed(2):'—';bits.push('Body ratio <span style="color:'+(a20>0&&a5/a20<0.5?'#58a6ff':'var(--muted)')+'">'+ratio+'</span>');}
+      return bits.join(' &nbsp;·&nbsp; ');
+    })()}</div>`;
+
+  // News headline
+  const alerts=D.alerts&&D.alerts.alerts;
+  let headline='';
+  if(alerts){const a=alerts.slice().reverse().find(x=>x.pair===pair);if(a)headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||'');}
+  if(headline){newsEl.style.display='block';newsEl.innerHTML='<b style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em;">News</b><div style="margin-top:2px;">'+headline+'</div>';}
+  else{newsEl.style.display='none';}
+
+  renderChartAlerts(pair);
+}
+
+function pillScoreColor(lbl){
+  if(!lbl||lbl==='—')return'var(--muted)';
+  const l=lbl.toLowerCase();
+  if(l==='strong buy')return'var(--buy)';
+  if(l==='buy')return'rgba(63,185,80,.7)';
+  if(l==='strong sell')return'var(--sell)';
+  if(l==='sell')return'rgba(248,81,73,.7)';
+  return'var(--muted)';
+}
+
+// ── Chart prompt ───
+function copyChartPrompt(){
+  if(!chartTabPair){alert('Select a pair first.');return;}
+  const pair=chartTabPair;
+  const h1d=D.h1&&D.h1[pair];const h4d=D.h4&&D.h4[pair];const d1d=D.d1&&D.d1[pair];
+  const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
+  const atrOk=h4d?h4d.filter_ok!==false:null;
+  const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
+  const reg=(D.regime&&D.regime.regime)||'Unknown';
+  const regConf=(D.regime&&D.regime.confidence)||'';
+  const alerts=D.alerts&&D.alerts.alerts;
+  let headline='';
+  if(alerts){const a=alerts.slice().reverse().find(x=>x.pair===pair);if(a)headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||'');}
+  const struct=h4d&&h4d.structure;
+  const structStr=struct&&struct.event&&struct.event!=='none'?struct.event+' ('+struct.direction+')':'None';
+  const prompt=`You are an institutional FX trader with web search access.
+Pair: ${pair.replace('/','')}\nD1: ${d1d?d1d.label:'N/A'} | H4: ${h4d?h4d.label:'N/A'} | H1: ${h1d?h1d.label:'N/A'}\nADX: ${adxV!==null?adxV.toFixed(1):'N/A'} | ATR: ${atrOk===null?'N/A':atrOk?'Normal':'Contracted'} | Extended: ${ext?'Yes':'No'}\nStructure: ${structStr}\nRegime (proxy): ${reg} (${regConf})\nNews: "${headline||'None'}"\nTime: ${new Date().toLocaleString()}\n\nSearch current VIX, DXY, and ${pair.replace('/','').substring(3)} macro context.\nAssess: (1) which direction does price support? (2) is price fresh or extended?\n\nOutput strictly:\nRegime / Edge or Flaw / Verdict\nMax 40 words. Be decisive.`;
+  navigator.clipboard.writeText(prompt).then(()=>{
+    const b=document.getElementById('chart-cp-btn');
+    b.textContent='✓ Copied!';b.classList.add('ok');
+    setTimeout(()=>{b.textContent='Copy Prompt';b.classList.remove('ok');},2000);
+  });
+}
+
+// ── Level alerts ───
+function cycleAlertDir(){
+  alertDir=alertDir==='above'?'below':'above';
+  const b=document.getElementById('alert-dir-btn');
+  if(b)b.textContent=alertDir==='above'?'↑ Above':'↓ Below';
+}
+function setLevelAlert(){
+  if(!chartTabPair){alert('Select a pair first.');return;}
+  const inp=document.getElementById('alert-price-input');
+  const price=parseFloat(inp.value);
+  if(!price||isNaN(price)){alert('Enter a valid price level.');return;}
+  const alerts=laLoad();
+  alerts.push({id:Date.now(),pair:chartTabPair,price,direction:alertDir,active:true,created:new Date().toLocaleString()});
+  laSave(alerts);
+  inp.value='';
+  renderChartAlerts(chartTabPair);
+}
+function deleteAlert(id){
+  const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);
+  if(chartTabPair)renderChartAlerts(chartTabPair);
+}
+function renderChartAlerts(pair){
+  const el=document.getElementById('chart-alerts-list');if(!el)return;
+  const alerts=laLoad().filter(a=>a.pair===pair&&a.active);
+  if(!alerts.length){el.innerHTML='';return;}
+  el.innerHTML=`<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;">Level Alerts</div>`+
+  alerts.map(a=>`<div class="alert-row">
+    <span style="color:${a.direction==='above'?'var(--buy)':'var(--sell)'};font-weight:600;">${a.direction==='above'?'↑':'↓'} ${a.price}</span>
+    <span style="color:var(--muted);font-size:10px;">${a.created}</span>
+    <button class="btn btn-red" onclick="deleteAlert(${a.id})" style="padding:1px 7px;font-size:10px;">✕</button>
+  </div>`).join('');
+}
+function checkLevelAlerts(){
+  const alerts=laLoad();let changed=false;
+  alerts.forEach(a=>{
+    if(!a.active)return;
+    const h1d=D.h1&&D.h1[a.pair];
+    if(!h1d||!h1d.raw)return;
+    const price=parseFloat(h1d.raw.close);if(!price)return;
+    const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);
+    if(hit){a.active=false;a.triggered_at=new Date().toLocaleString();changed=true;
+      // Visual notification
+      setTimeout(()=>alert('🔔 Level Alert: '+a.pair.replace('/','')+(a.direction==='above'?' ABOVE ':' BELOW ')+a.price+'\nCurrent price: '+price.toFixed(5)),100);
+    }
+  });
+  if(changed)laSave(alerts);
+  if(chartTabPair)renderChartAlerts(chartTabPair);
+}
+
+// ── Fullscreen (landscape) ───
+function openFullscreenChart(){
+  const fs=document.getElementById('chart-fullscreen');
+  if(!fs||!chartTabPair)return;
+  fs.classList.add('open');
+  const fc=document.getElementById('fs-main-canvas');
+  const fm=document.getElementById('fs-macd-canvas');
+  document.getElementById('fs-pair-label').textContent=chartTabPair.replace('/','');
+  if(fc&&fm){
+    setTimeout(()=>renderSingleChart(chartTabPair,chartTabTf,fc,fm,window.innerHeight-160,80),50);
+  }
+  updateDirBadge(chartTabPair);
+}
+function exitFullscreenChart(){
+  const fs=document.getElementById('chart-fullscreen');
+  if(fs)fs.classList.remove('open');
+}
+window.addEventListener('orientationchange',()=>{
+  setTimeout(()=>{
+    const isLandscape=window.innerWidth>window.innerHeight;
+    if(document.getElementById('tab-charts').classList.contains('active')){
+      if(isLandscape&&chartTabPair)openFullscreenChart();
+      else exitFullscreenChart();
+    }
+  },250);
+});
+
 
 
 function renderCharts(){
@@ -973,7 +1306,8 @@ async function init(){
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+new Date(ts[ts.length-1]).toLocaleString();
   D={h1,h4,d1,csm,alerts,regime,corr};
   renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
-  if(document.getElementById('tab-charts').classList.contains('active'))renderTabCharts();
+  if(document.getElementById('tab-charts').classList.contains('active')){renderChartPills();if(chartTabPair)renderCurrentChart();else if(PAIRS.length)selectChartPair(PAIRS[0]);}
+  checkLevelAlerts();
   renderShortlist();renderBrief();
   if(document.getElementById('tab-correlation').classList.contains('active'))renderCorrWarning();
   if(document.getElementById("tab-correlation").classList.contains("active"))renderCorr(corr);
