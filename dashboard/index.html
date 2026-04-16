@@ -115,7 +115,7 @@ tr:last-child td{border-bottom:none;}
   .pair-cell{font-size:var(--f-body);}
 }
 /* ── Chart Tab ─────────────────────────────────── */
-.cpill{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:12px;font-size:var(--f-pill);font-weight:600;cursor:pointer;user-select:none;border:1px solid var(--border);color:var(--muted);background:transparent;transition:border-color .15s,color .15s,background .15s;white-space:nowrap;}
+.cpill{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:4px 10px;border-radius:12px;font-size:var(--f-pill);font-weight:600;cursor:pointer;user-select:none;border:1px solid var(--border);color:var(--muted);background:transparent;transition:border-color .15s,color .15s,background .15s;white-space:nowrap;min-width:72px;text-align:center;}
 .cpill.active{border-color:#58a6ff;color:#58a6ff;background:rgba(56,139,253,.15);}
 .cpill.watchlisted{border-color:rgba(227,179,65,.5);color:#e3b341;}
 .cpill.watchlisted.active{border-color:#e3b341;color:#e3b341;background:rgba(227,179,65,.12);}
@@ -209,20 +209,16 @@ tr:last-child td{border-bottom:none;}
 
   <!-- Box 1: Pair pills -->
   <div class="module" style="padding:10px 12px 12px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Select Pair</div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
       <button id="wl-filter-btn" class="btn" onclick="toggleWatchlistFilter()" style="padding:2px 10px;font-size:10px;">★ All</button>
     </div>
-    <div id="chart-pair-pills" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+    <div id="chart-pair-pills" style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;"></div>
   </div>
 
   <!-- Box 2: Chart -->
   <div class="module" id="chart-main-module" style="padding:0;overflow:hidden;">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px 7px;border-bottom:1px solid var(--border);">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span id="chart-pair-label" style="font-weight:700;font-size:var(--f-primary);color:var(--text);">—</span>
-        <span id="chart-dir-badge" style="display:none;font-size:var(--f-pill);font-weight:600;"></span>
-      </div>
+      <span id="chart-pair-label" style="font-weight:700;font-size:var(--f-primary);color:var(--text);">—</span>
       <div style="display:flex;gap:4px;">
         <button class="tf-btn" id="cht-tf-D1" onclick="setChartTabTf('D1')">D1</button>
         <button class="tf-btn" id="cht-tf-H4" onclick="setChartTabTf('H4')">H4</button>
@@ -233,19 +229,22 @@ tr:last-child td{border-bottom:none;}
     <div style="padding:4px 10px 2px;background:#0d1117;border-top:1px solid #21262d;">
       <span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">MACD (12/26/9)</span>
     </div>
-    <div id="chart-macd-canvas" style="width:100%;height:90px;background:#0d1117;"></div>
+    <div id="chart-macd-canvas" style="width:100%;height:135px;background:#0d1117;"></div>
   </div>
 
   <!-- Box 3: Data panel -->
   <div class="module" style="padding:12px 14px;">
     <div id="chart-stats-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
-    <div id="chart-compress-row" style="margin-bottom:10px;"></div>
+    <!-- Copy Prompt + squeeze badge row -->
+    <div id="chart-action-row" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px;">
+      <button class="cpbtn" id="chart-cp-btn" onclick="copyChartPrompt()">Copy Prompt</button>
+      <div id="chart-compress-badge" style="display:none;"></div>
+    </div>
     <div id="chart-news-row" style="margin-bottom:10px;font-size:var(--f-info);color:var(--muted);line-height:1.6;border-left:2px solid var(--border);padding-left:8px;display:none;"></div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-      <button class="cpbtn" id="chart-cp-btn" onclick="copyChartPrompt()">Copy Prompt</button>
       <input id="alert-price-input" type="number" step="0.00001" placeholder="Level…" style="background:#0d1117;border:1px solid var(--border);border-radius:12px;color:var(--text);padding:4px 10px;font-size:var(--f-input);width:110px;"/>
       <button id="alert-dir-btn" class="btn" onclick="cycleAlertDir()" style="padding:3px 9px;font-size:10px;">↑ Above</button>
-      <button class="btn btn-green" onclick="setLevelAlert()" style="padding:3px 9px;font-size:10px;">Set Alert</button>
+      <button class="btn" onclick="setLevelAlert()" style="padding:3px 9px;font-size:10px;">Set Alert</button>
     </div>
     <div id="chart-alerts-list" style="margin-top:8px;"></div>
   </div>
@@ -255,10 +254,7 @@ tr:last-child td{border-bottom:none;}
 <!-- Fullscreen chart overlay (landscape) -->
 <div id="chart-fullscreen">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;border-bottom:1px solid var(--border);flex-shrink:0;">
-    <div style="display:flex;align-items:center;gap:8px;">
-      <span id="fs-pair-label" style="font-weight:700;font-size:var(--f-primary);"></span>
-      <span id="fs-dir-badge" style="font-size:var(--f-pill);font-weight:600;"></span>
-    </div>
+    <span id="fs-pair-label" style="font-weight:700;font-size:var(--f-primary);"></span>
     <div style="display:flex;gap:4px;">
       <button class="tf-btn" id="fs-tf-D1" onclick="setChartTabTf('D1')">D1</button>
       <button class="tf-btn" id="fs-tf-H4" onclick="setChartTabTf('H4')">H4</button>
@@ -270,12 +266,17 @@ tr:last-child td{border-bottom:none;}
   <div style="padding:3px 10px 2px;border-top:1px solid #21262d;flex-shrink:0;">
     <span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">MACD</span>
   </div>
-  <div id="fs-macd-canvas" style="height:80px;flex-shrink:0;"></div>
+  <div id="fs-macd-canvas" style="height:120px;flex-shrink:0;"></div>
 </div>
 
 <div id="tab-correlation" class="tab-panel">
   <div id="corr-warning-wrap" style="display:none;"><span id="corr-warning"></span></div>
-  <div class="module" id="corr-pairs-wrap" style="display:none;padding:10px 14px 6px;"></div>
+  <div class="module" id="corr-pairs-wrap" style="display:none;padding:10px 12px 12px;">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
+      <button id="corr-wl-filter-btn" class="btn" onclick="toggleCorrWatchlistFilter()" style="padding:2px 10px;font-size:10px;">★ All</button>
+    </div>
+    <div id="corr-pill-row" style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;"></div>
+  </div>
   <div class="module" id="corr-chart-wrap"><div class="loading">Loads after next H4 scan.</div></div>
 </div>
 
@@ -820,7 +821,7 @@ function buildMacdChart(container,height,macdData){
   const chart=LightweightCharts.createChart(container,{
     width:container.clientWidth||350,height,
     layout:{background:{color:'transparent'},textColor:'#8b949e'},
-    grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
+    grid:{vertLines:{color:'#21262d'},horzLines:{visible:false}},
     crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
     rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.1,bottom:0.1}},
     timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
@@ -844,25 +845,42 @@ function getOhlcv(pair,tf){
   return[];
 }
 
+function syncTimeScales(chart1,chart2){
+  let busy=false;
+  chart1.timeScale().subscribeVisibleLogicalRangeChange(r=>{
+    if(busy||!r)return;busy=true;
+    try{chart2.timeScale().setVisibleLogicalRange(r);}catch(e){}
+    busy=false;
+  });
+  chart2.timeScale().subscribeVisibleLogicalRangeChange(r=>{
+    if(busy||!r)return;busy=true;
+    try{chart1.timeScale().setVisibleLogicalRange(r);}catch(e){}
+    busy=false;
+  });
+}
+
 function renderSingleChart(pair,tf,mainContainer,macdContainer,mainH,macdH){
   const ohlcv=getOhlcv(pair,tf);
   // Main chart
   clearChartInst(mainContainer._lwInst);
+  let mainChart=null;
   if(ohlcv.length){
-    const chart=buildLwChart(mainContainer,mainH);
-    const candles=chart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149'});
+    mainChart=buildLwChart(mainContainer,mainH);
+    const candles=mainChart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149'});
     candles.setData(ohlcv);
-    chart.timeScale().fitContent();
-    new ResizeObserver(()=>chart.applyOptions({width:mainContainer.clientWidth})).observe(mainContainer);
-    mainContainer._lwInst=chart;
+    mainChart.timeScale().fitContent();
+    new ResizeObserver(()=>mainChart.applyOptions({width:mainContainer.clientWidth})).observe(mainContainer);
+    mainContainer._lwInst=mainChart;
   } else {
     mainContainer.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:${mainH}px;color:var(--muted);font-size:11px;">${pair} ${tf} — no OHLCV in JSON</div>`;
   }
   // MACD chart
   clearChartInst(macdContainer._lwInst);
   const macdData=computeMACD(ohlcv);
-  const inst=buildMacdChart(macdContainer,macdH,macdData);
-  macdContainer._lwInst=inst;
+  const macdChart=buildMacdChart(macdContainer,macdH,macdData);
+  macdContainer._lwInst=macdChart;
+  // Sync scroll/zoom between both charts
+  if(mainChart&&macdChart)syncTimeScales(mainChart,macdChart);
 }
 
 function setChartTabTf(tf){
@@ -880,12 +898,12 @@ function renderCurrentChart(){
   if(!chartTabPair)return;
   const mc=document.getElementById('chart-main-canvas');
   const mm=document.getElementById('chart-macd-canvas');
-  if(mc&&mm)renderSingleChart(chartTabPair,chartTabTf,mc,mm,240,90);
+  if(mc&&mm)renderSingleChart(chartTabPair,chartTabTf,mc,mm,240,135);
   // Fullscreen
   if(document.getElementById('chart-fullscreen').classList.contains('open')){
     const fc=document.getElementById('fs-main-canvas');
     const fm=document.getElementById('fs-macd-canvas');
-    if(fc&&fm)renderSingleChart(chartTabPair,chartTabTf,fc,fm,window.innerHeight-160,80);
+    if(fc&&fm)renderSingleChart(chartTabPair,chartTabTf,fc,fm,window.innerHeight-170,120);
   }
   renderChartDataPanel(chartTabPair);
 }
@@ -905,16 +923,7 @@ function selectChartPair(pair){
 }
 
 function updateDirBadge(pair){
-  const d=['chart-dir-badge','fs-dir-badge'].map(id=>document.getElementById(id));
-  const h4d=D.h4&&D.h4[pair];
-  const lbl=h4d?h4d.label:'';
-  d.forEach(el=>{
-    if(!el)return;
-    if(!lbl){el.style.display='none';return;}
-    el.style.display='inline';
-    el.textContent=lbl;
-    el.className='pill '+pillClass(lbl);
-  });
+  // Badge removed from header — direction shown in data panel chips
 }
 
 // ── Pair pills ───
@@ -948,6 +957,8 @@ function toggleWatchlist(pair){
   if(idx>=0)wl.splice(idx,1);else wl.push(pair);
   wlSave(wl);
   renderChartPills();
+  // Keep corr pills in sync
+  if(D.corr&&D.corr.pairs)renderCorrPills(D.corr.pairs);
 }
 
 function toggleWatchlistFilter(){
@@ -960,7 +971,7 @@ function toggleWatchlistFilter(){
 // ── Data panel ───
 function renderChartDataPanel(pair){
   const statsEl=document.getElementById('chart-stats-row');
-  const compEl=document.getElementById('chart-compress-row');
+  const badgeEl=document.getElementById('chart-compress-badge');
   const newsEl=document.getElementById('chart-news-row');
   if(!statsEl)return;
 
@@ -968,48 +979,42 @@ function renderChartDataPanel(pair){
   const h4d=D.h4&&D.h4[pair];
   const d1d=D.d1&&D.d1[pair];
 
-  // Stat chips
-  const h1lbl=h1d?h1d.label:'—';
-  const h4lbl=h4d?h4d.label:'—';
-  const d1lbl=d1d?d1d.label:'—';
-  const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
-  const atrOk=h4d?h4d.filter_ok!==false:null;
-  const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
-  const struct=h4d&&h4d.structure;
+  // TF-specific data source for ADX/ATR/Extended/Structure
+  const tfData=chartTabTf==='H1'?h1d:chartTabTf==='H4'?h4d:d1d;
+  const adxV=tfData&&tfData.raw?tfData.raw.adx:null;
+  const atrOk=tfData?tfData.filter_ok!==false:null;
+  const ext=!!(tfData&&tfData.extended&&tfData.extended.extended);
+  const struct=tfData&&tfData.structure;
   const structLbl=struct&&struct.event&&struct.event!=='none'?struct.event:'—';
   const structDir=struct&&struct.direction?struct.direction:'';
 
   const chips=[
-    {label:'D1',val:d1lbl,color:pillScoreColor(d1lbl)},
-    {label:'H4',val:h4lbl,color:pillScoreColor(h4lbl)},
-    {label:'H1',val:h1lbl,color:pillScoreColor(h1lbl)},
+    {label:'D1',val:d1d?d1d.label:'—',color:pillScoreColor(d1d?d1d.label:'')},
+    {label:'H4',val:h4d?h4d.label:'—',color:pillScoreColor(h4d?h4d.label:'')},
+    {label:'H1',val:h1d?h1d.label:'—',color:pillScoreColor(h1d?h1d.label:'')},
     {label:'ADX',val:adxV!==null?adxV.toFixed(1):'—',color:adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)'},
-    {label:'ATR',val:atrOk===null?'—':atrOk?'Normal':'Low',color:atrOk?'var(--buy)':'var(--sell)'},
+    {label:'ATR',val:atrOk===null?'—':atrOk?'Normal':'Low',color:atrOk===null?'var(--muted)':atrOk?'var(--buy)':'var(--sell)'},
     {label:'Extended',val:ext?'Yes':'No',color:ext?'#e3b341':'var(--buy)'},
     {label:'Structure',val:structLbl+(structDir?' '+structDir:''),color:structLbl==='BOS'?'var(--buy)':structLbl==='CHoCH'?'#e3b341':'var(--muted)'},
   ];
   statsEl.innerHTML=chips.map(c=>`<div class="stat-chip"><div class="sv2" style="color:${c.color}">${c.val}</div><div class="sl2">${c.label}</div></div>`).join('');
 
-  // Compression score (H1 TF only)
+  // Squeeze badge — only show when score ≥ 1
   const cs=computeCompressionScore(pair);
-  const csLabels=['No squeeze','Slight squeeze','Squeeze forming','Squeeze active','Full squeeze'];
-  const csBullets=['H1 ADX','ATR','MACD hist','Body size'];
-  compEl.innerHTML=`<div class="compress-badge compress-${cs}">⚡ ${csLabels[cs]} (${cs}/4)</div>
-    <div style="margin-top:6px;font-size:10px;color:var(--muted);line-height:1.8;">${(()=>{
-      const h1d=D.h1&&D.h1[pair];
-      const ohlcv=(D.h1&&D.h1._ohlcv&&D.h1._ohlcv[pair])||[];
-      const bits=[];
-      if(h1d&&h1d.raw){bits.push('ADX '+(h1d.raw.adx<20?'<span style="color:#e3b341">':'<span style="color:var(--muted)">')+h1d.raw.adx.toFixed(1)+'</span>');}
-      if(h1d){bits.push('ATR '+(h1d.filter_ok===false?'<span style="color:#58a6ff">Low</span>':'<span style="color:var(--muted)">Normal</span>'));}
-      if(ohlcv.length>=30){const md=computeMACD(ohlcv);if(md.length>=20){const a3=md.slice(-3).map(d=>Math.abs(d.histogram)).reduce((a,b)=>a+b,0)/3;const a20=md.slice(-20).map(d=>Math.abs(d.histogram)).reduce((a,b)=>a+b,0)/20;const ratio=a20>0?(a3/a20).toFixed(2):'—';bits.push('MACD ratio <span style="color:'+(a20>0&&a3/a20<0.35?'#58a6ff':'var(--muted)')+'">'+ratio+'</span>');}}
-      if(ohlcv.length>=20){const bs=d=>Math.abs(d.close-d.open);const a5=ohlcv.slice(-5).map(bs).reduce((a,b)=>a+b,0)/5;const a20=ohlcv.slice(-20).map(bs).reduce((a,b)=>a+b,0)/20;const ratio=a20>0?(a5/a20).toFixed(2):'—';bits.push('Body ratio <span style="color:'+(a20>0&&a5/a20<0.5?'#58a6ff':'var(--muted)')+'">'+ratio+'</span>');}
-      return bits.join(' &nbsp;·&nbsp; ');
-    })()}</div>`;
+  if(badgeEl){
+    if(cs>0){
+      const csLabels=['','Slight squeeze','Squeeze forming','Squeeze active','Full squeeze'];
+      badgeEl.style.display='inline-flex';
+      badgeEl.innerHTML=`<span class="compress-badge compress-${cs}">⚡ ${csLabels[cs]} (${cs}/4)</span>`;
+    } else {
+      badgeEl.style.display='none';
+    }
+  }
 
   // News headline
-  const alerts=D.alerts&&D.alerts.alerts;
+  const alertsData=D.alerts&&D.alerts.alerts;
   let headline='';
-  if(alerts){const a=alerts.slice().reverse().find(x=>x.pair===pair);if(a)headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||'');}
+  if(alertsData){const a=alertsData.slice().reverse().find(x=>x.pair===pair);if(a)headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||'');}
   if(headline){newsEl.style.display='block';newsEl.innerHTML='<b style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em;">News</b><div style="margin-top:2px;">'+headline+'</div>';}
   else{newsEl.style.display='none';}
 
@@ -1243,6 +1248,33 @@ function corrDotColor(v){
   if(a>=.4)return v>0?"rgba(248,81,73,.6)":"rgba(56,139,253,.6)";
   return"var(--muted)";
 }
+
+let corrWlOnly=false;
+
+function toggleCorrWatchlistFilter(){
+  corrWlOnly=!corrWlOnly;
+  const btn=document.getElementById('corr-wl-filter-btn');
+  if(btn){btn.textContent=corrWlOnly?'★ Watchlist':'★ All';btn.style.borderColor=corrWlOnly?'#e3b341':'';btn.style.color=corrWlOnly?'#e3b341':'';}
+  renderCorr(D.corr);
+}
+
+function renderCorrPills(pairs){
+  const container=document.getElementById('corr-pill-row');
+  if(!container||!pairs)return;
+  const wl=new Set(wlLoad());
+  const pairsToShow=corrWlOnly?pairs.filter(p=>wl.has(p.replace('','').length===6?p.slice(0,3)+'/'+p.slice(3):p)):pairs;
+  // pairs in corr are stored without slash e.g. "EURUSD"
+  container.innerHTML=pairsToShow.map(p=>{
+    const fullPair=p.length===6?p.slice(0,3)+'/'+p.slice(3):p;
+    const isWl=wl.has(fullPair);
+    const isActive=p===corrSelectedPair;
+    return`<div class="cpill${isActive?' active':''}${isWl?' watchlisted':''}" data-pair="${p}" onclick="corrSelectedPair='${p}';renderCorr(D.corr)">
+      <span>${p}</span>
+      <span class="star" onclick="event.stopPropagation();toggleWatchlist('${fullPair}')" title="Watchlist">★</span>
+    </div>`;
+  }).join('');
+}
+
 function renderCorr(corr){
   const pairsWrap=document.getElementById("corr-pairs-wrap");
   const chartWrap=document.getElementById("corr-chart-wrap");
@@ -1258,13 +1290,7 @@ function renderCorr(corr){
   const row=matrix[idx];
   if(pairsWrap){
     pairsWrap.style.display="block";
-    let ph='<div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;">';
-    pairs.forEach(p=>{
-      const act=p===corrSelectedPair;
-      ph+=`<button onclick="corrSelectedPair='${p}';renderCorr(D.corr)" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:12px;cursor:pointer;border:1px solid ${act?"#58a6ff":"var(--border)"};background:${act?"rgba(56,139,253,.15)":"transparent"};color:${act?"#58a6ff":"var(--muted)"};">${p.replace("/","")}</button>`;
-    });
-    ph+='</div>';
-    pairsWrap.innerHTML=ph;
+    renderCorrPills(pairs);
   }
   let h='<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';
   pairs.forEach((p,j)=>{
