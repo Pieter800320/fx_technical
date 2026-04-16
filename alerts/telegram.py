@@ -1,95 +1,45 @@
+"""alerts/telegram.py — Level alert notifications only"""
 import os, requests
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID   = os.environ.get("TELEGRAM_CHAT_ID", "")
 DASHBOARD_URL      = os.environ.get("DASHBOARD_URL", "https://Pieter800320.github.io/fx_technical/")
 
-DIRECTION_EMOJI = {"bull": "🟢", "bear": "🔴"}
-DIRECTION_WORD  = {"bull": "BUY", "bear": "SELL"}
 
-
-def build_message(pair, direction, h1_label, h4_label, d1_label,
-                  session_names, adx_val=None, atr_ok=True,
-                  headline=None, events=None, extended=None, regime=None,
-                  conflict=False, structure=None, adx_weight=None,
-                  pct_change=None, d1_close=None, h1_close=None):
-
-    emoji      = DIRECTION_EMOJI[direction]
-    action     = DIRECTION_WORD[direction]
-    display    = pair.replace("/", "")
-    session    = ", ".join(session_names) if session_names else "Off-session"
-    atr_status = "Normal" if atr_ok else "Contracted"
-    adx_str    = f"{adx_val:.1f}" if adx_val is not None else "N/A"
-    events     = events or []
-
-    lines = [
-        f"{emoji} <b>{action} {display}</b>",
-        "",
-        f"D1: {d1_label}  |  H4: {h4_label}  |  H1: {h1_label}",
-        "",
-        f"ADX: {adx_str}  |  ATR: {atr_status}",
-        f"Session: {session}",
-    ]
-
-    if regime and regime.get("regime"):
-        lines.append(f"Regime: {regime['regime']} ({regime.get('confidence', '')})")
-
-    # % change vs daily close — only show if meaningful move
-    if pct_change is not None:
-        sign = "+" if pct_change >= 0 else ""
-        is_jpy = "JPY" in pair
-        threshold = 1.2 if is_jpy else 0.8
-        if abs(pct_change) >= threshold:
-            marker = " ●" if abs(pct_change) >= threshold * 1.5 else ""
-            lines.append(f"Move today: {sign}{pct_change:.2f}%{marker} vs yesterday close")
-
-    # Structure event line (BOS / CHOCH)
-    if structure and structure.get("event") in ("BOS", "CHOCH"):
-        ev  = structure["event"]
-        st  = structure.get("strength", 0.0)
-        mul = structure.get("multiplier", 1.0)
-        dir_str = structure.get("direction", "")
-        ev_label = f"Structure: {ev} ({dir_str}, strength {st:.2f}, ×{mul:.2f})"
-        lines.append(ev_label)
-
-    # Conflict warning — always show when present
-    if conflict:
-        lines.append("⚠️ <b>Conflict</b>: Structure contradicts momentum — treat with caution")
-
-    if extended and extended.get("extended"):
-        reasons = extended.get("reasons", [])
-        lines.append("⚠️ Extended: " + "; ".join(reasons) if reasons else "⚠️ Extended")
-
-    if headline:
-        source, title = headline
-        lines += ["", f'📰 <i>"{title}"</i> — {source}']
-    else:
-        lines += ["", "📰 <i>No recent analysis found.</i>"]
-
-    if events:
-        lines.append("")
-        for ev in events:
-            lines.append(f"⚠️ {ev['currency']} — {ev['event']}  {ev['time_utc']} UTC")
-    else:
-        lines += ["", "✅ <i>No high-impact events in next 12h.</i>"]
-
-    lines += ["", f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>']
-    return "\n".join(lines)
-
-
-def send_telegram(message):
+def send_telegram(message: str) -> bool:
+    """Send a raw HTML message to the Telegram bot."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("  [TG] Missing credentials.")
         return False
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
     try:
         resp = requests.post(url, json={
-            "chat_id": TELEGRAM_CHAT_ID, "text": message,
-            "parse_mode": "HTML", "disable_web_page_preview": True
+            "chat_id": TELEGRAM_CHAT_ID,
+            "text": message,
+            "parse_mode": "HTML",
+            "disable_web_page_preview": True,
         }, timeout=10)
         resp.raise_for_status()
-        print("  [TG] Alert sent.")
+        print("  [TG] Sent.")
         return True
     except Exception as e:
         print(f"  [TG] Failed: {e}")
         return False
+
+
+def send_level_alert(pair: str, direction: str, alert_price: float, current_price: float) -> bool:
+    """Fire a Telegram alert when a user-set price level is hit."""
+    display  = pair.replace("/", "")
+    arrow    = "↑" if direction == "above" else "↓"
+    emoji    = "🟢" if direction == "above" else "🔴"
+    dec      = 2 if "JPY" in pair else 5
+
+    lines = [
+        f"{emoji} <b>Level Alert — {display}</b>",
+        "",
+        f"Price crossed <b>{arrow} {alert_price:.{dec}f}</b>",
+        f"Current: <b>{current_price:.{dec}f}</b>",
+        "",
+        f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>',
+    ]
+    return send_telegram("\n".join(lines))
