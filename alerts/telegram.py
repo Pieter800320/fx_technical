@@ -1,4 +1,6 @@
-"""alerts/telegram.py — Level alert notifications only"""
+"""alerts/telegram.py — Level alert notifications only.
+build_message is kept as a no-op stub so existing scan imports don't break.
+"""
 import os, requests
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -7,7 +9,6 @@ DASHBOARD_URL      = os.environ.get("DASHBOARD_URL", "https://Pieter800320.githu
 
 
 def send_telegram(message: str) -> bool:
-    """Send a raw HTML message to the Telegram bot."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
         print("  [TG] Missing credentials.")
         return False
@@ -27,13 +28,16 @@ def send_telegram(message: str) -> bool:
         return False
 
 
-def send_level_alert(pair: str, direction: str, alert_price: float, current_price: float) -> bool:
-    """Fire a Telegram alert when a user-set price level is hit."""
-    display  = pair.replace("/", "")
-    arrow    = "↑" if direction == "above" else "↓"
-    emoji    = "🟢" if direction == "above" else "🔴"
-    dec      = 2 if "JPY" in pair else 5
+def build_message(*args, **kwargs) -> str:
+    """Stub — signal Telegram messages removed. Returns empty string."""
+    return ""
 
+
+def send_level_alert(pair: str, direction: str, alert_price: float, current_price: float) -> bool:
+    display = pair.replace("/", "")
+    arrow   = "↑" if direction == "above" else "↓"
+    emoji   = "🟢" if direction == "above" else "🔴"
+    dec     = 2 if "JPY" in pair else 5
     lines = [
         f"{emoji} <b>Level Alert — {display}</b>",
         "",
