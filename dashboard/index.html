@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
 <title>Forex1212</title>
 <style>
+@import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
 :root{
   --bg:#0d1117;--surface:#161b22;--border:#30363d;
   --text:#e6edf3;--muted:#8b949e;--buy:#3fb950;--sell:#f85149;
@@ -26,7 +27,6 @@ header h1{font-size:18px;font-weight:600;}
 .s-chip{font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;border:1px solid var(--border);color:var(--muted);}
 .s-chip.on{border-color:#388bfd;color:#58a6ff;background:rgba(56,139,253,.1);}
 #mkt-closed{display:none;font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;background:rgba(248,81,73,.13);border:1px solid rgba(248,81,73,.3);color:#f85149;}
-#regime-pill{font-size:var(--f-pill);font-weight:600;padding:3px 14px;border-radius:12px;border:1px solid var(--border);color:var(--muted);cursor:pointer;display:inline-block;}
 .pill{display:inline-block;padding:3px 12px;border-radius:12px;font-size:var(--f-pill);font-weight:600;cursor:pointer;user-select:none;}
 .pill-SB{background:rgba(35,134,54,.2);border:1px solid rgba(35,134,54,.45);color:var(--buy);}
 .pill-B{background:rgba(35,134,54,.13);border:1px solid rgba(35,134,54,.3);color:var(--buy);}
@@ -79,7 +79,6 @@ tr:last-child td{border-bottom:none;}
 .btext{font-size:var(--f-body);line-height:1.6;color:#c9d1d9;}
 .btime{margin-top:5px;font-size:var(--f-info);color:var(--muted);}
 #brief-text{display:none;margin-top:12px;font-size:var(--f-body);line-height:1.9;color:var(--text);white-space:pre-wrap;padding:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);}
-#shortlist-picks{font-size:var(--f-pill);line-height:2.0;}
 #shortlist-dropped{font-size:var(--f-info);color:var(--muted);margin-top:4px;}
 #j-form{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:16px;}
 .f3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;}
@@ -143,6 +142,21 @@ tr:last-child td{border-bottom:none;}
 @media(orientation:landscape) and (max-width:900px){
   #chart-auto-fs-hint{display:block;}
 }
+/* ── Matrix Ticker ───────────────────────────── */
+#dash-ticker-wrap{overflow:hidden;background:#020e02;border-bottom:1px solid rgba(0,204,51,.18);margin:-16px -16px 12px -16px;height:38px;display:flex;align-items:center;}
+#dash-ticker-inner{display:inline-block;white-space:nowrap;animation:dash-ticker-run 60s linear infinite;font-family:'VT323',monospace;font-size:21px;color:#00cc33;text-shadow:0 0 5px rgba(0,255,65,.2);padding-left:100vw;}
+@keyframes dash-ticker-run{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
+.ticker-buy{color:#3fb950;}
+.ticker-sell{color:#f85149;}
+/* ── Dashboard Shortlist Cards ───────────────── */
+.sl-card{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px;}
+.sl-card:last-child{margin-bottom:0;}
+.sl-card-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.sl-card-pair{font-weight:700;font-size:var(--f-primary);}
+.sl-card-dir{font-weight:700;font-size:var(--f-pill);}
+.sl-pills{display:flex;gap:4px;margin-bottom:6px;}
+.sl-pill{flex:1;text-align:center;padding:5px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:6px;}
+.sl-ind{display:flex;align-items:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:6px 8px;font-size:var(--f-info);}
 </style>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 </head>
@@ -158,6 +172,13 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <div id="tab-dashboard" class="tab-panel active">
+
+  <!-- Matrix Ticker -->
+  <div id="dash-ticker-wrap">
+    <div id="dash-ticker-inner">FOREX1212 &nbsp;◆&nbsp; LOADING...</div>
+  </div>
+
+  <!-- Sessions -->
   <div class="module" style="padding:10px 14px;">
     <div id="session-row" onclick="toggleSessions()" style="cursor:pointer;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
       <span class="s-chip" id="s-sydney">Sydney</span>
@@ -167,47 +188,43 @@ tr:last-child td{border-bottom:none;}
       <span id="mkt-closed">Market Closed</span>
     </div>
   </div>
-  <div class="module">
-    <div style="display:flex;gap:10px;">
-      <button class="btn" onclick="toggleBrief()" style="flex:1;text-align:center;">Market Brief</button>
-      <button class="btn" onclick="toggleLive()" style="flex:1;text-align:center;">Live</button>
+
+  <!-- Shortlist -->
+  <div class="module" style="padding:12px 14px;">
+    <div class="mod-hdr" style="margin-bottom:10px;">Shortlist</div>
+    <div id="shortlist-cards"><div class="loading">Loading...</div></div>
+    <div id="shortlist-dropped-row" style="font-size:var(--f-info);color:var(--muted);margin-top:6px;line-height:1.7;"></div>
+  </div>
+
+  <!-- Regime -->
+  <div class="module" style="padding:12px 14px;">
+    <div class="mod-hdr" style="margin-bottom:8px;">Regime</div>
+    <div id="regime-strip"></div>
+    <div id="regime-drawer" style="display:none;margin-top:8px;padding:10px 12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);font-size:var(--f-info);line-height:2.0;"></div>
+  </div>
+
+  <!-- Currency Strength -->
+  <div class="module" style="padding:10px 14px 14px;">
+    <div class="mod-hdr" style="margin-bottom:10px;">Currency Strength</div>
+    <div id="csm-grid"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Market Brief / Live -->
+  <div class="module" style="padding:0;overflow:hidden;">
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);">
+      <button class="btn" onclick="toggleBrief()" style="flex:1;border-radius:0;border:none;border-right:1px solid var(--border);padding:10px;background:transparent;font-size:var(--f-info);">Market Brief</button>
+      <button class="btn" onclick="toggleLive()" style="flex:1;border-radius:0;border:none;padding:10px;background:transparent;font-size:var(--f-info);">Live</button>
     </div>
-    <div id="brief-text" style="display:none;margin-top:12px;font-size:12px;line-height:1.9;color:var(--text);white-space:pre-wrap;padding:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);">
+    <div id="brief-text" style="display:none;padding:12px 14px;">
       <button class="btn" id="dash-copy-btn" onclick="copyBriefPrompt()" style="margin-bottom:10px;">Copy Prompt</button>
-      <div id="brief-content"></div>
+      <div id="brief-content" style="font-size:var(--f-body);line-height:1.9;color:var(--text);white-space:pre-wrap;"></div>
     </div>
-    <div id="live-drawer" style="display:none;margin-top:12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);overflow:hidden;">
+    <div id="live-drawer" style="display:none;background:#0d1117;overflow:hidden;">
       <div id="live-content"><div class="loading">Loading...</div></div>
     </div>
   </div>
-  <div id="shortlist-wrap" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;">
-    <div style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Shortlist</div>
-    <div style="background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:10px 12px;margin-top:4px;">
-      <div id="shortlist-picks" style="font-size:var(--f-pill);line-height:2;"></div>
-      <div id="shortlist-dropped" style="font-size:11px;color:var(--muted);margin-top:4px;"></div>
-    </div>
-  </div>
-  <div class="module" style="padding:12px 14px;">
-    <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;">Regime</div>
-    <span id="regime-pill" onclick="toggleRegimeDrawer()" style="cursor:pointer;font-size:var(--f-pill);">&#8212;</span>
-    <div id="regime-drawer" style="display:none;margin-top:10px;padding:10px 12px;background:#0d1117;border-radius:6px;border:1px solid var(--border);font-size:var(--f-info);line-height:2.0;"></div>
-  </div>
-  <div class="module" style="padding:10px 14px 14px;">
-    <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">Currency Strength</div>
-    <div id="csm-grid"><div class="loading">Loading...</div></div>
-  </div>
-  <div id="charts-wrap" style="display:none;margin-top:10px;">
-    <div class="module" style="padding:12px 14px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-        <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Charts</div>
-        <div style="display:flex;gap:6px;">
-          <button id="chart-tf-h1" class="btn" onclick="setChartTf('60')" style="padding:2px 10px;">H1</button>
-          <button id="chart-tf-h4" class="btn" onclick="setChartTf('240')" style="padding:2px 10px;font-size:var(--f-th);background:rgba(56,139,253,.25);border-color:#58a6ff;">H4</button>
-        </div>
-      </div>
-      <div id="charts-grid" style="display:flex;flex-direction:column;gap:10px;"></div>
-    </div>
-  </div>
+
+  <div id="charts-wrap" style="display:none;"></div>
 </div>
 
 <div id="tab-charts" class="tab-panel">
@@ -466,12 +483,24 @@ function toggleSessions(){sessExpanded=!sessExpanded;renderSessions();}
 
 function renderRegime(r){
   if(!r||!r.regime)return;
-  const pill=document.getElementById("regime-pill");
+  const stripEl=document.getElementById("regime-strip");
+  if(!stripEl)return;
   const c=RC[r.regime]||RC["Mixed"];
-  pill.style.background=c.bg;pill.style.borderColor=c.b;pill.style.color=c.c;
-  pill.style.border="1px solid "+c.b;
-  pill.textContent=r.regime+" · "+(r.confidence||"");
   const s=r.signals||{};
+  const usdV=parseFloat(s.usd_proxy)||0;
+  const shV=parseFloat(s.sh_divergence)||0;
+  const dispV=parseFloat(s.dispersion)||0;
+  const items=[
+    {lbl:'Regime',val:r.regime,col:c.c},
+    {lbl:'Conf',val:(r.confidence||'—').toUpperCase(),col:c.c},
+    {lbl:'USD',val:usdV!==0?usdV.toFixed(1):'—',col:usdV>0?'var(--buy)':usdV<0?'var(--sell)':'var(--muted)'},
+    {lbl:'SH Div',val:shV!==0?shV.toFixed(0):'—',col:shV>15?'var(--sell)':shV<-15?'var(--buy)':'var(--muted)'},
+    {lbl:'Disp',val:dispV?dispV.toFixed(0):'—',col:dispV>60?'var(--buy)':dispV>30?'#e3b341':'var(--muted)'},
+  ];
+  const indStrip=items.map((x,i)=>`${i>0?'<span style="color:var(--border);padding:0 2px;user-select:none;">│</span>':''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${x.col};">${x.val}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${x.lbl}</span></div>`).join('');
+  stripEl.innerHTML=`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${c.b};border-radius:8px;padding:8px 6px;cursor:pointer;" onclick="toggleRegimeDrawer()">${indStrip}<span style="color:var(--muted);font-size:var(--f-th);margin-left:4px;">▾</span></div>`;
+  const drawer=document.getElementById("regime-drawer");
+  if(!drawer)return;
   const rows=[
     ["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],
     ["Risk basket",s.risk_basket],["Gold",s.gold_direction||"-"],
@@ -480,8 +509,6 @@ function renderRegime(r){
     ["Risk-Off pts",s.risk_off_votes],["Risk-On pts",s.risk_on_votes],
     ["Data source",r.data_source||"D1"],["Vol ratio",r.vol_ratio],
   ];
-  const drawer=document.getElementById("regime-drawer");
-  if(!drawer)return;
   drawer.innerHTML=rows.map(row=>{
     if(!row)return"";
     const[k,v]=row;const vStr=v!==null&&v!==undefined?String(v):"-";
@@ -706,23 +733,102 @@ function generateBrief(){
   return["Regime: "+r+"  "+conf+(regime.data_source?" ["+regime.data_source+"]":""),"",usdText+" "+shText,dispText,"","Strongest currencies: "+strongest+".","Weakest currencies:   "+weakest+".",""  ,signalText,"",extText,adxText,"","Note: correlation based on last 50 bars - may be less reliable if regime recently changed."].join("\n");
 }
 
-function renderShortlist(){
-  const wrap=document.getElementById("shortlist-wrap");
-  const picks=document.getElementById("shortlist-picks");
-  const dropped=document.getElementById("shortlist-dropped");
-  if(!wrap||!picks||!dropped)return;
-  const{kept,dropped:dr}=buildRankedShortlist();
-  if(!kept.length&&!dr.length){
-    picks.innerHTML='<span style="color:var(--muted);font-size:var(--f-info);">No signals meet the threshold right now.</span>';
-    dropped.textContent="";
-    return;
+// ── Matrix Ticker ─────────────────────────────────────────────────────────────
+function buildTickerText(){
+  const{kept}=buildRankedShortlist();
+  const parts=[];
+  if(kept.length){
+    kept.forEach(s=>{
+      const arrow=s.dir==='bull'?'▲':'▼';
+      const word=s.dir==='bull'?'BUY':'SELL';
+      const score=s.score>0?'+'+s.score:String(s.score);
+      parts.push(`<span class="ticker-${s.dir==='bull'?'buy':'sell'}">${arrow} ${word} ${s.pair.replace('/','')}</span> <span style="color:rgba(0,204,51,.6)">${score}</span>`);
+    });
+  } else {
+    parts.push('<span style="color:rgba(0,204,51,.5)">NO SIGNALS</span>');
   }
-  picks.innerHTML=kept.map(x=>{
-    const col=x.dir==="bull"?"var(--buy)":"var(--sell)";
-    const lbl=x.dir==="bull"?"BUY":"SELL";
-    return`<div style="color:${col};font-weight:600;">${x.pair.replace("/","")} &mdash; ${lbl}</div>`;
-  }).join("");
-  dropped.textContent=dr.length?"Dropped: "+dr.map(x=>x.pair.replace("/","")+" (+"+x.corrVal+" "+x.droppedBy.replace("/","")+ ")").join(" / "):"";
+  parts.push('&nbsp;&nbsp;<span style="color:rgba(0,204,51,.3)">◆◆</span>&nbsp;&nbsp;');
+  if(D.csm&&D.csm.rankings){
+    const sorted=Object.entries(D.csm.rankings).sort((a,b)=>b[1]-a[1]);
+    const top=sorted.slice(0,3).map(([c,v])=>`${c} <span style="color:rgba(0,204,51,.7)">${v.toFixed(0)}</span>`).join(' &nbsp; ');
+    const bot=sorted.slice(-3).map(([c,v])=>`${c} <span style="color:rgba(0,204,51,.5)">${v.toFixed(0)}</span>`).join(' &nbsp; ');
+    parts.push(`STR: ${top}`);
+    parts.push('&nbsp;&nbsp;<span style="color:rgba(0,204,51,.3)">◆◆</span>&nbsp;&nbsp;');
+    parts.push(`WK: ${bot}`);
+    parts.push('&nbsp;&nbsp;<span style="color:rgba(0,204,51,.3)">◆◆</span>&nbsp;&nbsp;');
+  }
+  if(D.regime&&D.regime.regime){
+    const reg=D.regime.regime.toUpperCase();
+    const conf=(D.regime.confidence||'').toUpperCase();
+    const col=D.regime.regime==='Risk-On'?'#3fb950':D.regime.regime==='Risk-Off'?'#f85149':'#e3b341';
+    parts.push(`<span style="color:${col}">${reg}</span> <span style="color:rgba(0,204,51,.6)">${conf}</span>`);
+    parts.push('&nbsp;&nbsp;<span style="color:rgba(0,204,51,.3)">◆◆</span>&nbsp;&nbsp;');
+  }
+  const h=new Date().getUTCHours();
+  const act=Object.entries(SESS).filter(([,[s,e]])=>s>e?(h>=s||h<e):(h>=s&&h<e)).map(([n])=>n.toUpperCase());
+  parts.push(act.length?act.join(' + ')+' ACTIVE':'NO SESSION');
+  parts.push('&nbsp;&nbsp;<span style="color:rgba(0,204,51,.3)">◆◆</span>&nbsp;&nbsp;');
+  const now=new Date();
+  parts.push(now.getUTCHours().toString().padStart(2,'0')+':'+now.getUTCMinutes().toString().padStart(2,'0')+' UTC');
+  parts.push('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;');
+  return parts.join('&nbsp;&nbsp;');
+}
+
+function updateTicker(){
+  const el=document.getElementById('dash-ticker-inner');
+  if(!el)return;
+  const text=buildTickerText();
+  // Double for seamless infinite loop (animation goes 0 → -50%)
+  el.innerHTML=text+text;
+}
+
+// ── Shortlist cards ────────────────────────────────────────────────────────────
+function renderShortlist(){
+  const cardsEl=document.getElementById('shortlist-cards');
+  const dropEl=document.getElementById('shortlist-dropped-row');
+  if(!cardsEl)return;
+  const{kept,dropped:dr}=buildRankedShortlist();
+
+  if(!kept.length){
+    cardsEl.innerHTML='<div style="color:var(--muted);font-size:var(--f-info);">No signals meet threshold right now.</div>';
+    if(dropEl)dropEl.textContent='';
+  } else {
+    cardsEl.innerHTML=kept.map(s=>{
+      const pKey=s.pair.replace('/','');
+      const isBull=s.dir==='bull';
+      const dirCol=isBull?'var(--buy)':'var(--sell)';
+      const arrow=isBull?'▲':'▼';
+      const word=isBull?'BUY':'SELL';
+      const d1lbl=D.d1&&D.d1[s.pair]?D.d1[s.pair].label:'—';
+      const h4lbl=D.h4&&D.h4[s.pair]?D.h4[s.pair].label:'—';
+      const h1lbl=D.h1&&D.h1[s.pair]?D.h1[s.pair].label:'—';
+      const h4d=D.h4&&D.h4[s.pair];
+      const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
+      const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
+      const adxCol=adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)';
+      const scorePills=['D1','H4','H1'].map((tf,i)=>{
+        const lbl=[d1lbl,h4lbl,h1lbl][i];
+        return`<div class="pill ${pillClass(lbl)} sl-pill"><span style="font-size:var(--f-pill);font-weight:700;">${pillAbbr(lbl)}</span><span style="font-size:var(--f-th);opacity:.65;margin-top:2px;">${tf}</span></div>`;
+      }).join('');
+      const indItems=[
+        {lbl:'ADX',val:adxV!==null?adxV.toFixed(0):'—',col:adxCol},
+        {lbl:'Score',val:(s.score>0?'+':'')+s.score,col:dirCol},
+        {lbl:'Ext',val:ext?'Yes':'No',col:ext?'#e3b341':'var(--buy)'},
+      ];
+      const indStrip=indItems.map((x,i)=>`${i>0?'<span style="color:var(--border);padding:0 4px;user-select:none;">│</span>':''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${x.col};">${x.val}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${x.lbl}</span></div>`).join('');
+      return`<div class="sl-card">
+        <div class="sl-card-hdr">
+          <span class="sl-card-pair">${pKey}</span>
+          <span class="sl-card-dir" style="color:${dirCol};">${arrow} ${word}</span>
+        </div>
+        <div class="sl-pills">${scorePills}</div>
+        <div class="sl-ind">${indStrip}</div>
+      </div>`;
+    }).join('');
+    if(dropEl)dropEl.innerHTML=dr.length?'<span style="color:var(--muted)">Filtered (corr):</span> '+dr.map(x=>`${x.pair.replace('/','')}`).join(', '):'';
+  }
+  updateTicker();
+  renderCharts();
 }
 
 function renderCharts(){
@@ -1408,7 +1514,7 @@ async function init(){
   renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
   if(document.getElementById('tab-charts').classList.contains('active')){renderChartPills();if(chartTabPair)renderCurrentChart();else if(PAIRS.length)selectChartPair(PAIRS[0]);}
   checkLevelAlerts();
-  renderShortlist();renderBrief();
+  renderShortlist();renderBrief();updateTicker();
   if(document.getElementById('tab-correlation').classList.contains('active'))renderCorrWarning();
   if(document.getElementById("tab-correlation").classList.contains("active"))renderCorr(corr);
 }
