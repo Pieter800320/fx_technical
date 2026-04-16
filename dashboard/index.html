@@ -9,7 +9,7 @@
   --bg:#0d1117;--surface:#161b22;--border:#30363d;
   --text:#e6edf3;--muted:#8b949e;--buy:#3fb950;--sell:#f85149;
   --f-tab:13px;--f-sec:11px;--f-primary:13px;--f-pill:11px;
-  --f-body:12px;--f-info:11px;--f-input:13px;--f-th:10px;
+  --f-body:12px;--f-info:11px;--f-input:13px;--f-th:11px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:var(--f-body);padding:16px;}
@@ -119,13 +119,13 @@ tr:last-child td{border-bottom:none;}
 .cpill.active{border-color:#58a6ff;color:#58a6ff;background:rgba(56,139,253,.15);}
 .cpill.watchlisted{border-color:rgba(227,179,65,.5);color:#e3b341;}
 .cpill.watchlisted.active{border-color:#e3b341;color:#e3b341;background:rgba(227,179,65,.12);}
-.cpill .star{font-size:10px;opacity:.4;transition:opacity .15s;}
+.cpill .star{font-size:var(--f-th);opacity:.4;transition:opacity .15s;}
 .cpill.watchlisted .star{opacity:1;}
-.tf-btn{font-size:10px;font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
+.tf-btn{font-size:var(--f-th);font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
 .tf-btn.active{background:rgba(56,139,253,.2);border-color:#58a6ff;color:#58a6ff;}
 .stat-chip{display:flex;flex-direction:column;align-items:center;background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:6px 10px;min-width:60px;}
-.stat-chip .sv2{font-size:14px;font-weight:700;}
-.stat-chip .sl2{font-size:9px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
+.stat-chip .sv2{font-size:var(--f-primary);font-weight:700;}
+.stat-chip .sl2{font-size:var(--f-info);color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
 .compress-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:var(--f-info);font-weight:600;border:1px solid;}
 .compress-0{border-color:var(--border);color:var(--muted);background:rgba(139,148,158,.06);}
 .compress-1{border-color:rgba(227,179,65,.3);color:#e3b341;background:rgba(227,179,65,.08);}
@@ -133,8 +133,13 @@ tr:last-child td{border-bottom:none;}
 .compress-3,.compress-4{border-color:rgba(56,139,253,.5);color:#58a6ff;background:rgba(56,139,253,.12);}
 .alert-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #21262d;font-size:var(--f-info);}
 .alert-row:last-child{border-bottom:none;}
+.mod-hdr{font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;}
 #chart-fullscreen{display:none;position:fixed;inset:0;background:#0d1117;z-index:3000;flex-direction:column;}
 #chart-fullscreen.open{display:flex;}
+.tf-btn{font-size:var(--f-pill);font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
+.tf-btn.active{background:rgba(56,139,253,.2);border-color:#58a6ff;color:#58a6ff;}
+.cpill .star{font-size:var(--f-pill);opacity:.4;transition:opacity .15s;}
+.cpill.watchlisted .star{opacity:1;}
 @media(orientation:landscape) and (max-width:900px){
   #chart-auto-fs-hint{display:block;}
 }
@@ -196,8 +201,8 @@ tr:last-child td{border-bottom:none;}
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
         <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Charts</div>
         <div style="display:flex;gap:6px;">
-          <button id="chart-tf-h1" class="btn" onclick="setChartTf('60')" style="padding:2px 10px;font-size:10px;">H1</button>
-          <button id="chart-tf-h4" class="btn" onclick="setChartTf('240')" style="padding:2px 10px;font-size:10px;background:rgba(56,139,253,.25);border-color:#58a6ff;">H4</button>
+          <button id="chart-tf-h1" class="btn" onclick="setChartTf('60')" style="padding:2px 10px;">H1</button>
+          <button id="chart-tf-h4" class="btn" onclick="setChartTf('240')" style="padding:2px 10px;font-size:var(--f-th);background:rgba(56,139,253,.25);border-color:#58a6ff;">H4</button>
         </div>
       </div>
       <div id="charts-grid" style="display:flex;flex-direction:column;gap:10px;"></div>
@@ -210,7 +215,7 @@ tr:last-child td{border-bottom:none;}
   <!-- Box 1: Pair pills -->
   <div class="module" style="padding:10px 12px 12px;">
     <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-      <button id="wl-filter-btn" class="btn" onclick="toggleWatchlistFilter()" style="padding:2px 10px;font-size:10px;">★ All</button>
+      <button id="wl-filter-btn" class="btn" onclick="toggleWatchlistFilter()" style="padding:2px 10px;">★ All</button>
     </div>
     <div id="chart-pair-pills" style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;"></div>
   </div>
@@ -227,7 +232,7 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div id="chart-main-canvas" style="width:100%;height:240px;background:#0d1117;"></div>
     <div style="padding:4px 10px 2px;background:#0d1117;border-top:1px solid #21262d;">
-      <span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">MACD (12/26/9)</span>
+      <span class="mod-hdr" style="margin-bottom:0;">MACD (12/26/9)</span>
     </div>
     <div id="chart-macd-canvas" style="width:100%;height:135px;background:#0d1117;"></div>
   </div>
@@ -235,16 +240,15 @@ tr:last-child td{border-bottom:none;}
   <!-- Box 3: Data panel -->
   <div class="module" style="padding:12px 14px;">
     <div id="chart-stats-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
-    <!-- Copy Prompt + squeeze badge row -->
-    <div id="chart-action-row" style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-bottom:10px;">
+    <!-- Copy Prompt row -->
+    <div style="margin-bottom:10px;">
       <button class="cpbtn" id="chart-cp-btn" onclick="copyChartPrompt()">Copy Prompt</button>
-      <div id="chart-compress-badge" style="display:none;"></div>
     </div>
     <div id="chart-news-row" style="margin-bottom:10px;font-size:var(--f-info);color:var(--muted);line-height:1.6;border-left:2px solid var(--border);padding-left:8px;display:none;"></div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
       <input id="alert-price-input" type="number" step="0.00001" placeholder="Level…" style="background:#0d1117;border:1px solid var(--border);border-radius:12px;color:var(--text);padding:4px 10px;font-size:var(--f-input);width:110px;"/>
-      <button id="alert-dir-btn" class="btn" onclick="cycleAlertDir()" style="padding:3px 9px;font-size:10px;">↑ Above</button>
-      <button class="btn" onclick="setLevelAlert()" style="padding:3px 9px;font-size:10px;">Set Alert</button>
+      <button id="alert-dir-btn" class="btn" onclick="cycleAlertDir()" style="padding:3px 9px;">↑ Above</button>
+      <button class="btn" onclick="setLevelAlert()" style="padding:3px 9px;">Set Alert</button>
     </div>
     <div id="chart-alerts-list" style="margin-top:8px;"></div>
   </div>
@@ -259,12 +263,12 @@ tr:last-child td{border-bottom:none;}
       <button class="tf-btn" id="fs-tf-D1" onclick="setChartTabTf('D1')">D1</button>
       <button class="tf-btn" id="fs-tf-H4" onclick="setChartTabTf('H4')">H4</button>
       <button class="tf-btn active" id="fs-tf-H1" onclick="setChartTabTf('H1')">H1</button>
-      <button class="btn btn-red" onclick="exitFullscreenChart()" style="padding:2px 8px;font-size:10px;">✕</button>
+      <button class="btn btn-red" onclick="exitFullscreenChart()" style="padding:2px 8px;">✕</button>
     </div>
   </div>
   <div id="fs-main-canvas" style="flex:1;"></div>
   <div style="padding:3px 10px 2px;border-top:1px solid #21262d;flex-shrink:0;">
-    <span style="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">MACD</span>
+    <span class="mod-hdr" style="margin-bottom:0;">MACD</span>
   </div>
   <div id="fs-macd-canvas" style="height:120px;flex-shrink:0;"></div>
 </div>
@@ -273,7 +277,7 @@ tr:last-child td{border-bottom:none;}
   <div id="corr-warning-wrap" style="display:none;"><span id="corr-warning"></span></div>
   <div class="module" id="corr-pairs-wrap" style="display:none;padding:10px 12px 12px;">
     <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-      <button id="corr-wl-filter-btn" class="btn" onclick="toggleCorrWatchlistFilter()" style="padding:2px 10px;font-size:10px;">★ All</button>
+      <button id="corr-wl-filter-btn" class="btn" onclick="toggleCorrWatchlistFilter()" style="padding:2px 10px;">★ All</button>
     </div>
     <div id="corr-pill-row" style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;"></div>
   </div>
@@ -322,7 +326,7 @@ tr:last-child td{border-bottom:none;}
   <div class="module" style="padding:0;overflow:hidden;">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px 8px;border-bottom:1px solid var(--border);">
     <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Trade Log</div>
-    <button class="btn" onclick="exportCSV()" style="padding:2px 10px;font-size:10px;">Export CSV</button>
+    <button class="btn" onclick="exportCSV()" style="padding:2px 10px;">Export CSV</button>
   </div>
   <div id="j-tbl-wrap" style="overflow-x:auto;">
     <table id="j-tbl">
@@ -373,7 +377,7 @@ tr:last-child td{border-bottom:none;}
 const PAIRS=["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","AUD/JPY","NZD/JPY","CAD/JPY"];
 const GH_API="https://api.github.com/repos/Pieter800320/fx_technical/contents/data";
 const SIGS={EMA200:"EMA 200",EMA50:"EMA 50",RSI:"RSI>50",MACD:"MACD",DMI:"DMI+/-",Structure:"Structure"};
-const SESS={Sydney:[21,6],Tokyo:[23,8],London:[7,16],"New York":[12,21]};
+const SESS={Sydney:[21,6],Tokyo:[23,8],London:[6,15],"New York":[12,21]};
 const SESS_IDS={Sydney:"s-sydney",Tokyo:"s-tokyo",London:"s-london","New York":"s-newyork"};
 const RC={"Risk-Off":{bg:"rgba(182,35,36,.15)",b:"#b62324",c:"#f85149"},"Risk-On":{bg:"rgba(35,134,54,.15)",b:"#238636",c:"#3fb950"},"Ranging":{bg:"rgba(139,148,158,.1)",b:"#30363d",c:"#8b949e"},"Mixed":{bg:"rgba(227,179,65,.15)",b:"#e3b341",c:"#e3b341"}};
 let D={};
@@ -835,7 +839,7 @@ function buildMacdChart(container,height,macdData){
   macdLine.setData(macdData.map(d=>({time:d.time,value:d.macd})));
   const sigLine=chart.addLineSeries({color:'#e3b341',lineWidth:1,priceScaleId:'right',priceLineVisible:false,lastValueVisible:false});
   sigLine.setData(macdData.map(d=>({time:d.time,value:d.signal})));
-  chart.timeScale().fitContent();
+  // No fitContent — main chart controls the shared view
   new ResizeObserver(()=>chart.applyOptions({width:container.clientWidth})).observe(container);
   return chart;
 }
@@ -847,23 +851,24 @@ function getOhlcv(pair,tf){
   return[];
 }
 
-function syncTimeScales(chart1,chart2){
+const MACD_BAR_OFFSET=25; // slow(26)-1: MACD data starts 25 bars later than candle data
+
+function syncTimeScales(mainChart,macdChart){
   let busy=false;
-  chart1.timeScale().subscribeVisibleTimeRangeChange(r=>{
+  mainChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{
     if(busy||!r)return;busy=true;
-    try{chart2.timeScale().setVisibleRange(r);}catch(e){}
+    try{macdChart.timeScale().setVisibleLogicalRange({from:r.from-MACD_BAR_OFFSET,to:r.to-MACD_BAR_OFFSET});}catch(e){}
     busy=false;
   });
-  chart2.timeScale().subscribeVisibleTimeRangeChange(r=>{
+  macdChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{
     if(busy||!r)return;busy=true;
-    try{chart1.timeScale().setVisibleRange(r);}catch(e){}
+    try{mainChart.timeScale().setVisibleLogicalRange({from:r.from+MACD_BAR_OFFSET,to:r.to+MACD_BAR_OFFSET});}catch(e){}
     busy=false;
   });
 }
 
 function renderSingleChart(pair,tf,mainContainer,macdContainer,mainH,macdH){
   const ohlcv=getOhlcv(pair,tf);
-  // Main chart
   clearChartInst(mainContainer._lwInst);
   let mainChart=null;
   if(ohlcv.length){
@@ -874,18 +879,17 @@ function renderSingleChart(pair,tf,mainContainer,macdContainer,mainH,macdH){
     new ResizeObserver(()=>mainChart.applyOptions({width:mainContainer.clientWidth})).observe(mainContainer);
     mainContainer._lwInst=mainChart;
   } else {
-    mainContainer.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:${mainH}px;color:var(--muted);font-size:11px;">${pair} ${tf} — no OHLCV in JSON</div>`;
+    const hint=tf==='D1'?' (add _ohlcv to scan_d1.py)':'';
+    mainContainer.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:${mainH}px;color:var(--muted);font-size:var(--f-info);text-align:center;padding:12px;">${pair} ${tf}${hint} — no OHLCV data</div>`;
   }
-  // MACD chart
   clearChartInst(macdContainer._lwInst);
   const macdData=computeMACD(ohlcv);
   const macdChart=buildMacdChart(macdContainer,macdH,macdData);
   macdContainer._lwInst=macdChart;
-  // Align initial view then sync scroll/zoom
   if(mainChart&&macdChart){
     setTimeout(()=>{
-      const range=mainChart.timeScale().getVisibleRange();
-      if(range)try{macdChart.timeScale().setVisibleRange(range);}catch(e){}
+      const range=mainChart.timeScale().getVisibleLogicalRange();
+      if(range)try{macdChart.timeScale().setVisibleLogicalRange({from:range.from-MACD_BAR_OFFSET,to:range.to-MACD_BAR_OFFSET});}catch(e){}
       syncTimeScales(mainChart,macdChart);
     },80);
   }
@@ -979,7 +983,6 @@ function toggleWatchlistFilter(){
 // ── Data panel ───
 function renderChartDataPanel(pair){
   const statsEl=document.getElementById('chart-stats-row');
-  const badgeEl=document.getElementById('chart-compress-badge');
   const newsEl=document.getElementById('chart-news-row');
   if(!statsEl)return;
 
@@ -1007,23 +1010,11 @@ function renderChartDataPanel(pair){
   ];
   statsEl.innerHTML=chips.map(c=>`<div class="stat-chip"><div class="sv2" style="color:${c.color}">${c.val}</div><div class="sl2">${c.label}</div></div>`).join('');
 
-  // Squeeze badge — only show when score ≥ 1
-  const cs=computeCompressionScore(pair);
-  if(badgeEl){
-    if(cs>0){
-      const csLabels=['','Slight squeeze','Squeeze forming','Squeeze active','Full squeeze'];
-      badgeEl.style.display='inline-flex';
-      badgeEl.innerHTML=`<span class="compress-badge compress-${cs}">⚡ ${csLabels[cs]} (${cs}/4)</span>`;
-    } else {
-      badgeEl.style.display='none';
-    }
-  }
-
   // News headline
   const alertsData=D.alerts&&D.alerts.alerts;
   let headline='';
   if(alertsData){const a=alertsData.slice().reverse().find(x=>x.pair===pair);if(a)headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||'');}
-  if(headline){newsEl.style.display='block';newsEl.innerHTML='<b style="color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em;">News</b><div style="margin-top:2px;">'+headline+'</div>';}
+  if(headline){newsEl.style.display='block';newsEl.innerHTML='<b style="color:var(--muted);font-size:var(--f-th);text-transform:uppercase;letter-spacing:.06em;">News</b><div style="margin-top:2px;">'+headline+'</div>';}
   else{newsEl.style.display='none';}
 
   renderChartAlerts(pair);
@@ -1124,11 +1115,11 @@ function renderChartAlerts(pair){
   const el=document.getElementById('chart-alerts-list');if(!el)return;
   const alerts=laLoad().filter(a=>a.pair===pair&&a.active);
   if(!alerts.length){el.innerHTML='';return;}
-  el.innerHTML=`<div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin-bottom:4px;">Level Alerts</div>`+
+  el.innerHTML=`<div class="mod-hdr">Level Alerts</div>`+
   alerts.map(a=>`<div class="alert-row">
     <span style="color:${a.direction==='above'?'var(--buy)':'var(--sell)'};font-weight:600;">${a.direction==='above'?'↑':'↓'} ${a.price}</span>
-    <span style="color:var(--muted);font-size:10px;">${a.created}</span>
-    <button class="btn btn-red" onclick="deleteAlert(${a.id})" style="padding:1px 7px;font-size:10px;">✕</button>
+    <span style="color:var(--muted);">${a.created}</span>
+    <button class="btn btn-red" onclick="deleteAlert(${a.id})" style="padding:1px 7px;">✕</button>
   </div>`).join('');
 }
 function checkLevelAlerts(){
@@ -1472,14 +1463,14 @@ function renderJournal(){
       const obs=[{o:"win",l:"&#10003;&#10003;",c:"ow",tip:"TP hit - Win"},{o:"loss",l:"&#10007;",c:"ol",tip:"SL hit - Loss"},{o:"early",l:"&#9889;",c:"oe",tip:"Closed early"}];
       const btns=obs.map(({o,l,c,tip})=>`<button class="ob ${t.outcome===o?c:"oo"}" onclick="setOutcome(${t.id},'${o}')" title="${tip}">${t.outcome===o?l:"&middot;"}</button>`).join("");
       return`<tr>
-        <td style="font-size:10px">${t.date}</td>
+        <td style="font-size:var(--f-th)">${t.date}</td>
         <td><b>${t.pair.replace("/","")}</b></td>
         <td style="color:${t.direction==="BUY"?"var(--buy)":"var(--sell)"};font-weight:600">${t.direction}</td>
         <td>${t.entry||" - "}</td><td>${t.sl||" - "}</td><td>${t.tp||" - "}</td>
         <td>${r}</td>
         <td style="font-size:11px">${t.d1_label}</td>
         <td style="font-size:11px">${t.h4_label}</td>
-        <td style="font-size:10px;color:var(--muted)">${t.regime}</td>
+        <td style="font-size:var(--f-th);color:var(--muted)">${t.regime}</td>
         <td>${ext}</td>
         <td style="font-size:11px;color:var(--muted)">${t.ai_rec||" - "}</td>
         <td style="white-space:nowrap">${btns}</td>
