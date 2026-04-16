@@ -1,15 +1,12 @@
 name: D1 Scan + Deploy Dashboard
-
 on:
   schedule:
     - cron: "10 0 * * *"   # Daily at 00:10 UTC
   workflow_dispatch:
-
 permissions:
   contents: write
   pages:    write
   id-token: write
-
 jobs:
   scan_d1:
     runs-on: ubuntu-latest
@@ -25,6 +22,10 @@ jobs:
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
         run: python scanner/scan_d1.py
+      - name: Embed D1 OHLCV
+        env:
+          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
+        run: python scanner/embed_d1_ohlcv.py
       - name: Commit D1 data
         run: |
           git config user.name  "github-actions[bot]"
@@ -39,7 +40,6 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: D1 scan $(date -u +%Y-%m-%dT%H:%M)"
           git pull --rebase origin main
           git push
-
   deploy_dashboard:
     needs: scan_d1
     runs-on: ubuntu-latest
