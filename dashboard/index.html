@@ -239,7 +239,7 @@ tr:last-child td{border-bottom:none;}
 
   <!-- Box 3: Data panel -->
   <div class="module" style="padding:12px 14px;">
-    <div id="chart-stats-row" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:10px;"></div>
+    <div id="chart-stats-row" style="margin-bottom:10px;"></div>
     <!-- Copy Prompt row -->
     <div style="margin-bottom:10px;">
       <button class="cpbtn" id="chart-cp-btn" onclick="copyChartPrompt()">Copy Prompt</button>
@@ -990,40 +990,67 @@ function renderChartDataPanel(pair){
   const h4d=D.h4&&D.h4[pair];
   const d1d=D.d1&&D.d1[pair];
 
-  // TF-specific data source for ADX/ATR/Extended/Structure
   const tfData=chartTabTf==='H1'?h1d:chartTabTf==='H4'?h4d:d1d;
   const adxV=tfData&&tfData.raw?tfData.raw.adx:null;
   const atrOk=tfData?tfData.filter_ok!==false:null;
   const ext=!!(tfData&&tfData.extended&&tfData.extended.extended);
   const struct=tfData&&tfData.structure;
   const structLbl=struct&&struct.event&&struct.event!=='none'?struct.event:'—';
-  const structDir=struct&&struct.direction?struct.direction:'';
 
-  const chips=[
-    {label:'D1',val:pillAbbr(d1d?d1d.label:''),color:pillScoreColor(d1d?d1d.label:'')},
-    {label:'H4',val:pillAbbr(h4d?h4d.label:''),color:pillScoreColor(h4d?h4d.label:'')},
-    {label:'H1',val:pillAbbr(h1d?h1d.label:''),color:pillScoreColor(h1d?h1d.label:'')},
-    {label:'ADX',val:adxV!==null?adxV.toFixed(0):'—',color:adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)'},
-    {label:'ATR',val:atrOk===null?'—':atrOk?'OK':'Low',color:atrOk===null?'var(--muted)':atrOk?'var(--buy)':'var(--sell)'},
-    {label:'Ext',val:ext?'Yes':'No',color:ext?'#e3b341':'var(--buy)'},
-    {label:'Struct',val:structLbl,color:structLbl==='BOS'?'var(--buy)':structLbl==='CHoCH'?'#e3b341':'var(--muted)'},
+  const d1lbl=d1d?d1d.label:'—';
+  const h4lbl=h4d?h4d.label:'—';
+  const h1lbl=h1d?h1d.label:'—';
+
+  const adxCol=adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)';
+  const atrCol=atrOk===null?'var(--muted)':atrOk?'var(--buy)':'var(--sell)';
+  const extCol=ext?'#e3b341':'var(--buy)';
+  const strCol=structLbl==='BOS'?'var(--buy)':structLbl==='CHoCH'?'#e3b341':'var(--muted)';
+
+  // Row 1: D1 / H4 / H1 as full-width colored score pills
+  const scorePills=['D1','H4','H1'].map((tf,i)=>{
+    const lbl=[d1lbl,h4lbl,h1lbl][i];
+    const cls=pillClass(lbl);
+    return`<div class="pill ${cls}" style="flex:1;text-align:center;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;border-radius:8px;">
+      <span style="font-size:var(--f-primary);font-weight:700;letter-spacing:.03em;">${pillAbbr(lbl)}</span>
+      <span style="font-size:var(--f-th);font-weight:600;opacity:.65;">${tf}</span>
+    </div>`;
+  }).join('');
+
+  // Row 2: ADX · ATR · Ext · Struct as compact indicator strip
+  const indItems=[
+    {lbl:'ADX',val:adxV!==null?adxV.toFixed(0):'—',col:adxCol},
+    {lbl:'ATR',val:atrOk===null?'—':atrOk?'OK':'Low',col:atrCol},
+    {lbl:'Ext',val:ext?'Yes':'No',col:extCol},
+    {lbl:'Struct',val:structLbl,col:strCol},
   ];
-  statsEl.innerHTML=chips.map(c=>`<div class="stat-chip"><div class="sv2" style="color:${c.color}">${c.val}</div><div class="sl2">${c.label}</div></div>`).join('');
+  const indStrip=indItems.map((x,i)=>`${i>0?'<span style="color:var(--border);user-select:none;">│</span>':''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;">
+    <span style="font-size:var(--f-primary);font-weight:700;color:${x.col};">${x.val}</span>
+    <span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${x.lbl}</span>
+  </div>`).join('');
 
-  // News headline as clickable link
+  statsEl.innerHTML=`
+    <div style="display:flex;gap:5px;margin-bottom:6px;">${scorePills}</div>
+    <div style="display:flex;align-items:center;background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:8px 6px;">${indStrip}</div>`;
+
+  // News — always shown: exact pair → currency match → search fallback
   const alertsData=D.alerts&&D.alerts.alerts;
   let headline='',newsUrl='';
   if(alertsData){
-    const a=alertsData.slice().reverse().find(x=>x.pair===pair);
+    const [base,quote]=pair.split('/');
+    let a=alertsData.slice().reverse().find(x=>x.pair===pair);
+    if(!a)a=alertsData.slice().reverse().find(x=>x.pair&&(x.pair.includes(base)||x.pair.includes(quote)));
     if(a){
       headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||'');
       newsUrl=a.url||a.link||`https://news.google.com/search?q=${encodeURIComponent(headline)}`;
     }
   }
-  if(headline){
-    newsEl.style.display='block';
-    newsEl.innerHTML=`<b style="color:var(--muted);font-size:var(--f-th);text-transform:uppercase;letter-spacing:.06em;">News</b><div style="margin-top:2px;"><a href="${newsUrl}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:underline;text-underline-offset:2px;">${headline}</a></div>`;
-  } else {newsEl.style.display='none';}
+  if(!headline){
+    const sym=pair.replace('/','');
+    headline=`Search latest ${sym} news →`;
+    newsUrl=`https://news.google.com/search?q=${encodeURIComponent(pair.replace('/',' '))}+forex`;
+  }
+  newsEl.style.display='block';
+  newsEl.innerHTML=`<b style="color:var(--muted);font-size:var(--f-th);text-transform:uppercase;letter-spacing:.06em;">News</b><div style="margin-top:3px;"><a href="${newsUrl}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:underline;text-underline-offset:3px;line-height:1.5;">${headline}</a></div>`;
 
   renderChartAlerts(pair);
 }
