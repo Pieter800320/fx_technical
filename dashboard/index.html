@@ -1056,6 +1056,39 @@ Pair: ${pair.replace('/','')}\nD1: ${d1d?d1d.label:'N/A'} | H4: ${h4d?h4d.label:
 }
 
 // ── Level alerts ───
+// ── GitHub sync for level alerts ─────────────────────────────────────────────
+const GH_OWNER='Pieter800320';
+const GH_REPO='fx_technical';
+const GH_ALERTS_PATH='data/level_alerts.json';
+
+async function pushAlertsToGitHub(alerts){
+  const token=localStorage.getItem('gh_pat');
+  if(!token){
+    console.warn('[Alerts] No gh_pat in localStorage — alerts saved locally only.');
+    return;
+  }
+  const apiUrl=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${GH_ALERTS_PATH}`;
+  const content=btoa(unescape(encodeURIComponent(JSON.stringify(alerts,null,2))));
+  // Get current SHA (needed for update)
+  let sha=null;
+  try{
+    const get=await fetch(apiUrl,{headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json'}});
+    if(get.ok){const d=await get.json();sha=d.sha;}
+  }catch(e){}
+  // PUT
+  const body={message:`level alerts update ${new Date().toISOString()}`,content};
+  if(sha)body.sha=sha;
+  try{
+    const put=await fetch(apiUrl,{
+      method:'PUT',
+      headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify(body),
+    });
+    if(put.ok){console.log('[Alerts] Synced to GitHub.');}
+    else{const err=await put.json();console.error('[Alerts] GitHub write failed:',err.message);}
+  }catch(e){console.error('[Alerts] GitHub write error:',e);}
+}
+
 function cycleAlertDir(){
   alertDir=alertDir==='above'?'below':'above';
   const b=document.getElementById('alert-dir-btn');
@@ -1071,10 +1104,13 @@ function setLevelAlert(){
   laSave(alerts);
   inp.value='';
   renderChartAlerts(chartTabPair);
+  pushAlertsToGitHub(alerts);  // sync to repo so H1 scan can read it
 }
 function deleteAlert(id){
-  const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);
+  const alerts=laLoad().filter(a=>a.id!==id);
+  laSave(alerts);
   if(chartTabPair)renderChartAlerts(chartTabPair);
+  pushAlertsToGitHub(alerts);  // keep repo in sync after deletion
 }
 function renderChartAlerts(pair){
   const el=document.getElementById('chart-alerts-list');if(!el)return;
