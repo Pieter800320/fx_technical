@@ -123,7 +123,7 @@ tr:last-child td{border-bottom:none;}
 .cpill.watchlisted .star{opacity:1;}
 .tf-btn{font-size:var(--f-th);font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
 .tf-btn.active{background:rgba(56,139,253,.2);border-color:#58a6ff;color:#58a6ff;}
-.stat-chip{display:flex;flex-direction:column;align-items:center;background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:6px 10px;min-width:60px;}
+.stat-chip{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:7px 2px;width:100%;}
 .stat-chip .sv2{font-size:var(--f-primary);font-weight:700;}
 .stat-chip .sl2{font-size:var(--f-info);color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
 .compress-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:10px;font-size:var(--f-info);font-weight:600;border:1px solid;}
@@ -239,7 +239,7 @@ tr:last-child td{border-bottom:none;}
 
   <!-- Box 3: Data panel -->
   <div class="module" style="padding:12px 14px;">
-    <div id="chart-stats-row" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;"></div>
+    <div id="chart-stats-row" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:10px;"></div>
     <!-- Copy Prompt row -->
     <div style="margin-bottom:10px;">
       <button class="cpbtn" id="chart-cp-btn" onclick="copyChartPrompt()">Copy Prompt</button>
@@ -1000,22 +1000,30 @@ function renderChartDataPanel(pair){
   const structDir=struct&&struct.direction?struct.direction:'';
 
   const chips=[
-    {label:'D1',val:d1d?d1d.label:'—',color:pillScoreColor(d1d?d1d.label:'')},
-    {label:'H4',val:h4d?h4d.label:'—',color:pillScoreColor(h4d?h4d.label:'')},
-    {label:'H1',val:h1d?h1d.label:'—',color:pillScoreColor(h1d?h1d.label:'')},
-    {label:'ADX',val:adxV!==null?adxV.toFixed(1):'—',color:adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)'},
-    {label:'ATR',val:atrOk===null?'—':atrOk?'Normal':'Low',color:atrOk===null?'var(--muted)':atrOk?'var(--buy)':'var(--sell)'},
-    {label:'Extended',val:ext?'Yes':'No',color:ext?'#e3b341':'var(--buy)'},
-    {label:'Structure',val:structLbl+(structDir?' '+structDir:''),color:structLbl==='BOS'?'var(--buy)':structLbl==='CHoCH'?'#e3b341':'var(--muted)'},
+    {label:'D1',val:pillAbbr(d1d?d1d.label:''),color:pillScoreColor(d1d?d1d.label:'')},
+    {label:'H4',val:pillAbbr(h4d?h4d.label:''),color:pillScoreColor(h4d?h4d.label:'')},
+    {label:'H1',val:pillAbbr(h1d?h1d.label:''),color:pillScoreColor(h1d?h1d.label:'')},
+    {label:'ADX',val:adxV!==null?adxV.toFixed(0):'—',color:adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)'},
+    {label:'ATR',val:atrOk===null?'—':atrOk?'OK':'Low',color:atrOk===null?'var(--muted)':atrOk?'var(--buy)':'var(--sell)'},
+    {label:'Ext',val:ext?'Yes':'No',color:ext?'#e3b341':'var(--buy)'},
+    {label:'Struct',val:structLbl,color:structLbl==='BOS'?'var(--buy)':structLbl==='CHoCH'?'#e3b341':'var(--muted)'},
   ];
   statsEl.innerHTML=chips.map(c=>`<div class="stat-chip"><div class="sv2" style="color:${c.color}">${c.val}</div><div class="sl2">${c.label}</div></div>`).join('');
 
-  // News headline
+  // News headline as clickable link
   const alertsData=D.alerts&&D.alerts.alerts;
-  let headline='';
-  if(alertsData){const a=alertsData.slice().reverse().find(x=>x.pair===pair);if(a)headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||'');}
-  if(headline){newsEl.style.display='block';newsEl.innerHTML='<b style="color:var(--muted);font-size:var(--f-th);text-transform:uppercase;letter-spacing:.06em;">News</b><div style="margin-top:2px;">'+headline+'</div>';}
-  else{newsEl.style.display='none';}
+  let headline='',newsUrl='';
+  if(alertsData){
+    const a=alertsData.slice().reverse().find(x=>x.pair===pair);
+    if(a){
+      headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||'');
+      newsUrl=a.url||a.link||`https://news.google.com/search?q=${encodeURIComponent(headline)}`;
+    }
+  }
+  if(headline){
+    newsEl.style.display='block';
+    newsEl.innerHTML=`<b style="color:var(--muted);font-size:var(--f-th);text-transform:uppercase;letter-spacing:.06em;">News</b><div style="margin-top:2px;"><a href="${newsUrl}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:underline;text-underline-offset:2px;">${headline}</a></div>`;
+  } else {newsEl.style.display='none';}
 
   renderChartAlerts(pair);
 }
