@@ -829,11 +829,11 @@ function buildMacdChart(container,height,macdData){
     timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
     handleScroll:true,handleScale:true,
   });
-  const hist=chart.addHistogramSeries({color:'#3fb950',priceScaleId:'right'});
+  const hist=chart.addHistogramSeries({color:'#3fb950',priceScaleId:'right',priceLineVisible:false,lastValueVisible:false});
   hist.setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,.7)':'rgba(248,81,73,.7)'})));
-  const macdLine=chart.addLineSeries({color:'#58a6ff',lineWidth:1,priceScaleId:'right'});
+  const macdLine=chart.addLineSeries({color:'#58a6ff',lineWidth:1,priceScaleId:'right',priceLineVisible:false,lastValueVisible:false});
   macdLine.setData(macdData.map(d=>({time:d.time,value:d.macd})));
-  const sigLine=chart.addLineSeries({color:'#e3b341',lineWidth:1,priceScaleId:'right'});
+  const sigLine=chart.addLineSeries({color:'#e3b341',lineWidth:1,priceScaleId:'right',priceLineVisible:false,lastValueVisible:false});
   sigLine.setData(macdData.map(d=>({time:d.time,value:d.signal})));
   chart.timeScale().fitContent();
   new ResizeObserver(()=>chart.applyOptions({width:container.clientWidth})).observe(container);
@@ -950,7 +950,7 @@ function renderChartPills(){
     const h4d=D.h4&&D.h4[pair];
     const lbl=h4d?h4d.label:'';
     const dotColor=lbl==='Strong Buy'?'var(--buy)':lbl==='Buy'?'rgba(63,185,80,.7)':lbl==='Strong Sell'?'var(--sell)':lbl==='Sell'?'rgba(248,81,73,.7)':'transparent';
-    const dot=`<span style="color:${dotColor};font-size:8px;width:10px;display:inline-block;text-align:center;flex-shrink:0;">●</span>`;
+    const dot=`<span style="width:7px;height:7px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;vertical-align:middle;margin-right:1px;"></span>`;
     return`<div class="cpill${isActive?' active':''}${isWl?' watchlisted':''}" data-pair="${pair}" onclick="selectChartPair('${pair}')">
       ${dot}<span>${pKey}</span>
       <span class="star" onclick="event.stopPropagation();toggleWatchlist('${pair}')" title="Watchlist">★</span>
@@ -1315,7 +1315,7 @@ function renderCorrPills(pairs){
     const h4d=D.h4&&D.h4[fullPair];
     const lbl=h4d?h4d.label:'';
     const dotColor=lbl==='Strong Buy'?'var(--buy)':lbl==='Buy'?'rgba(63,185,80,.7)':lbl==='Strong Sell'?'var(--sell)':lbl==='Sell'?'rgba(248,81,73,.7)':'transparent';
-    const dot=`<span style="color:${dotColor};font-size:8px;width:10px;display:inline-block;text-align:center;flex-shrink:0;">●</span>`;
+    const dot=`<span style="width:7px;height:7px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;vertical-align:middle;margin-right:1px;"></span>`;
     return`<div class="cpill${isActive?' active':''}${isWl?' watchlisted':''}" data-pair="${p}" onclick="corrSelectedPair='${p}';renderCorr(D.corr)">
       ${dot}<span>${p}</span>
       <span class="star" onclick="event.stopPropagation();toggleWatchlist('${fullPair}')" title="Watchlist">★</span>
