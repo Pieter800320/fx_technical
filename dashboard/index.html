@@ -141,7 +141,7 @@ tr:last-child td{border-bottom:none;}
 }
 /* ── Matrix Ticker ───────────────────────────── */
 #dash-ticker-wrap{overflow:hidden;background:#020e02;border-bottom:1px solid rgba(0,204,51,.18);margin:-16px -16px 12px -16px;height:38px;display:flex;align-items:center;}
-#dash-ticker-inner{display:inline-block;white-space:nowrap;animation:dash-ticker-run 24s linear infinite;font-family:'VT323',monospace;font-size:21px;color:#00cc33;text-shadow:0 0 5px rgba(0,255,65,.2);padding-left:100vw;}
+#dash-ticker-inner{display:inline-block;white-space:nowrap;animation:dash-ticker-run 8s linear infinite;font-family:'VT323',monospace;font-size:21px;color:#00cc33;text-shadow:0 0 5px rgba(0,255,65,.2);}
 @keyframes dash-ticker-run{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 .ticker-buy{color:#3fb950;}
 .ticker-sell{color:#f85149;}
@@ -756,51 +756,13 @@ function updateTicker(){
   const el=document.getElementById('dash-ticker-inner');
   if(!el)return;
   const text=buildTickerText();
-  // Double for seamless infinite loop (animation goes 0 → -50%)
-  el.innerHTML=text+text;
+  // 4 copies — animation -50% moves exactly 2 copies = seamless loop
+  el.innerHTML=text+text+text+text;
 }
 
 // ── Shortlist cards ────────────────────────────────────────────────────────────
 function renderShortlist(){
-    const{kept,dropped:dr}=buildRankedShortlist();
-
-  if(!kept.length){
-    updateTicker();renderCharts();return;
-  } else {
-    cardsEl.innerHTML=kept.map(s=>{
-      const pKey=s.pair.replace('/','');
-      const isBull=s.dir==='bull';
-      const dirCol=isBull?'var(--buy)':'var(--sell)';
-      const arrow=isBull?'▲':'▼';
-      const word=isBull?'BUY':'SELL';
-      const d1lbl=D.d1&&D.d1[s.pair]?D.d1[s.pair].label:'—';
-      const h4lbl=D.h4&&D.h4[s.pair]?D.h4[s.pair].label:'—';
-      const h1lbl=D.h1&&D.h1[s.pair]?D.h1[s.pair].label:'—';
-      const h4d=D.h4&&D.h4[s.pair];
-      const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
-      const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
-      const adxCol=adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)';
-      const scorePills=['D1','H4','H1'].map((tf,i)=>{
-        const lbl=[d1lbl,h4lbl,h1lbl][i];
-        return`<div class="pill ${pillClass(lbl)} sl-pill"><span style="font-size:var(--f-pill);font-weight:700;">${pillAbbr(lbl)}</span><span style="font-size:var(--f-th);opacity:.65;margin-top:2px;">${tf}</span></div>`;
-      }).join('');
-      const indItems=[
-        {lbl:'ADX',val:adxV!==null?adxV.toFixed(0):'—',col:adxCol},
-        {lbl:'Score',val:(s.score>0?'+':'')+s.score,col:dirCol},
-        {lbl:'Ext',val:ext?'Yes':'No',col:ext?'#e3b341':'var(--buy)'},
-      ];
-      const indStrip=indItems.map((x,i)=>`${i>0?'<span style="color:var(--border);padding:0 4px;user-select:none;">│</span>':''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${x.col};">${x.val}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${x.lbl}</span></div>`).join('');
-      return`<div class="sl-card">
-        <div class="sl-card-hdr">
-          <span class="sl-card-pair">${pKey}</span>
-          <span class="sl-card-dir" style="color:${dirCol};">${arrow} ${word}</span>
-        </div>
-        <div class="sl-pills">${scorePills}</div>
-        <div class="sl-ind">${indStrip}</div>
-      </div>`;
-    }).join('');
-
-  }
+  const{kept,dropped:dr}=buildRankedShortlist();
   updateTicker();
   renderCharts();
 }
