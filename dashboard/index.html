@@ -314,14 +314,16 @@ tr:last-child td{border-bottom:none;}
     <div id="j-snap"></div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;">
       <button class="btn" onclick="addTrade()">Add to Journal</button>
-      <button class="btn" onclick="exportCSV()">Export CSV</button>
     </div>
   </div>
 </div>
 
 <div id="tab-log" class="tab-panel">
   <div class="module" style="padding:0;overflow:hidden;">
-  <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px 8px;border-bottom:1px solid var(--border);">Trade Log</div>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px 8px;border-bottom:1px solid var(--border);">
+    <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Trade Log</div>
+    <button class="btn" onclick="exportCSV()" style="padding:2px 10px;font-size:10px;">Export CSV</button>
+  </div>
   <div id="j-tbl-wrap" style="overflow-x:auto;">
     <table id="j-tbl">
       <thead><tr>
@@ -371,7 +373,7 @@ tr:last-child td{border-bottom:none;}
 const PAIRS=["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","AUD/JPY","NZD/JPY","CAD/JPY"];
 const GH_API="https://api.github.com/repos/Pieter800320/fx_technical/contents/data";
 const SIGS={EMA200:"EMA 200",EMA50:"EMA 50",RSI:"RSI>50",MACD:"MACD",DMI:"DMI+/-",Structure:"Structure"};
-const SESS={Sydney:[21,6],Tokyo:[0,9],London:[7,16],"New York":[12,21]};
+const SESS={Sydney:[21,6],Tokyo:[23,8],London:[7,16],"New York":[12,21]};
 const SESS_IDS={Sydney:"s-sydney",Tokyo:"s-tokyo",London:"s-london","New York":"s-newyork"};
 const RC={"Risk-Off":{bg:"rgba(182,35,36,.15)",b:"#b62324",c:"#f85149"},"Risk-On":{bg:"rgba(35,134,54,.15)",b:"#238636",c:"#3fb950"},"Ranging":{bg:"rgba(139,148,158,.1)",b:"#30363d",c:"#8b949e"},"Mixed":{bg:"rgba(227,179,65,.15)",b:"#e3b341",c:"#e3b341"}};
 let D={};
@@ -847,14 +849,14 @@ function getOhlcv(pair,tf){
 
 function syncTimeScales(chart1,chart2){
   let busy=false;
-  chart1.timeScale().subscribeVisibleLogicalRangeChange(r=>{
+  chart1.timeScale().subscribeVisibleTimeRangeChange(r=>{
     if(busy||!r)return;busy=true;
-    try{chart2.timeScale().setVisibleLogicalRange(r);}catch(e){}
+    try{chart2.timeScale().setVisibleRange(r);}catch(e){}
     busy=false;
   });
-  chart2.timeScale().subscribeVisibleLogicalRangeChange(r=>{
+  chart2.timeScale().subscribeVisibleTimeRangeChange(r=>{
     if(busy||!r)return;busy=true;
-    try{chart1.timeScale().setVisibleLogicalRange(r);}catch(e){}
+    try{chart1.timeScale().setVisibleRange(r);}catch(e){}
     busy=false;
   });
 }
@@ -879,8 +881,14 @@ function renderSingleChart(pair,tf,mainContainer,macdContainer,mainH,macdH){
   const macdData=computeMACD(ohlcv);
   const macdChart=buildMacdChart(macdContainer,macdH,macdData);
   macdContainer._lwInst=macdChart;
-  // Sync scroll/zoom between both charts
-  if(mainChart&&macdChart)syncTimeScales(mainChart,macdChart);
+  // Align initial view then sync scroll/zoom
+  if(mainChart&&macdChart){
+    setTimeout(()=>{
+      const range=mainChart.timeScale().getVisibleRange();
+      if(range)try{macdChart.timeScale().setVisibleRange(range);}catch(e){}
+      syncTimeScales(mainChart,macdChart);
+    },80);
+  }
 }
 
 function setChartTabTf(tf){
@@ -939,12 +947,12 @@ function renderChartPills(){
     const pKey=pair.replace('/','');
     const isWl=wl.has(pair);
     const isActive=pair===chartTabPair;
-    const isShort=shortPairs.has(pair);
     const h4d=D.h4&&D.h4[pair];
     const lbl=h4d?h4d.label:'';
-    const scoreDot=lbl==='Strong Buy'?'<span style="color:var(--buy)">●</span> ':lbl==='Buy'?'<span style="color:var(--buy);opacity:.6">●</span> ':lbl==='Strong Sell'?'<span style="color:var(--sell)">●</span> ':lbl==='Sell'?'<span style="color:var(--sell);opacity:.6">●</span> ':'';
+    const dotColor=lbl==='Strong Buy'?'var(--buy)':lbl==='Buy'?'rgba(63,185,80,.7)':lbl==='Strong Sell'?'var(--sell)':lbl==='Sell'?'rgba(248,81,73,.7)':'transparent';
+    const dot=`<span style="color:${dotColor};font-size:8px;width:10px;display:inline-block;text-align:center;flex-shrink:0;">●</span>`;
     return`<div class="cpill${isActive?' active':''}${isWl?' watchlisted':''}" data-pair="${pair}" onclick="selectChartPair('${pair}')">
-      ${scoreDot}<span>${pKey}</span>
+      ${dot}<span>${pKey}</span>
       <span class="star" onclick="event.stopPropagation();toggleWatchlist('${pair}')" title="Watchlist">★</span>
     </div>`;
   }).join('');
@@ -1304,8 +1312,12 @@ function renderCorrPills(pairs){
     const fullPair=p.length===6?p.slice(0,3)+'/'+p.slice(3):p;
     const isWl=wl.has(fullPair);
     const isActive=p===corrSelectedPair;
+    const h4d=D.h4&&D.h4[fullPair];
+    const lbl=h4d?h4d.label:'';
+    const dotColor=lbl==='Strong Buy'?'var(--buy)':lbl==='Buy'?'rgba(63,185,80,.7)':lbl==='Strong Sell'?'var(--sell)':lbl==='Sell'?'rgba(248,81,73,.7)':'transparent';
+    const dot=`<span style="color:${dotColor};font-size:8px;width:10px;display:inline-block;text-align:center;flex-shrink:0;">●</span>`;
     return`<div class="cpill${isActive?' active':''}${isWl?' watchlisted':''}" data-pair="${p}" onclick="corrSelectedPair='${p}';renderCorr(D.corr)">
-      <span>${p}</span>
+      ${dot}<span>${p}</span>
       <span class="star" onclick="event.stopPropagation();toggleWatchlist('${fullPair}')" title="Watchlist">★</span>
     </div>`;
   }).join('');
