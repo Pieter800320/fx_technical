@@ -1,13 +1,11 @@
-"""scanner/scan_d1.py — D1 scan, CSM, regime
+"""scanner/scan_d1.py — D1 scan, CSM, regime, conviction refresh
 Changes from audit:
-  - XAU/USD now fetched and scored via REGIME_EXTRA_PAIRS. This activates
-    the gold signal in regime.py which was always returning 'neutral' because
-    XAU/USD was never in the fetch or scoring loop.
-  - vol_ratio removed from REGIME_OUTPUT (regime.py no longer computes it —
-    it was using ADX as a volatility proxy which is the wrong metric).
+  - XAU/USD now fetched and scored via REGIME_EXTRA_PAIRS.
+  - vol_ratio removed from REGIME_OUTPUT.
   - D1_FETCH_PAIRS updated to include REGIME_EXTRA_PAIRS.
-  - New pairs in CSM_EXTRA_PAIRS (AUD/NZD, AUD/CAD, GBP/AUD) are picked up
-    automatically since CSM_EXTRA_PAIRS is imported from csm.py.
+  - New pairs in CSM_EXTRA_PAIRS picked up automatically.
+  - Daily conviction refresh: recomputes technical components using latest
+    D1/CSM data. COT components carry forward from last Saturday's scan.
 """
 import json, os, sys, datetime, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -17,11 +15,14 @@ from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair
 from scanner.csm import compute_currency_strength, MAJOR_PAIRS, STRENGTH_PAIRS, CSM_EXTRA_PAIRS
 from scanner.regime import classify_regime
+from scanner.conviction import compute_conviction
 
 DATA_DIR      = os.path.join(os.path.dirname(__file__), "..", "data")
 D1_OUTPUT     = os.path.join(DATA_DIR, "d1_scores.json")
 CSM_OUTPUT    = os.path.join(DATA_DIR, "csm.json")
 REGIME_OUTPUT = os.path.join(DATA_DIR, "regime.json")
+CONVICTION_OUT= os.path.join(DATA_DIR, "conviction.json")
+COT_FILE      = os.path.join(DATA_DIR, "cot.json")
 
 # Tradeable forex pairs only (excludes XAU/USD)
 FOREX_PAIRS = [p for p in PAIRS if p != "XAU/USD"]
@@ -157,6 +158,42 @@ def main():
     print(f"\n  Saved: {D1_OUTPUT}")
     print(f"  Saved: {CSM_OUTPUT}")
     print(f"  Saved: {REGIME_OUTPUT}")
+
+    # ── Daily conviction refresh ───────────────────────────────────────────────
+    # Recomputes CSM extreme, extension, RSI breadth components using today's data.
+    # COT components (cot_position, cot_oi, cot_disagg) carry forward from last
+    # Saturday's scan_cot.py run — they're in cot.json.
+    print("\n  Refreshing conviction scores (technical components)...")
+    try:
+        cot_data  = load_json(COT_FILE)
+        h4_data   = load_json(os.path.join(DATA_DIR, "h4_scores.json"))
+        prev_conv = load_json(CONVICTION_OUT)
+
+        if not cot_data:
+            # No COT data yet — first run before Saturday scan
+            # Create minimal stub so conviction still shows technical components
+            cot_data = {"cot_date": "pending", "cot_stale": True, "currencies": {}}
+
+        conviction = compute_conviction(
+            cot_data        = cot_data,
+            d1_scores       = d1_results,
+            h4_scores       = h4_data,
+            csm_rankings    = csm_result["rankings"],
+            prev_conviction = prev_conv,
+        )
+        with open(CONVICTION_OUT, "w") as f:
+            json.dump({**conviction, "updated": now.isoformat()}, f, indent=2)
+        print(f"  Saved: {CONVICTION_OUT}")
+
+        # Print conviction summary
+        for ccy, cdata in conviction["currencies"].items():
+            print(f"    {ccy}: {cdata['conviction']:+d}  "
+                  f"(csm={cdata['components']['csm_extreme']:+d} "
+                  f"ext={cdata['components']['extension']:+d} "
+                  f"rsi={cdata['components']['rsi_breadth']:+d})")
+    except Exception as e:
+        print(f"  [Conviction] ERROR: {e}")
+
     print("=== D1 Scan complete ===\n")
 
 
