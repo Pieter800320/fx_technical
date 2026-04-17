@@ -1,3 +1,4 @@
+# config/pairs.py
 import datetime
 
 PAIRS = [
@@ -8,11 +9,15 @@ PAIRS = [
 
 CURRENCIES = ["EUR", "GBP", "USD", "JPY", "CHF", "AUD", "CAD", "NZD"]
 
+# Fetched in D1 scan for regime classification — not traded pairs
+# XAU/USD: gold direction is a key risk-off/risk-on signal
+REGIME_EXTRA_PAIRS = ["XAU/USD"]
+
 SESSIONS = {
     "Sydney":   (21, 6),
-    "Tokyo":    (0,  9),
+    "Tokyo":    (23, 8),   # corrected: 23:00–08:00 UTC = 01:00–10:00 CEST
     "London":   (7,  16),
-    "New York": (12, 21),
+    "New York": (13, 22),  # corrected: 13:00–22:00 UTC = 15:00–00:00 CEST
 }
 
 SESSION_PAIRS = {
