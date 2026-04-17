@@ -672,12 +672,10 @@ function renderTable(h1,h4,d1){
 
     // Score pills D1/H4/H1 — clickable, reuse tfCell drop system
     const pKey=pair.replace('/','');
-    const scorePills=`
-      <div style="display:flex;gap:4px;">
-        ${tfCellFlat(d1&&d1[pair],pKey+'-d1t','left')}
-        ${tfCellFlat(h4&&h4[pair],pKey+'-h4t','center')}
-        ${tfCellFlat(h1&&h1[pair],pKey+'-h1t','right')}
-      </div>`;
+    const scorePills=
+        tfCellFlat(d1&&d1[pair],pKey+'-d1t','left')+
+        tfCellFlat(h4&&h4[pair],pKey+'-h4t','center')+
+        tfCellFlat(h1&&h1[pair],pKey+'-h1t','right');
 
     // Indicator strip: ADX | ATR | Ext | Signal
     const adxCol=adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)';
