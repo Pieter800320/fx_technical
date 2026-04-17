@@ -67,7 +67,7 @@ tr:last-child td{border-bottom:none;}
 .csm-lbl{width:36px;font-weight:600;font-size:var(--f-primary);}
 .csm-track{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;}
 .csm-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:0 4px 4px 0;}
-.csm-val{width:38px;text-align:right;font-size:var(--f-info);color:var(--muted);}
+.csm-val{width:38px;text-align:right;font-size:var(--f-info);color:var(--muted);flex-shrink:0;}
 .bcard{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
 .bcard-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .bcard-pair{font-weight:700;font-size:var(--f-primary);}
@@ -614,13 +614,70 @@ function tfCell(data,uid,pos){
   return`<td><div class="pill-wrap"><span class="pill ${pillClass(data.label)}" onclick="togglePillDrop('${uid}')">${pillAbbr(data.label)} ${num}</span><div class="drop" id="d-${uid}" data-pos="${pos}">${rows}</div></div></td>`;
 }
 
-function renderCSM(csm){
+function _convBadge(score){
+  // Render a small conviction badge: coloured score + directional arrow
+  if(score===null||score===undefined)return'';
+  const abs=Math.abs(score);
+  const col=abs>=60?'var(--buy)':abs>=30?'#e3b341':'var(--muted)';
+  const negCol=abs>=60?'var(--sell)':abs>=30?'#e3b341':'var(--muted)';
+  const c=score>0?col:score<0?negCol:'var(--muted)';
+  const arr=score>0?'▲':score<0?'▼':'▬';
+  return`<span style="font-size:var(--f-th);font-weight:700;color:${c};white-space:nowrap;margin-left:6px;min-width:42px;text-align:right;">${arr}${score>0?'+':''}${score}</span>`;
+}
+
+function renderCSM(csm, conviction){
   const el=document.getElementById("csm-grid");
   if(!csm||!csm.rankings){el.innerHTML='<div class="loading">No data.</div>';return;}
   const bd=csm.breakdown||{};
+  const convCurr=(conviction&&conviction.currencies)||{};
+  const cotStale=conviction&&conviction.cot_stale;
+  const cotDate=conviction&&conviction.cot_date;
+
   el.innerHTML=Object.entries(csm.rankings).map(([ccy,val])=>{
-    const pairs=(bd[ccy]||[]).map(p=>{const col=p.bull?"var(--buy)":"var(--sell)",arr=p.bull?"&#9650;":"&#9660;";return`<div class="dr"><span class="dn">${p.pair}</span><span style="color:${col};font-weight:600">${arr} ${p.score>0?"+":""}${p.score.toFixed(2)}</span></div>`;}).join("");
-    return`<div class="csm-row" onclick="toggleCsmDrop('${ccy}',this)"><span class="csm-lbl">${ccy}</span><div class="csm-track"><div class="csm-fill" style="width:${val}%"></div></div><span class="csm-val">${val.toFixed(1)}</span></div><div class="drop" id="cd-${ccy}"><div class="drop-hd">${ccy}  -  Pair Breakdown</div>${pairs||"<div style='color:var(--muted)'>No data</div>"}</div>`;
+    // CSM bar breakdown rows
+    const pairs=(bd[ccy]||[]).map(p=>{
+      const col=p.bull?"var(--buy)":"var(--sell)",arr=p.bull?"&#9650;":"&#9660;";
+      return`<div class="dr"><span class="dn">${p.pair}</span><span style="color:${col};font-weight:600">${arr} ${p.score>0?"+":""}${p.score.toFixed(2)}</span></div>`;
+    }).join("");
+
+    // Conviction data for this currency
+    const cdata=convCurr[ccy];
+    const convScore=cdata?cdata.conviction:null;
+    const comp=cdata?cdata.components:{};
+
+    // Conviction component rows for dropdown
+    const compLabels={
+      cot_position:'COT Position',cot_oi:'COT OI Flow',cot_disagg:'COT AM vs LF',
+      csm_extreme:'CSM Extreme',extension:'Extension',rsi_breadth:'RSI Breadth'
+    };
+    let convRows='';
+    if(cdata){
+      convRows+=`<div class="ddiv"></div>`;
+      convRows+=`<div class="drop-hd" style="margin-top:4px;">Conviction ${convScore!==null?`<span style="color:${convScore>0?'var(--buy)':convScore<0?'var(--sell)':'var(--muted)'};margin-left:6px;">${convScore>0?'+':''}${convScore}</span>`:''}</div>`;
+      if(cotStale||!cdata.cot_available){
+        convRows+=`<div class="dr"><span class="dn" style="color:#e3b341">⚠ COT</span><span style="color:#e3b341;font-weight:600">${cotStale?'Stale':'Pending'}</span></div>`;
+      } else if(cotDate){
+        convRows+=`<div class="dr"><span class="dn">COT Date</span><span style="color:var(--muted);font-weight:600">${cotDate}</span></div>`;
+      }
+      Object.entries(compLabels).forEach(([k,lbl])=>{
+        const v=comp[k];
+        if(v===undefined)return;
+        const col=v>0?'var(--buy)':v<0?'var(--sell)':'var(--muted)';
+        convRows+=`<div class="dr"><span class="dn">${lbl}</span><span style="color:${col};font-weight:600">${v>0?'+':''}${v}</span></div>`;
+      });
+    }
+
+    return`<div class="csm-row" onclick="toggleCsmDrop('${ccy}',this)">
+      <span class="csm-lbl">${ccy}</span>
+      <div class="csm-track"><div class="csm-fill" style="width:${val}%"></div></div>
+      <span class="csm-val">${val.toFixed(1)}</span>
+      ${_convBadge(convScore)}
+    </div>
+    <div class="drop" id="cd-${ccy}">
+      <div class="drop-hd">${ccy} — Pair Breakdown</div>
+      ${pairs||"<div style='color:var(--muted)'>No data</div>"}
+      ${convRows}
+    </div>`;
   }).join("");
 }
 
@@ -1629,16 +1686,16 @@ async function load(file,api=false){
 }
 async function init(){
   renderSessions();
-  const[h1,h4,d1,csm,alerts,regime,corr]=await Promise.all([
+  const[h1,h4,d1,csm,alerts,regime,corr,conviction]=await Promise.all([
     load("h1_scores.json",true),load("h4_scores.json",true),
     load("d1_scores.json"),load("csm.json"),load("alerts.json"),
-    load("regime.json"),load("correlation.json"),
+    load("regime.json"),load("correlation.json"),load("conviction.json"),
   ]);
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v.updated):[]).filter(Boolean).sort();
   const parseTS=s=>{if(!s)return new Date(s);const c=s.endsWith('Z')||s.includes('+')?s:s+'Z';return new Date(c);};
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+parseTS(ts[ts.length-1]).toLocaleString();
-  D={h1,h4,d1,csm,alerts,regime,corr};
-  renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
+  D={h1,h4,d1,csm,alerts,regime,corr,conviction};
+  renderRegime(regime);renderCSM(csm,conviction);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
   if(document.getElementById('tab-charts').classList.contains('active')){renderChartPills();if(chartTabPair)renderCurrentChart();else if(PAIRS.length)selectChartPair(PAIRS[0]);}
   checkLevelAlerts();
   renderShortlist();renderBrief();updateTicker();
