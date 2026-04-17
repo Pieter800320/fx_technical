@@ -174,7 +174,7 @@ tr:last-child td{border-bottom:none;}
   <!-- Sessions — header + shelf like Market Brief/Live -->
   <div class="module" style="padding:0;overflow:hidden;">
     <div id="session-header" onclick="toggleSessions()" style="cursor:pointer;text-align:center;padding:10px 14px;border-bottom:1px solid transparent;">
-      <span id="session-label" style="font-weight:600;font-size:var(--f-info);color:#58a6ff;">Loading...</span>
+      <span id="session-label" style="font-weight:600;font-size:var(--f-info);color:#58a6ff;text-align:center;line-height:1.6;display:block;"></span>
     </div>
     <div id="session-shelf" style="display:none;background:#0d1117;border-top:1px solid var(--border);overflow:hidden;">
       <div id="session-shelf-content"></div>
@@ -463,7 +463,12 @@ function renderSessions(){
       const[,e]=SESS[n];const t=minsUntil(e);
       return n+(t?' · closes '+t:'');
     });
-    label.textContent=parts.join('  ·  ')+(sessExpanded?' ▴':' ▾');
+    // Stack multiple sessions vertically; single session stays on one line
+    if(parts.length>1){
+      label.innerHTML=parts.map(p=>`<div>${p}</div>`).join('')+(sessExpanded?'<div style="font-size:10px;opacity:.6;">▴</div>':'<div style="font-size:10px;opacity:.6;">▾</div>');
+    } else {
+      label.textContent=parts[0]+(sessExpanded?' ▴':' ▾');
+    }
   } else {
     // No active session — show next upcoming
     const upcoming=Object.entries(SESS).map(([n,[s]])=>{
@@ -788,12 +793,12 @@ function buildTickerItems(){
 
   // Shortlist items
   kept.forEach(s=>{
-    const arrow=s.dir==='bull'?'▲':'▼';
+    const arrow=s.dir==='bull'?'<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid currentColor;vertical-align:middle;margin-right:4px;"></span>':'<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid currentColor;vertical-align:middle;margin-right:4px;"></span>';
     const cls=s.dir==='bull'?'ticker-buy':'ticker-sell';
     const d1=pillAbbr(D.d1&&D.d1[s.pair]?D.d1[s.pair].label:'');
     const h4=pillAbbr(D.h4&&D.h4[s.pair]?D.h4[s.pair].label:'');
     const h1=pillAbbr(D.h1&&D.h1[s.pair]?D.h1[s.pair].label:'');
-    items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SHORTLIST</span><span class="${cls}"><span style="font-size:22px;line-height:1;vertical-align:middle;">${arrow}</span> ${s.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
+    items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SHORTLIST</span><span class="${cls}">${arrow}${s.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
   });
 
   // Signal items from alerts.json (last 24h)
@@ -807,12 +812,12 @@ function buildTickerItems(){
       if(seen.has(key))return;
       seen.add(key);
       const isBull=a.direction==='bull';
-      const arrow=isBull?'▲':'▼';
+      const arrow=isBull?'<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid currentColor;vertical-align:middle;margin-right:4px;"></span>':'<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid currentColor;vertical-align:middle;margin-right:4px;"></span>';
       const cls=isBull?'ticker-buy':'ticker-sell';
       const d1=a.d1_label?pillAbbr(a.d1_label):'—';
       const h4=a.h4_label?pillAbbr(a.h4_label):'—';
       const h1=a.h1_label?pillAbbr(a.h1_label):'—';
-      items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SIGNAL</span><span class="${cls}"><span style="font-size:22px;line-height:1;vertical-align:middle;">${arrow}</span> ${a.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
+      items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SIGNAL</span><span class="${cls}">${arrow}${a.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
     });
   }
 
