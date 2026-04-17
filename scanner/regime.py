@@ -1,53 +1,41 @@
+# scanner/regime.py — Proxy regime classifier
+#
+# Changes from audit:
+#   - XAU/USD gold signal now works: scan_d1.py fetches and scores XAU/USD
+#     via REGIME_EXTRA_PAIRS, so d1_scores["XAU/USD"] is populated.
+#   - vol_ratio / conf_multiplier removed. It was using ADX as a volatility
+#     proxy (ADX measures directional strength, not volatility — wrong metric).
+#     The ranging detection via trend_ratio + dispersion already handles low-
+#     volatility environments correctly without a multiplier.
+#   - Risk basket expanded to include AUD/JPY and NZD/JPY (most regime-
+#     sensitive pairs in G10). Already present in original — retained.
+#   - Confidence thresholds unchanged.
+
 import numpy as np
 
 
 def _pair_score_to_dir(score):
-    if score >= 3:   return 1
-    if score <= -3:  return -1
+    if score >= 3:   return  1
+    if score <= -3: return -1
     return 0
-
-
-def _vol_ratio(d1_scores):
-    """Approximate VOL_RATIO from ATR data in D1 scores."""
-    atrs = []
-    for v in d1_scores.values():
-        if isinstance(v, dict) and v.get("raw", {}).get("adx"):
-            atrs.append(v["raw"].get("adx", 0))
-    if not atrs:
-        return 1.0
-    avg_adx = np.mean(atrs)
-    if avg_adx > 30:  return 1.4
-    if avg_adx > 20:  return 1.0
-    return 0.7
 
 
 def classify_regime(csm, d1_scores, prev_h4_regime=False):
     rankings = csm.get("rankings", {})
     if not rankings:
-        return {"regime": "Unknown", "confidence": "Low",
-                "data_source": "D1", "vol_ratio": 1.0, "signals": {}}
-
-    vol_ratio = _vol_ratio(d1_scores)
-    if vol_ratio > 1.3:
-        data_source      = "H4"
-        conf_multiplier  = 0.5
-    elif vol_ratio < 0.8:
-        data_source      = "D1"
-        conf_multiplier  = 1.5
-    else:
-        data_source      = "D1"
-        conf_multiplier  = 1.0
-
-    if prev_h4_regime and vol_ratio < 1.1:
-        data_source = "D1"
+        return {
+            "regime": "Unknown", "confidence": "Low",
+            "data_source": "D1",
+            "signals": {},
+        }
 
     jpy = rankings.get("JPY", 50)
     chf = rankings.get("CHF", 50)
     aud = rankings.get("AUD", 50)
     nzd = rankings.get("NZD", 50)
     cad = rankings.get("CAD", 50)
-    usd = rankings.get("USD", 50)
 
+    # Safe-haven divergence: JPY+CHF vs AUD+NZD+CAD
     sh_div = (jpy + chf) / 2 - (aud + nzd + cad) / 3
 
     if sh_div > 20:    sh_off, sh_on = 2, 0
@@ -70,9 +58,7 @@ def classify_regime(csm, d1_scores, prev_h4_regime=False):
     elif usd_proxy < -0.5: usd_off, usd_on = 0, 1
     else:                  usd_off, usd_on = 0, 0
 
-    # Risk basket now includes AUD/JPY and NZD/JPY — the most regime-sensitive
-    # pairs in G10. When risk is on, AUD/JPY and NZD/JPY lead higher.
-    # When risk is off, they collapse fastest. Averaging 6 signals vs 4 original.
+    # Risk basket: AUD/JPY and NZD/JPY lead on risk. AUD/USD, NZD/USD, GBP/JPY, EUR/JPY support.
     risk_basket = np.mean([
         dir_score("AUD/USD"), dir_score("NZD/USD"),
         dir_score("GBP/JPY"), dir_score("EUR/JPY"),
@@ -82,10 +68,13 @@ def classify_regime(csm, d1_scores, prev_h4_regime=False):
     elif risk_basket < -0.3: risk_on, risk_off = 0, 1
     else:                    risk_on, risk_off = 0, 0
 
+    # Gold: XAU/USD — now properly fetched via REGIME_EXTRA_PAIRS in scan_d1.py
+    # Gold rising = risk-off. Gold falling = risk-on.
     gold_dir = d1_scores.get("XAU/USD", {}).get("direction", "neutral")
-    gold_off = 1 if gold_dir == "bear" else 0
-    gold_on  = 1 if gold_dir == "bull" else 0
+    gold_off  = 1 if gold_dir == "bull"  else 0  # gold up = risk-off
+    gold_on   = 1 if gold_dir == "bear"  else 0  # gold down = risk-on
 
+    # Trend participation and CSM dispersion
     trend_count = sum(
         1 for v in d1_scores.values()
         if isinstance(v, dict) and v.get("filter_ok", True)
@@ -95,33 +84,31 @@ def classify_regime(csm, d1_scores, prev_h4_regime=False):
     trend_ratio = trend_count / total_pairs if total_pairs > 0 else 0
     dispersion  = max(rankings.values()) - min(rankings.values())
 
+    # Ranging override: low trend participation + compressed CSM = no regime signal
     if trend_ratio < 0.4 and dispersion < 25:
         return {
             "regime":      "Ranging",
             "confidence":  "Medium",
-            "data_source": data_source,
-            "vol_ratio":   round(vol_ratio, 2),
+            "data_source": "D1",
             "signals": {
                 "sh_divergence": round(sh_div, 1),
                 "usd_proxy":     round(usd_proxy, 2),
                 "risk_basket":   round(risk_basket, 2),
+                "gold_direction": gold_dir,
                 "trend_ratio":   round(trend_ratio, 2),
                 "dispersion":    round(dispersion, 1),
-                "vol_ratio":     round(vol_ratio, 2),
-            }
+            },
         }
 
-    risk_off_raw = (sh_off * 2 + usd_off * 2 + risk_off * 1 + gold_off * 1)
-    risk_on_raw  = (sh_on  * 2 + usd_on  * 2 + risk_on  * 1 + gold_on  * 1)
-
-    risk_off_score = risk_off_raw * conf_multiplier
-    risk_on_score  = risk_on_raw  * conf_multiplier
+    # Final vote tally — weights: SH div ×2, USD proxy ×2, risk basket ×1, gold ×1
+    risk_off_score = sh_off * 2 + usd_off * 2 + risk_off * 1 + gold_off * 1
+    risk_on_score  = sh_on  * 2 + usd_on  * 2 + risk_on  * 1 + gold_on  * 1
 
     if risk_off_score >= 3 and risk_off_score > risk_on_score:
-        regime = "Risk-Off"
+        regime     = "Risk-Off"
         confidence = "High" if risk_off_score >= 5 else "Medium"
     elif risk_on_score >= 3 and risk_on_score > risk_off_score:
-        regime = "Risk-On"
+        regime     = "Risk-On"
         confidence = "High" if risk_on_score >= 5 else "Medium"
     elif abs(risk_off_score - risk_on_score) <= 1:
         regime     = "Mixed"
@@ -133,17 +120,15 @@ def classify_regime(csm, d1_scores, prev_h4_regime=False):
     return {
         "regime":      regime,
         "confidence":  confidence,
-        "data_source": data_source,
-        "vol_ratio":   round(vol_ratio, 2),
+        "data_source": "D1",
         "signals": {
-            "sh_divergence":   round(sh_div, 1),
-            "usd_proxy":       round(usd_proxy, 2),
-            "risk_basket":     round(risk_basket, 2),
-            "gold_direction":  gold_dir,
-            "trend_ratio":     round(trend_ratio, 2),
-            "dispersion":      round(dispersion, 1),
-            "risk_off_votes":  round(risk_off_score, 2),
-            "risk_on_votes":   round(risk_on_score, 2),
-            "conf_multiplier": round(conf_multiplier, 2),
-        }
+            "sh_divergence":  round(sh_div, 1),
+            "usd_proxy":      round(usd_proxy, 2),
+            "risk_basket":    round(risk_basket, 2),
+            "gold_direction": gold_dir,
+            "trend_ratio":    round(trend_ratio, 2),
+            "dispersion":     round(dispersion, 1),
+            "risk_off_votes": round(risk_off_score, 2),
+            "risk_on_votes":  round(risk_on_score, 2),
+        },
     }
