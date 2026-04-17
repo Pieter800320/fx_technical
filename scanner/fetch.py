@@ -1,4 +1,11 @@
-"""scanner/fetch.py"""
+# scanner/fetch.py
+#
+# Change from audit:
+#   - H4 outputsize reduced from 5000 → 300.
+#     score_pair() needs 210 bars minimum. Structure detection uses ~30 bars.
+#     300 provides a safe margin without fetching 3.5 years of unused data.
+#     Meaningfully faster scan times on GitHub Actions.
+
 import os
 import time
 import requests
@@ -9,9 +16,16 @@ API_KEY  = os.environ.get("TWELVEDATA_API_KEY", "")
 BASE_URL = "https://api.twelvedata.com/time_series"
 
 TF_MAP = {"H1": "1h", "H4": "4h", "D1": "1day"}
-BARS_NEEDED = {"H1": 250, "H4": 5000, "D1": 500}
+
+BARS_NEEDED = {
+    "H1": 250,   # 250 hourly bars (~10 days)
+    "H4": 300,   # 300 × 4h bars (~50 days) — reduced from 5000 (was 833 days, wasteful)
+    "D1": 500,   # 500 daily bars (~2 years, needed for EMA200 + embed_d1_ohlcv 200-bar chart)
+}
+
 BATCH_SIZE  = 8
 BATCH_SLEEP = 62
+
 
 def fetch_pair(pair, timeframe):
     params = {
@@ -41,6 +55,7 @@ def fetch_pair(pair, timeframe):
     except Exception as e:
         print(f"  [TD] Exception fetching {pair}: {e}")
         return None
+
 
 def fetch_all_pairs(pairs, timeframe):
     results = {}
