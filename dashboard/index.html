@@ -646,9 +646,9 @@ function tfCellFlat(data,uid,pos){
   if(cf){rows+=`<div class="ddiv"></div><div class="dr"><span class="dn" style="color:#e3b341">⚠ Conflict</span><span style="color:#e3b341;font-weight:600">Struct vs Momentum</span></div>`;}
   if(ext){rows+=`<div class="ddiv"></div><div class="dr"><span class="dn" style="color:#e3b341">⚠ Extended</span><span style="color:#e3b341;font-weight:600">Yes</span></div>`;}
   return`<div style="flex:1;"><div class="pill-wrap" style="width:100%;">
-    <span class="pill ${pillClass(data.label)}" style="width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;padding:7px 2px;border-radius:6px;cursor:pointer;" onclick="togglePillDrop('${uid}')">
-      <span style="font-size:var(--f-pill);font-weight:700;">${pillAbbr(data.label)}&nbsp;<span style="color:${col};font-size:var(--f-th);">${num}</span></span>
-      <span style="font-size:var(--f-th);opacity:.6;margin-top:2px;">${tfLabel}</span>
+    <span class="pill ${pillClass(data.label)}" style="width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;padding:7px 2px;border-radius:6px;cursor:pointer;user-select:none;" onclick="togglePillDrop('${uid}')">
+      <span style="font-size:var(--f-pill);font-weight:700;pointer-events:none;">${pillAbbr(data.label)}&nbsp;<span style="color:${col};font-size:var(--f-th);">${num}</span></span>
+      <span style="font-size:var(--f-th);opacity:.6;margin-top:2px;pointer-events:none;">${tfLabel}</span>
     </span>
     <div class="drop" id="d-${uid}" data-pos="${pos}">${rows}</div>
   </div></div>`;
@@ -793,7 +793,7 @@ function buildTickerItems(){
     const d1=pillAbbr(D.d1&&D.d1[s.pair]?D.d1[s.pair].label:'');
     const h4=pillAbbr(D.h4&&D.h4[s.pair]?D.h4[s.pair].label:'');
     const h1=pillAbbr(D.h1&&D.h1[s.pair]?D.h1[s.pair].label:'');
-    items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SHORTLIST</span><span class="${cls}">${arrow} ${s.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
+    items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SHORTLIST</span><span class="${cls}"><span style="font-size:20px;">${arrow}</span> ${s.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
   });
 
   // Signal items from alerts.json (last 24h)
@@ -812,7 +812,7 @@ function buildTickerItems(){
       const d1=a.d1_label?pillAbbr(a.d1_label):'—';
       const h4=a.h4_label?pillAbbr(a.h4_label):'—';
       const h1=a.h1_label?pillAbbr(a.h1_label):'—';
-      items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SIGNAL</span><span class="${cls}">${arrow} ${a.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
+      items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SIGNAL</span><span class="${cls}"><span style="font-size:20px;">${arrow}</span> ${a.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
     });
   }
 
@@ -1092,6 +1092,15 @@ function updateDirBadge(pair){
   // Badge removed from header — direction shown in data panel chips
 }
 
+function selectCorrPair(fullPair){
+  // fullPair may be "EUR/USD" or "EURUSD" — normalise to no-slash for corrSelectedPair
+  corrSelectedPair=fullPair.replace('/','');
+  const sel=document.getElementById('corr-pair-select');
+  if(sel)sel.value=corrSelectedPair;
+  updateWatchlistStar(fullPair,'corr-wl-star');
+  renderCorr(D.corr);
+}
+
 // ── Pair selector + watchlist ─────────────────────────────────────────────────
 function updateWatchlistStar(pair,starId){
   const star=document.getElementById(starId);
@@ -1154,7 +1163,7 @@ function toggleWatchlistCorr(){
   const fullPair=pKey.length===6?pKey.slice(0,3)+'/'+pKey.slice(3):pKey;
   toggleWatchlist(fullPair);
   updateWatchlistStar(fullPair,'corr-wl-star');
-  renderWatchlistRow('corr-wl-row','corr-wl-btns',`(p)=>{corrSelectedPair=p.replace('/','');renderCorr(D.corr)}`);
+  renderWatchlistRow('corr-wl-row','corr-wl-btns','selectCorrPair');
 }
 
 function renderCorrPills(pairs){
@@ -1179,7 +1188,7 @@ function renderCorrPills(pairs){
     const fp=corrSelectedPair.length===6?corrSelectedPair.slice(0,3)+'/'+corrSelectedPair.slice(3):corrSelectedPair;
     updateWatchlistStar(fp,'corr-wl-star');
   }
-  renderWatchlistRow('corr-wl-row','corr-wl-btns',`(p)=>{corrSelectedPair=p.replace('/','');renderCorr(D.corr)}`);
+  renderWatchlistRow('corr-wl-row','corr-wl-btns','selectCorrPair');
 }
 
 function toggleWatchlist(pair){
@@ -1462,22 +1471,29 @@ function renderLive(){
     const pipMult=nowClose>50?100:10000;
     const pips=Math.round(diff*pipMult);
     const col=diff>=0?"var(--buy)":"var(--sell)";
-    // Threshold: JPY crosses > 1.2%, majors > 0.8%
     const isJpy=pair.includes("JPY");
     const threshold=isJpy?1.2:0.8;
     const isMover=Math.abs(pct)>=threshold;
-    return{pair,nowClose,diff,pct,pips,col,dec,isMover};
+    // W1: weekly change using D1 OHLCV (5 bars back)
+    const d1Ohlcv=D.d1&&D.d1._ohlcv&&D.d1._ohlcv[pair];
+    let w1Pct=null,w1Col='var(--muted)';
+    if(d1Ohlcv&&d1Ohlcv.length>=6){
+      const weekAgoClose=d1Ohlcv[d1Ohlcv.length-6].close;
+      if(weekAgoClose){w1Pct=(nowClose-weekAgoClose)/weekAgoClose*100;w1Col=w1Pct>=0?"var(--buy)":"var(--sell)";}
+    }
+    return{pair,nowClose,diff,pct,pips,col,dec,isMover,w1Pct,w1Col};
   }).filter(Boolean);
-  // Sort by absolute % move descending
   rows.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
   if(!rows.length){el.innerHTML='<div class="loading">No H1 data yet.</div>';return;}
-  el.innerHTML=`<div style="font-size:var(--f-info);color:var(--muted);padding:8px 14px 4px;">Updated ${updated} · sorted by move · vs yesterday close</div>`+
+  const hasW1=rows.some(r=>r.w1Pct!==null);
+  el.innerHTML=`<div style="font-size:var(--f-info);color:var(--muted);padding:8px 14px 4px;">Updated ${updated} · sorted by move · vs yesterday close${hasW1?' · W1 vs 5d ago':''}</div>`+
   rows.map(r=>`
-    <div style="display:flex;align-items:center;gap:10px;padding:7px 14px;border-top:1px solid #21262d;${r.isMover?"background:rgba(255,255,255,.02);":""}">
-      <span style="width:58px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${r.pair.replace("/","")}</span>
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-top:1px solid #21262d;${r.isMover?"background:rgba(255,255,255,.02);":""}">
+      <span style="width:56px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${r.pair.replace("/","")}</span>
       <span style="flex:1;font-size:var(--f-info);color:var(--muted);">${r.nowClose.toFixed(r.dec)}</span>
-      <span style="font-size:var(--f-info);font-weight:600;color:${r.col};min-width:50px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pips)} pips</span>
-      <span style="font-size:${r.isMover?"var(--f-primary)":"var(--f-info)"};font-weight:${r.isMover?"700":"600"};color:${r.col};min-width:52px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pct).toFixed(2)}%${r.isMover?" ●":""}</span>
+      <span style="font-size:var(--f-info);font-weight:600;color:${r.col};min-width:50px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pips)}p</span>
+      <span style="font-size:${r.isMover?"var(--f-primary)":"var(--f-info)"};font-weight:${r.isMover?"700":"600"};color:${r.col};min-width:48px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pct).toFixed(2)}%${r.isMover?" ●":""}</span>
+      ${hasW1?`<span style="font-size:var(--f-th);font-weight:600;color:${r.w1Col};min-width:44px;text-align:right;border-left:1px solid #21262d;padding-left:8px;">${r.w1Pct!==null?(r.w1Pct>=0?"+":"")+r.w1Pct.toFixed(2)+"% W":"—"}</span>`:''}
     </div>`).join("");
 }
 
