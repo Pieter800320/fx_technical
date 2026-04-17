@@ -135,7 +135,7 @@ tr:last-child td{border-bottom:none;}
 }
 /* ── Matrix Ticker ───────────────────────────── */
 #dash-ticker-wrap{overflow:hidden;background:#020e02;border-bottom:1px solid rgba(0,204,51,.18);margin:-16px -16px 12px -16px;height:38px;display:flex;align-items:center;}
-#dash-ticker-inner{display:inline-block;white-space:nowrap;animation:dash-ticker-run 16s linear infinite;font-family:'VT323',monospace;font-size:21px;color:#00cc33;text-shadow:0 0 5px rgba(0,255,65,.2);}
+#dash-ticker-inner{display:inline-block;white-space:nowrap;animation:dash-ticker-run 32s linear infinite;font-family:'VT323',monospace;font-size:21px;color:#00cc33;text-shadow:0 0 5px rgba(0,255,65,.2);}
 @keyframes dash-ticker-run{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 .ticker-buy{color:#3fb950;}
 .ticker-sell{color:#f85149;}
@@ -224,7 +224,6 @@ tr:last-child td{border-bottom:none;}
     <div style="display:flex;align-items:center;gap:0;border-bottom:1px solid var(--border);">
       <div class="fg" style="flex:1;margin:0;padding:10px 14px;">
         <select id="chart-pair-select" onchange="selectChartPair(this.value)" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-size:var(--f-input);width:100%;font-weight:600;">
-          <option value="">Select pair…</option>
           <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
           <option>USD/CHF</option><option>AUD/USD</option><option>USD/CAD</option>
           <option>NZD/USD</option><option>EUR/JPY</option><option>GBP/JPY</option>
@@ -1103,7 +1102,7 @@ function renderCorrPills(pairs){
       const fp=p.length===6?p.slice(0,3)+'/'+p.slice(3):p;
       const h4d=D.h4&&D.h4[fp];
       const lbl=h4d?pillAbbr(h4d.label):'';
-      return`<option value="${p}">${p}${lbl&&lbl!=='—'?' · '+lbl:''}</option>`;
+      return`<option value="${p}">${p}</option>`;
     }).join('');
     if(corrSelectedPair)sel.value=corrSelectedPair;
   }
