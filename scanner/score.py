@@ -26,7 +26,6 @@ LABEL_EMOJI = {
     "Neutral":     "⚪",
     "Sell":        "🔴",
     "Strong Sell": "❌",
-    "Conflict":    "⚠️",
     "Filtered":    "⛔",
 }
 
@@ -222,7 +221,7 @@ def score_pair(df, timeframe="H4", regime="unknown", swing_n=5):
     Returns — keys verified against scan_d1/h4/h1:
     -------
     score         int    rounded final score (for :+d display compat)
-    label         str    Strong Buy/Buy/Neutral/Sell/Strong Sell/Conflict/Filtered
+    label         str    Strong Buy/Buy/Neutral/Sell/Strong Sell/Filtered
     direction     str    bull/bear/neutral
     filter_ok     bool   False when ATR filter suppresses pair
     filter_reasons list  reasons for suppression (empty when filter_ok=True)
@@ -319,25 +318,33 @@ def score_pair(df, timeframe="H4", regime="unknown", swing_n=5):
             if struct_int != momentum_dir:
                 conflict  = True
                 structure = dict(structure)
-                structure["multiplier"] = 0.0
+                # No longer zero — just remove the BOS/CHoCH boost
+                structure["multiplier"] = 1.0
 
     final_score = round(raw_score * structure["multiplier"], 2)
 
+    # ── TF-aware conflict penalty (replaces binary zero-out) ─────────────────
+    # Penalty moves score toward zero — never flips direction by itself.
+    # D1: light touch (bias TF), H4: meaningful reduction (confirm TF).
+    CONFLICT_PENALTY = {"H4": 2.0, "D1": 1.0}
+    if conflict:
+        penalty = CONFLICT_PENALTY.get(timeframe, 0.0)
+        # momentum_dir: +1 bull, -1 bear — penalty always opposes momentum
+        final_score = round(final_score - (momentum_dir * penalty), 2)
+
     # ── Regime-aware label ────────────────────────────────────────────────────
+    # CF state abolished — only 5 states: Strong Buy / Buy / Neutral / Sell / Strong Sell
     regime_key = str(regime).lower().split()[0] if regime else "unknown"
     thresh     = THRESHOLDS.get(regime_key, THRESHOLDS["unknown"])
 
-    if conflict:
-        label = "Conflict"
+    abs_s = abs(final_score)
+    sign  = 1 if final_score >= 0 else -1
+    if abs_s >= thresh["strong"]:
+        label = "Strong Buy" if sign > 0 else "Strong Sell"
+    elif abs_s >= thresh["signal"]:
+        label = "Buy" if sign > 0 else "Sell"
     else:
-        abs_s = abs(final_score)
-        sign  = 1 if final_score >= 0 else -1
-        if abs_s >= thresh["strong"]:
-            label = "Strong Buy" if sign > 0 else "Strong Sell"
-        elif abs_s >= thresh["signal"]:
-            label = "Buy" if sign > 0 else "Sell"
-        else:
-            label = "Neutral"
+        label = "Neutral"
 
     direction = score_direction(label)
 
