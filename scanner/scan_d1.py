@@ -1,8 +1,18 @@
-"""scanner/scan_d1.py — D1 scan, CSM, regime"""
+"""scanner/scan_d1.py — D1 scan, CSM, regime
+Changes from audit:
+  - XAU/USD now fetched and scored via REGIME_EXTRA_PAIRS. This activates
+    the gold signal in regime.py which was always returning 'neutral' because
+    XAU/USD was never in the fetch or scoring loop.
+  - vol_ratio removed from REGIME_OUTPUT (regime.py no longer computes it —
+    it was using ADX as a volatility proxy which is the wrong metric).
+  - D1_FETCH_PAIRS updated to include REGIME_EXTRA_PAIRS.
+  - New pairs in CSM_EXTRA_PAIRS (AUD/NZD, AUD/CAD, GBP/AUD) are picked up
+    automatically since CSM_EXTRA_PAIRS is imported from csm.py.
+"""
 import json, os, sys, datetime, time
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from config.pairs import PAIRS, pair_display
+from config.pairs import PAIRS, pair_display, REGIME_EXTRA_PAIRS
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair
 from scanner.csm import compute_currency_strength, MAJOR_PAIRS, STRENGTH_PAIRS, CSM_EXTRA_PAIRS
@@ -13,11 +23,18 @@ D1_OUTPUT     = os.path.join(DATA_DIR, "d1_scores.json")
 CSM_OUTPUT    = os.path.join(DATA_DIR, "csm.json")
 REGIME_OUTPUT = os.path.join(DATA_DIR, "regime.json")
 
-# Tradeable pairs only (excludes XAU/USD if present)
+# Tradeable forex pairs only (excludes XAU/USD)
 FOREX_PAIRS = [p for p in PAIRS if p != "XAU/USD"]
 
-# All pairs needed for D1 CSM — tradeable pairs + CSM-only extras
-D1_FETCH_PAIRS = FOREX_PAIRS + [p for p in CSM_EXTRA_PAIRS if p not in FOREX_PAIRS]
+# All pairs fetched in D1 scan:
+#   - Tradeable forex pairs (scored + used for regime)
+#   - CSM extra pairs (EUR/GBP, EUR/CHF, GBP/CHF, AUD/NZD, AUD/CAD, GBP/AUD)
+#   - Regime extra pairs (XAU/USD — gold direction for risk-off/risk-on)
+D1_FETCH_PAIRS = (
+    FOREX_PAIRS
+    + [p for p in CSM_EXTRA_PAIRS    if p not in FOREX_PAIRS]
+    + [p for p in REGIME_EXTRA_PAIRS if p not in FOREX_PAIRS and p not in CSM_EXTRA_PAIRS]
+)
 
 
 def load_prev_regime():
@@ -32,23 +49,21 @@ def load_prev_regime():
 def main():
     print(f"\n=== D1 Scan — {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC ===")
     os.makedirs(DATA_DIR, exist_ok=True)
+    now = datetime.datetime.utcnow()
 
-    print("\n  Fetching D1 data...")
-    # D1_FETCH_PAIRS includes CSM_EXTRA_PAIRS (EUR/GBP, EUR/CHF) so the
-    # CSM calculation gets a full 12-pair strength data set.
+    print(f"\n  Fetching D1 data ({len(D1_FETCH_PAIRS)} pairs)...")
     d1_ohlcv = fetch_all_pairs(D1_FETCH_PAIRS, "D1")
 
     print(f"\n  Rate limit pause before H4 fetch (62s)...")
     time.sleep(62)
 
     print("  Fetching H4 data for currency strength...")
-    # MAJOR_PAIRS already includes EUR/GBP and EUR/CHF
+    # MAJOR_PAIRS includes original 12 + new cross pairs for CSM
     h4_ohlcv = fetch_all_pairs(MAJOR_PAIRS, "H4")
 
     d1_results = {}
-    now = datetime.datetime.utcnow()
 
-    # Score only the tradeable FOREX_PAIRS — CSM extras are not scored
+    # ── Score tradeable forex pairs ───────────────────────────────────────────
     for pair in FOREX_PAIRS:
         df = d1_ohlcv.get(pair)
         if df is None:
@@ -74,13 +89,38 @@ def main():
             "updated":    now.isoformat(),
         }
 
-    # Currency strength — pass full d1_ohlcv (includes CSM extras)
+    # ── Score XAU/USD for regime classifier ───────────────────────────────────
+    # Gold direction feeds regime.py: bull = risk-off signal, bear = risk-on signal.
+    # Stored in d1_results under "XAU/USD" so classify_regime() can read it.
+    gold_df = d1_ohlcv.get("XAU/USD")
+    if gold_df is not None:
+        gold_result = score_pair(gold_df, timeframe="D1")
+        if gold_result:
+            d1_results["XAU/USD"] = {
+                "score":     gold_result["score"],
+                "label":     gold_result["label"],
+                "direction": gold_result["direction"],
+                "raw":       gold_result["raw"],
+                "signals":   gold_result["signals"],
+                "filter_ok": gold_result["filter_ok"],
+                "conflict":  gold_result.get("conflict", False),
+                "structure": gold_result.get("structure", {}),
+                "updated":   now.isoformat(),
+            }
+            print(f"  XAU/USD: {gold_result['score']:+d} → {gold_result['label']} "
+                  f"({gold_result['direction']}) — used for regime only")
+        else:
+            print("  XAU/USD: insufficient bars for scoring")
+    else:
+        print("  XAU/USD: no data — gold signal inactive this cycle")
+
+    # ── Currency strength ─────────────────────────────────────────────────────
     print("\n  Computing currency strength...")
     csm_result = compute_currency_strength(d1_ohlcv, h4_ohlcv)
     for ccy, val in csm_result["rankings"].items():
         print(f"    {ccy}: {val:.1f}")
 
-    # Regime
+    # ── Regime ────────────────────────────────────────────────────────────────
     print("\n  Computing market regime...")
     prev_h4 = load_prev_regime()
     regime_result = classify_regime(
@@ -88,11 +128,14 @@ def main():
         d1_results,
         prev_h4_regime=prev_h4,
     )
+    gold_dir = d1_results.get("XAU/USD", {}).get("direction", "neutral")
     print(f"  Regime: {regime_result['regime']} ({regime_result['confidence']}) "
-          f"[{regime_result['data_source']}] VOL_RATIO={regime_result['vol_ratio']}")
+          f"[{regime_result['data_source']}] Gold: {gold_dir}")
 
+    # ── Save ──────────────────────────────────────────────────────────────────
     with open(D1_OUTPUT, "w") as f:
         json.dump(d1_results, f, indent=2)
+
     with open(CSM_OUTPUT, "w") as f:
         json.dump({
             "rankings":   csm_result["rankings"],
@@ -100,12 +143,13 @@ def main():
             "breakdown":  csm_result.get("breakdown", {}),
             "updated":    now.isoformat(),
         }, f, indent=2)
+
+    # vol_ratio removed from output (regime.py no longer computes it)
     with open(REGIME_OUTPUT, "w") as f:
         json.dump({
             "regime":      regime_result["regime"],
             "confidence":  regime_result["confidence"],
             "data_source": regime_result["data_source"],
-            "vol_ratio":   regime_result["vol_ratio"],
             "signals":     regime_result["signals"],
             "updated":     now.isoformat(),
         }, f, indent=2)
