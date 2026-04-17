@@ -619,8 +619,42 @@ function renderCSM(csm){
   }).join("");
 }
 
+// Flat (non-table) version for Technical tab — same dropdown, flex block layout
+function tfCellFlat(data,uid,pos){
+  const tfLabel=uid.split('-').pop().replace('t','').toUpperCase();
+  if(!data)return`<div style="flex:1;"><span class="pill pill-N" style="width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;padding:8px 2px;border-radius:6px;">—<br><span style="font-size:var(--f-th);opacity:.6;">${tfLabel}</span></span></div>`;
+  const num=data.score>0?'+'+data.score:String(data.score);
+  const col=data.score>0?'var(--buy)':data.score<0?'var(--sell)':'var(--muted)';
+  const sigs=data.signals||{},raw=data.raw||{};
+  const adx=raw.adx!==undefined?raw.adx.toFixed(1):'N/A';
+  const fok=data.filter_ok!==false;
+  const ext=!!(data.extended&&data.extended.extended);
+  const struct=data.structure,cf=data.conflict;
+  const pr=uid.replace(/-[dh][14]t$/,'').toUpperCase();
+  let rows=`<div class="drop-hd">${pr} — ${tfLabel}</div>`;
+  rows+=Object.entries(SIGS).map(([k,l])=>`<div class="dr"><span class="dn">${l}</span>${sv(sigs[k]??null)}</div>`).join('');
+  rows+=`<div class="ddiv"></div>`;
+  rows+=`<div class="dr"><span class="dn">ADX</span><span style="color:${fok?'var(--buy)':'var(--sell)'};font-weight:600">${adx}</span></div>`;
+  rows+=`<div class="dr"><span class="dn">ATR</span><span style="color:${fok?'var(--buy)':'var(--sell)'};font-weight:600">${fok?'Normal':'Contr.'}</span></div>`;
+  if(struct&&struct.event&&struct.event!=='none'){
+    const evC=struct.event==='BOS'?'var(--buy)':'#e3b341';
+    rows+=`<div class="ddiv"></div>`;
+    rows+=`<div class="dr"><span class="dn">Structure</span><span style="color:${evC};font-weight:600">${struct.event} (${struct.direction})</span></div>`;
+    rows+=`<div class="dr"><span class="dn">Strength</span><span style="color:var(--muted);font-weight:600">${Math.round((struct.strength||0)*100)}%</span></div>`;
+    rows+=`<div class="dr"><span class="dn">Multiplier</span><span style="color:var(--muted);font-weight:600">×${(struct.multiplier||1).toFixed(2)}</span></div>`;
+  }
+  if(cf){rows+=`<div class="ddiv"></div><div class="dr"><span class="dn" style="color:#e3b341">⚠ Conflict</span><span style="color:#e3b341;font-weight:600">Struct vs Momentum</span></div>`;}
+  if(ext){rows+=`<div class="ddiv"></div><div class="dr"><span class="dn" style="color:#e3b341">⚠ Extended</span><span style="color:#e3b341;font-weight:600">Yes</span></div>`;}
+  return`<div style="flex:1;"><div class="pill-wrap" style="width:100%;">
+    <span class="pill ${pillClass(data.label)}" style="width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;padding:7px 2px;border-radius:6px;cursor:pointer;" onclick="togglePillDrop('${uid}')">
+      <span style="font-size:var(--f-pill);font-weight:700;">${pillAbbr(data.label)}&nbsp;<span style="color:${col};font-size:var(--f-th);">${num}</span></span>
+      <span style="font-size:var(--f-th);opacity:.6;margin-top:2px;">${tfLabel}</span>
+    </span>
+    <div class="drop" id="d-${uid}" data-pos="${pos}">${rows}</div>
+  </div></div>`;
+}
+
 function renderTable(h1,h4,d1){
-  const el=document.getElementById('tech-grid');
   if(!el)return;
   el.innerHTML=PAIRS.map(pair=>{
     const h1d=h1&&h1[pair];const h4d=h4&&h4[pair];const d1d=d1&&d1[pair];
@@ -635,25 +669,29 @@ function renderTable(h1,h4,d1){
     const accentCol=dir==='bull'?'rgba(35,134,54,.15)':dir==='bear'?'rgba(248,81,73,.1)':'transparent';
     const borderCol=dir==='bull'?'rgba(35,134,54,.35)':dir==='bear'?'rgba(248,81,73,.3)':'var(--border)';
 
-    // Score pills D1/H4/H1
-    const scorePills=['D1','H4','H1'].map((tf,i)=>{
-      const lbl=[d1lbl,h4lbl,h1lbl][i];
-      return`<div class="pill ${pillClass(lbl)}" style="flex:1;text-align:center;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:6px;">
-        <span style="font-size:var(--f-pill);font-weight:700;">${pillAbbr(lbl)}</span>
-        <span style="font-size:var(--f-th);opacity:.6;">${tf}</span>
+    // Score pills D1/H4/H1 — clickable, reuse tfCell drop system
+    const pKey=pair.replace('/','');
+    const scorePills=`
+      <div style="display:flex;gap:4px;">
+        ${tfCellFlat(d1&&d1[pair],pKey+'-d1t','left')}
+        ${tfCellFlat(h4&&h4[pair],pKey+'-h4t','center')}
+        ${tfCellFlat(h1&&h1[pair],pKey+'-h1t','right')}
       </div>`;
-    }).join('');
 
-    // Indicator strip ADX/ATR/Score/Ext
+    // Indicator strip: ADX | ATR | Ext | Signal
     const adxCol=adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)';
     const atrCol=atrOk===null?'var(--muted)':atrOk?'var(--buy)':'var(--sell)';
     const extCol=ext?'#e3b341':'var(--buy)';
-    const scoreCol=score!==null?(score>0?'var(--buy)':score<0?'var(--sell)':'var(--muted)'):'var(--muted)';
+    // Signal = has a recent alert in alerts.json for this pair
+    const alertsArr=D.alerts&&D.alerts.alerts;
+    const cutoffSig=Date.now()-24*60*60*1000;
+    const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoffSig));
+    const sigCol=hasSig?'var(--buy)':'var(--muted)';
     const indItems=[
       {l:'ADX',v:adxV!==null?adxV.toFixed(0):'—',c:adxCol},
-      {l:'ATR',v:atrOk===null?'—':atrOk?'OK':'Low',c:atrCol},
-      {l:'Score',v:score!==null?(score>0?'+'+score:String(score)):'—',c:scoreCol},
+      {l:'ATR',v:atrOk===null?'—':atrOk?'Normal':'Contr.',c:atrCol},
       {l:'Ext',v:ext?'Yes':'No',c:extCol},
+      {l:'Signal',v:hasSig?'Yes':'No',c:sigCol},
     ];
     const indStrip=indItems.map((x,i)=>`${i>0?'<span style="color:var(--border);user-select:none;padding:0 3px;">│</span>':''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${x.c};">${x.v}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${x.l}</span></div>`).join('');
 
