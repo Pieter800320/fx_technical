@@ -57,6 +57,10 @@ def main():
         print("  WARNING: No D1 scores found — technical components will be zero")
     if not csm_rankings:
         print("  WARNING: No CSM rankings found — CSM extreme component will be zero")
+    else:
+        print(f"  CSM rankings loaded ({len(csm_rankings)} currencies):")
+        for ccy, val in sorted(csm_rankings.items(), key=lambda x: x[1], reverse=True):
+            print(f"    {ccy}: {val}")
 
     # ── Compute conviction scores ─────────────────────────────────────────────
     print("\n  Computing conviction scores...")
