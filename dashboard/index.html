@@ -655,6 +655,7 @@ function tfCellFlat(data,uid,pos){
 }
 
 function renderTable(h1,h4,d1){
+  const el=document.getElementById('tech-grid');
   if(!el)return;
   el.innerHTML=PAIRS.map(pair=>{
     const h1d=h1&&h1[pair];const h4d=h4&&h4[pair];const d1d=d1&&d1[pair];
