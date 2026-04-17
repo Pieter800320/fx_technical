@@ -659,6 +659,45 @@ function tfCellFlat(data,uid,pos){
   </div></div>`;
 }
 
+// ── Shared indicator strip: Regime | D1% | D5% | Signal ──────────────────────
+function buildIndicatorStrip(pair, borderCol){
+  // Regime
+  const reg=D.regime&&D.regime.regime?D.regime.regime:'—';
+  const RC_=RC[reg]||RC['Mixed'];
+  const regCol=RC_?RC_.c:'var(--muted)';
+  const regAbbr=reg==='Risk-On'?'R-On':reg==='Risk-Off'?'R-Off':reg==='Ranging'?'Rang':'Mix';
+
+  // D1% change: H1 close vs confirmed D1 close (d1 OHLCV bar[-2])
+  const h1d=D.h1&&D.h1[pair];
+  const nowClose=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
+  const d1Ohlcv=D.d1&&D.d1._ohlcv&&D.d1._ohlcv[pair];
+  let d1Pct=null,d1Col='var(--muted)';
+  if(nowClose&&d1Ohlcv&&d1Ohlcv.length>=2){
+    const prev=d1Ohlcv[d1Ohlcv.length-2].close;
+    if(prev){d1Pct=(nowClose-prev)/prev*100;d1Col=d1Pct>=0?'var(--buy)':'var(--sell)';}
+  }
+  // D5% change: H1 close vs 5 D1 bars ago
+  let d5Pct=null,d5Col='var(--muted)';
+  if(nowClose&&d1Ohlcv&&d1Ohlcv.length>=6){
+    const prev5=d1Ohlcv[d1Ohlcv.length-6].close;
+    if(prev5){d5Pct=(nowClose-prev5)/prev5*100;d5Col=d5Pct>=0?'var(--buy)':'var(--sell)';}
+  }
+  // Signal: show direction of most recent alert if within 24h
+  const alertsArr=D.alerts&&D.alerts.alerts;
+  const cutoffSig=Date.now()-24*60*60*1000;
+  const recentAlert=alertsArr&&alertsArr.slice().reverse().find(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoffSig);
+  const sigLabel=recentAlert?(recentAlert.direction==='bull'?'BUY':'SELL'):'NO';
+  const sigCol=recentAlert?(recentAlert.direction==='bull'?'var(--buy)':'var(--sell)'):'var(--muted)';
+
+  const fmt=v=>v!==null?(v>=0?'+':'')+v.toFixed(2)+'%':'—';
+  const sep='<span style="color:var(--border);user-select:none;padding:0 3px;">│</span>';
+  const cell=(val,lbl,col)=>`<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${col};">${val}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${lbl}</span></div>`;
+
+  return`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${borderCol||'var(--border)'};border-radius:6px;padding:6px;">
+    ${cell(regAbbr,'Regime',regCol)}${sep}${cell(fmt(d1Pct),'D1 %',d1Col)}${sep}${cell(fmt(d5Pct),'D5 %',d5Col)}${sep}${cell(sigLabel,'Signal',sigCol)}
+  </div>`;
+}
+
 function renderTable(h1,h4,d1){
   const el=document.getElementById('tech-grid');
   if(!el)return;
@@ -682,30 +721,16 @@ function renderTable(h1,h4,d1){
         tfCellFlat(h4&&h4[pair],pKey+'-h4t','center')+
         tfCellFlat(h1&&h1[pair],pKey+'-h1t','right');
 
-    // Indicator strip: ADX | ATR | Ext | Signal
-    const adxCol=adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)';
-    const atrCol=atrOk===null?'var(--muted)':atrOk?'var(--buy)':'var(--sell)';
-    const extCol=ext?'#e3b341':'var(--buy)';
-    // Signal = has a recent alert in alerts.json for this pair
-    const alertsArr=D.alerts&&D.alerts.alerts;
-    const cutoffSig=Date.now()-24*60*60*1000;
-    const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoffSig));
-    const sigCol=hasSig?'var(--buy)':'var(--muted)';
-    const indItems=[
-      {l:'ADX',v:adxV!==null?adxV.toFixed(0):'—',c:adxCol},
-      {l:'ATR',v:atrOk===null?'—':atrOk?'Normal':'Contr.',c:atrCol},
-      {l:'Ext',v:ext?'Yes':'No',c:extCol},
-      {l:'Signal',v:hasSig?'Yes':'No',c:sigCol},
-    ];
-    const indStrip=indItems.map((x,i)=>`${i>0?'<span style="color:var(--border);user-select:none;padding:0 3px;">│</span>':''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${x.c};">${x.v}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${x.l}</span></div>`).join('');
+    // Indicator strip: Regime | D1% | D5% | Signal
+    const strip=buildIndicatorStrip(pair,borderCol);
 
     return`<div style="padding:10px 14px;border-bottom:1px solid var(--border);background:${accentCol};">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
         <span style="font-weight:700;font-size:var(--f-primary);color:var(--text);">${pair.replace('/','')}</span>
-        <span style="font-size:var(--f-th);color:var(--muted);">${h4d&&h4d.updated?new Date(h4d.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
+        <span style="font-size:var(--f-th);color:var(--muted);">${h4d&&h4d.updated?new Date(h4d.updated.endsWith('Z')||h4d.updated.includes('+')?h4d.updated:h4d.updated+'Z').toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
       </div>
       <div style="display:flex;gap:4px;margin-bottom:6px;">${scorePills}</div>
-      <div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${borderCol};border-radius:6px;padding:6px 6px;">${indStrip}</div>
+      ${strip}
     </div>`;
   }).join('');
 }
@@ -1235,26 +1260,12 @@ function renderChartDataPanel(pair){
     tfCellFlat(h4d,pKey+'-ch4t','center')+
     tfCellFlat(h1d,pKey+'-ch1t','right');
 
-  // Row 2: ADX | ATR | Ext | Signal — identical to Technical tab
-  const adxCol=adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)';
-  const atrCol=atrOk===null?'var(--muted)':atrOk?'var(--buy)':'var(--sell)';
-  const extCol=ext?'#e3b341':'var(--buy)';
-  const strCol=structLbl==='BOS'?'var(--buy)':structLbl==='CHoCH'?'#e3b341':'var(--muted)';
-  const alertsArr=D.alerts&&D.alerts.alerts;
-  const cutoffSig=Date.now()-24*60*60*1000;
-  const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoffSig));
-  const sigCol=hasSig?'var(--buy)':'var(--muted)';
-  const indItems=[
-    {lbl:'ADX',val:adxV!==null?adxV.toFixed(0):'—',col:adxCol},
-    {lbl:'ATR',val:atrOk===null?'—':atrOk?'Normal':'Contr.',col:atrCol},
-    {lbl:'Ext',val:ext?'Yes':'No',col:extCol},
-    {lbl:'Signal',val:hasSig?'Yes':'No',col:sigCol},
-  ];
-  const indStrip=indItems.map((x,i)=>`${i>0?'<span style="color:var(--border);user-select:none;padding:0 3px;">│</span>':''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${x.col};">${x.val}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${x.lbl}</span></div>`).join('');
+  // Row 2: Regime | D1% | D5% | Signal — shared with Technical tab
+  const strip=buildIndicatorStrip(pair,'var(--border)');
 
   statsEl.innerHTML=`
     <div style="display:flex;gap:4px;margin-bottom:6px;">${scorePills}</div>
-    <div style="display:flex;align-items:center;background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:6px;">${indStrip}</div>`;
+    ${strip}`;
 
   // News
   const alertsData=D.alerts&&D.alerts.alerts;
