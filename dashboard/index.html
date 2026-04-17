@@ -111,12 +111,7 @@ tr:last-child td{border-bottom:none;}
   .pair-cell{font-size:var(--f-body);}
 }
 /* ── Chart Tab ─────────────────────────────────── */
-.cpill{display:inline-flex;align-items:center;justify-content:center;gap:4px;padding:4px 10px;border-radius:12px;font-size:var(--f-pill);font-weight:600;cursor:pointer;user-select:none;border:1px solid var(--border);color:var(--muted);background:transparent;transition:border-color .15s,color .15s,background .15s;white-space:nowrap;min-width:72px;text-align:center;}
-.cpill.active{border-color:#58a6ff;color:#58a6ff;background:rgba(56,139,253,.15);}
-.cpill.watchlisted{border-color:rgba(227,179,65,.5);color:#e3b341;}
-.cpill.watchlisted.active{border-color:#e3b341;color:#e3b341;background:rgba(227,179,65,.12);}
-.cpill .star{font-size:var(--f-th);opacity:.4;transition:opacity .15s;}
-.cpill.watchlisted .star{opacity:1;}
+
 .tf-btn{font-size:var(--f-th);font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
 .tf-btn.active{background:rgba(56,139,253,.2);border-color:#58a6ff;color:#58a6ff;}
 .stat-chip{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:7px 2px;width:100%;}
@@ -134,14 +129,13 @@ tr:last-child td{border-bottom:none;}
 #chart-fullscreen.open{display:flex;}
 .tf-btn{font-size:var(--f-pill);font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
 .tf-btn.active{background:rgba(56,139,253,.2);border-color:#58a6ff;color:#58a6ff;}
-.cpill .star{font-size:var(--f-pill);opacity:.4;transition:opacity .15s;}
-.cpill.watchlisted .star{opacity:1;}
+
 @media(orientation:landscape) and (max-width:900px){
   #chart-auto-fs-hint{display:block;}
 }
 /* ── Matrix Ticker ───────────────────────────── */
 #dash-ticker-wrap{overflow:hidden;background:#020e02;border-bottom:1px solid rgba(0,204,51,.18);margin:-16px -16px 12px -16px;height:38px;display:flex;align-items:center;}
-#dash-ticker-inner{display:inline-block;white-space:nowrap;animation:dash-ticker-run 8s linear infinite;font-family:'VT323',monospace;font-size:21px;color:#00cc33;text-shadow:0 0 5px rgba(0,255,65,.2);}
+#dash-ticker-inner{display:inline-block;white-space:nowrap;animation:dash-ticker-run 16s linear infinite;font-family:'VT323',monospace;font-size:21px;color:#00cc33;text-shadow:0 0 5px rgba(0,255,65,.2);}
 @keyframes dash-ticker-run{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
 .ticker-buy{color:#3fb950;}
 .ticker-sell{color:#f85149;}
@@ -225,12 +219,27 @@ tr:last-child td{border-bottom:none;}
 
 <div id="tab-charts" class="tab-panel">
 
-  <!-- Box 1: Pair pills -->
-  <div class="module" style="padding:10px 12px 12px;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-      <button id="wl-filter-btn" class="btn" onclick="toggleWatchlistFilter()" style="padding:2px 10px;">★ All</button>
+  <!-- Box 1: Pair selector + watchlist -->
+  <div class="module" style="padding:0;overflow:hidden;">
+    <div style="display:flex;align-items:center;gap:0;border-bottom:1px solid var(--border);">
+      <div class="fg" style="flex:1;margin:0;padding:10px 14px;">
+        <select id="chart-pair-select" onchange="selectChartPair(this.value)" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-size:var(--f-input);width:100%;font-weight:600;">
+          <option value="">Select pair…</option>
+          <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
+          <option>USD/CHF</option><option>AUD/USD</option><option>USD/CAD</option>
+          <option>NZD/USD</option><option>EUR/JPY</option><option>GBP/JPY</option>
+          <option>AUD/JPY</option><option>NZD/JPY</option><option>CAD/JPY</option>
+        </select>
+      </div>
+      <div style="padding:10px 14px 10px 0;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <button id="chart-wl-star" onclick="toggleWatchlistCurrent()" title="Add to watchlist" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:18px;padding:5px 10px;cursor:pointer;line-height:1;transition:all .15s;">☆</button>
+        <button id="wl-filter-btn" class="btn" onclick="toggleWatchlistFilter()" style="padding:5px 10px;white-space:nowrap;">All</button>
+      </div>
     </div>
-    <div id="chart-pair-pills" style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;"></div>
+    <!-- Watchlist quick-select row — only visible when pairs are watchlisted -->
+    <div id="chart-wl-row" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:#0d1117;">
+      <div id="chart-wl-btns" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+    </div>
   </div>
 
   <!-- Box 2: Chart -->
@@ -253,15 +262,14 @@ tr:last-child td{border-bottom:none;}
   <!-- Box 3: Data panel -->
   <div class="module" style="padding:12px 14px;">
     <div id="chart-stats-row" style="margin-bottom:10px;"></div>
-    <!-- Copy Prompt row -->
     <div style="margin-bottom:10px;">
       <button class="cpbtn" id="chart-cp-btn" onclick="copyChartPrompt()">Copy Prompt</button>
     </div>
     <div id="chart-news-row" style="margin-bottom:10px;font-size:var(--f-info);color:var(--muted);line-height:1.6;border-left:2px solid var(--border);padding-left:8px;display:none;"></div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
-      <input id="alert-price-input" type="number" step="0.00001" placeholder="Level…" style="background:#0d1117;border:1px solid var(--border);border-radius:12px;color:var(--text);padding:4px 10px;font-size:var(--f-input);width:110px;"/>
-      <button id="alert-dir-btn" class="btn" onclick="cycleAlertDir()" style="padding:3px 9px;">↑ Above</button>
-      <button class="btn" onclick="setLevelAlert()" style="padding:3px 9px;">Set Alert</button>
+      <input id="alert-price-input" type="number" step="0.00001" placeholder="Level…" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:var(--f-input);width:110px;"/>
+      <button id="alert-dir-btn" class="btn" onclick="cycleAlertDir()" style="padding:5px 10px;">↑ Above</button>
+      <button class="btn" onclick="setLevelAlert()" style="padding:5px 10px;">Set Alert</button>
     </div>
     <div id="chart-alerts-list" style="margin-top:8px;"></div>
   </div>
@@ -288,11 +296,22 @@ tr:last-child td{border-bottom:none;}
 
 <div id="tab-correlation" class="tab-panel">
   <div id="corr-warning-wrap" style="display:none;"><span id="corr-warning"></span></div>
-  <div class="module" id="corr-pairs-wrap" style="display:none;padding:10px 12px 12px;">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:8px;">
-      <button id="corr-wl-filter-btn" class="btn" onclick="toggleCorrWatchlistFilter()" style="padding:2px 10px;">★ All</button>
+  <!-- Corr pair selector -->
+  <div class="module" id="corr-pairs-wrap" style="display:none;padding:0;overflow:hidden;">
+    <div style="display:flex;align-items:center;gap:0;border-bottom:1px solid var(--border);">
+      <div class="fg" style="flex:1;margin:0;padding:10px 14px;">
+        <select id="corr-pair-select" onchange="corrSelectedPair=this.value;renderCorr(D.corr)" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-size:var(--f-input);width:100%;font-weight:600;">
+        </select>
+      </div>
+      <div style="padding:10px 14px 10px 0;display:flex;align-items:center;gap:8px;flex-shrink:0;">
+        <button id="corr-wl-star" onclick="toggleWatchlistCorr()" title="Add to watchlist" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:18px;padding:5px 10px;cursor:pointer;line-height:1;transition:all .15s;">☆</button>
+        <button id="corr-wl-filter-btn" class="btn" onclick="toggleCorrWatchlistFilter()" style="padding:5px 10px;white-space:nowrap;">All</button>
+      </div>
     </div>
-    <div id="corr-pill-row" style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;"></div>
+    <!-- Watchlist quick-select row -->
+    <div id="corr-wl-row" style="display:none;padding:8px 14px;border-bottom:1px solid var(--border);background:#0d1117;">
+      <div id="corr-wl-btns" style="display:flex;flex-wrap:wrap;gap:5px;"></div>
+    </div>
   </div>
   <div class="module" id="corr-chart-wrap"><div class="loading">Loads after next H4 scan.</div></div>
 </div>
@@ -390,7 +409,7 @@ tr:last-child td{border-bottom:none;}
 const PAIRS=["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","AUD/JPY","NZD/JPY","CAD/JPY"];
 const GH_API="https://api.github.com/repos/Pieter800320/fx_technical/contents/data";
 const SIGS={EMA200:"EMA 200",EMA50:"EMA 50",RSI:"RSI>50",MACD:"MACD",DMI:"DMI+/-",Structure:"Structure"};
-const SESS={Sydney:[21,6],Tokyo:[23,8],London:[6,15],"New York":[12,21]};
+const SESS={Sydney:[21,6],Tokyo:[23,8],London:[7,16],"New York":[13,22]};
 const SESS_IDS={Sydney:"s-sydney",Tokyo:"s-tokyo",London:"s-london","New York":"s-newyork"};
 const RC={"Risk-Off":{bg:"rgba(182,35,36,.15)",b:"#b62324",c:"#f85149"},"Risk-On":{bg:"rgba(35,134,54,.15)",b:"#238636",c:"#3fb950"},"Ranging":{bg:"rgba(139,148,158,.1)",b:"#30363d",c:"#8b949e"},"Mixed":{bg:"rgba(227,179,65,.15)",b:"#e3b341",c:"#e3b341"}};
 let D={};
@@ -737,19 +756,48 @@ function generateBrief(){
 // ── Matrix Ticker ─────────────────────────────────────────────────────────────
 function buildTickerText(){
   const{kept}=buildRankedShortlist();
-  const sep='&nbsp;&nbsp;&nbsp;<span style="color:rgba(0,204,51,.3)">◆</span>&nbsp;&nbsp;&nbsp;';
-  if(!kept.length){
-    const empty='<span style="color:rgba(0,204,51,.4)">NO SIGNALS</span>';
-    return Array(6).fill(empty).join(sep)+'&nbsp;&nbsp;&nbsp;';
-  }
-  // Build one pass of signals
-  const items=kept.map(s=>{
+  const sep='&nbsp;&nbsp;&nbsp;<span style="color:rgba(0,204,51,.25)">◆</span>&nbsp;&nbsp;&nbsp;';
+  const parts=[];
+
+  // ── Shortlist items ──────────────────────────
+  kept.forEach(s=>{
     const arrow=s.dir==='bull'?'▲':'▼';
-    const word=s.dir==='bull'?'BUY':'SELL';
-    const score=s.score>0?'+'+s.score:String(s.score);
-    return`<span class="ticker-${s.dir==='bull'?'buy':'sell'}">${arrow} ${word} ${s.pair.replace('/','')}</span>&nbsp;<span style="color:rgba(0,204,51,.55)">${score}</span>`;
-  }).join(sep);
-  return items+sep;
+    const cls=s.dir==='bull'?'ticker-buy':'ticker-sell';
+    const d1=pillAbbr(D.d1&&D.d1[s.pair]?D.d1[s.pair].label:'');
+    const h4=pillAbbr(D.h4&&D.h4[s.pair]?D.h4[s.pair].label:'');
+    const h1=pillAbbr(D.h1&&D.h1[s.pair]?D.h1[s.pair].label:'');
+    parts.push(`<span style="color:rgba(0,204,51,.5);font-size:16px;">SHORTLIST</span>&nbsp;<span class="${cls}">${arrow}&nbsp;${s.pair.replace('/','')}</span>&nbsp;<span style="color:rgba(0,204,51,.45)">${d1}&nbsp;${h4}&nbsp;${h1}</span>`);
+  });
+
+  // ── Signal items from alerts.json ─────────────
+  const alertsData=D.alerts&&D.alerts.alerts;
+  if(alertsData&&alertsData.length){
+    const cutoff=Date.now()-24*60*60*1000;
+    const recent=alertsData.filter(a=>{
+      if(!a.timestamp)return false;
+      return new Date(a.timestamp).getTime()>cutoff;
+    });
+    // De-duplicate by pair+direction
+    const seen=new Set();
+    recent.slice().reverse().forEach(a=>{
+      const key=a.pair+a.direction;
+      if(seen.has(key))return;
+      seen.add(key);
+      const isBull=a.direction==='bull';
+      const arrow=isBull?'▲':'▼';
+      const cls=isBull?'ticker-buy':'ticker-sell';
+      const d1=a.d1_label?pillAbbr(a.d1_label):'—';
+      const h4=a.h4_label?pillAbbr(a.h4_label):'—';
+      const h1=a.h1_label?pillAbbr(a.h1_label):'—';
+      parts.push(`<span style="color:rgba(0,204,51,.5);font-size:16px;">SIGNAL</span>&nbsp;<span class="${cls}">${arrow}&nbsp;${a.pair.replace('/','')}</span>&nbsp;<span style="color:rgba(0,204,51,.45)">${d1}&nbsp;${h4}&nbsp;${h1}</span>`);
+    });
+  }
+
+  if(!parts.length){
+    const empty='<span style="color:rgba(0,204,51,.35)">NO SIGNALS</span>';
+    return Array(5).fill(empty).join(sep)+'&nbsp;&nbsp;&nbsp;';
+  }
+  return parts.join(sep)+sep;
 }
 
 function updateTicker(){
@@ -964,15 +1012,13 @@ function renderCurrentChart(){
 
 function selectChartPair(pair){
   chartTabPair=pair;
-  // Update label
   const lbl=document.getElementById('chart-pair-label');
   const fsLbl=document.getElementById('fs-pair-label');
+  const sel=document.getElementById('chart-pair-select');
   if(lbl)lbl.textContent=pair.replace('/','');
   if(fsLbl)fsLbl.textContent=pair.replace('/','');
-  // Update direction badge
-  updateDirBadge(pair);
-  // Update pill selection
-  document.querySelectorAll('.cpill').forEach(el=>el.classList.toggle('active',el.dataset.pair===pair));
+  if(sel)sel.value=pair;
+  updateWatchlistStar(pair,'chart-wl-star');
   renderCurrentChart();
 }
 
@@ -980,29 +1026,94 @@ function updateDirBadge(pair){
   // Badge removed from header — direction shown in data panel chips
 }
 
-// ── Pair pills ───
-function renderChartPills(){
-  const container=document.getElementById('chart-pair-pills');
-  if(!container)return;
+// ── Pair selector + watchlist ─────────────────────────────────────────────────
+function updateWatchlistStar(pair,starId){
+  const star=document.getElementById(starId);
+  if(!star)return;
   const wl=new Set(wlLoad());
-  const filterOn=chartTabWlOnly;
-  const{kept}=buildRankedShortlist();
-  const shortPairs=new Set(kept.map(s=>s.pair));
-  let pairsToShow=filterOn?PAIRS.filter(p=>wl.has(p)):PAIRS;
-  container.innerHTML=pairsToShow.map(pair=>{
+  const isWl=wl.has(pair);
+  star.textContent=isWl?'★':'☆';
+  star.style.color=isWl?'#e3b341':'var(--muted)';
+  star.style.borderColor=isWl?'rgba(227,179,65,.5)':'var(--border)';
+}
+
+function renderWatchlistRow(containerId,btnId,onSelect){
+  const wl=wlLoad();
+  const row=document.getElementById(containerId);
+  const btns=document.getElementById(btnId);
+  if(!row||!btns)return;
+  if(!wl.length){row.style.display='none';return;}
+  row.style.display='block';
+  btns.innerHTML=wl.map(pair=>{
     const pKey=pair.replace('/','');
-    const isWl=wl.has(pair);
-    const isActive=pair===chartTabPair;
     const h4d=D.h4&&D.h4[pair];
     const lbl=h4d?h4d.label:'';
     const dotColor=lbl==='Strong Buy'?'var(--buy)':lbl==='Buy'?'rgba(63,185,80,.7)':lbl==='Strong Sell'?'var(--sell)':lbl==='Sell'?'rgba(248,81,73,.7)':'transparent';
-    const dot=`<span style="width:7px;height:7px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;vertical-align:middle;margin-right:1px;"></span>`;
-    return`<div class="cpill${isActive?' active':''}${isWl?' watchlisted':''}" data-pair="${pair}" onclick="selectChartPair('${pair}')">
-      ${dot}<span>${pKey}</span>
-      <span class="star" onclick="event.stopPropagation();toggleWatchlist('${pair}')" title="Watchlist">★</span>
-    </div>`;
+    return`<button onclick="${onSelect}('${pair}')" style="display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:#0d1117;border:1px solid var(--border);border-radius:4px;color:var(--muted);font-size:var(--f-pill);font-weight:600;cursor:pointer;"><span style="width:7px;height:7px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;"></span>${pKey}</button>`;
   }).join('');
-  if(filterOn&&pairsToShow.length===0)container.innerHTML='<span style="color:var(--muted);font-size:var(--f-info);">No watchlisted pairs.</span>';
+}
+
+function renderChartPills(){
+  // Update select value and star
+  const sel=document.getElementById('chart-pair-select');
+  if(sel&&chartTabPair)sel.value=chartTabPair;
+  if(chartTabPair)updateWatchlistStar(chartTabPair,'chart-wl-star');
+  // Filter select if watchlist-only
+  const wl=new Set(wlLoad());
+  if(sel&&chartTabWlOnly){
+    Array.from(sel.options).forEach(o=>{
+      o.style.display=(o.value===''||wl.has(o.value))?'':'none';
+    });
+  } else if(sel){
+    Array.from(sel.options).forEach(o=>o.style.display='');
+  }
+  // Update filter btn
+  const btn=document.getElementById('wl-filter-btn');
+  if(btn){btn.textContent=chartTabWlOnly?'Watchlist':'All';btn.style.borderColor=chartTabWlOnly?'rgba(227,179,65,.5)':'';btn.style.color=chartTabWlOnly?'#e3b341':'';}
+  renderWatchlistRow('chart-wl-row','chart-wl-btns','selectChartPair');
+}
+
+function toggleWatchlistCurrent(){
+  if(!chartTabPair)return;
+  toggleWatchlist(chartTabPair);
+  updateWatchlistStar(chartTabPair,'chart-wl-star');
+  renderWatchlistRow('chart-wl-row','chart-wl-btns','selectChartPair');
+}
+
+// Corr watchlist helpers
+function toggleWatchlistCorr(){
+  if(!corrSelectedPair)return;
+  const pairs=D.corr&&D.corr.pairs?D.corr.pairs:[];
+  const pKey=corrSelectedPair;
+  const fullPair=pKey.length===6?pKey.slice(0,3)+'/'+pKey.slice(3):pKey;
+  toggleWatchlist(fullPair);
+  updateWatchlistStar(fullPair,'corr-wl-star');
+  renderWatchlistRow('corr-wl-row','corr-wl-btns',`(p)=>{corrSelectedPair=p.replace('/','');renderCorr(D.corr)}`);
+}
+
+function renderCorrPills(pairs){
+  const pairsWrap=document.getElementById('corr-pairs-wrap');
+  if(!pairsWrap||!pairs)return;
+  pairsWrap.style.display='block';
+  const sel=document.getElementById('corr-pair-select');
+  if(sel){
+    const wl=new Set(wlLoad());
+    const pairsToShow=corrWlOnly?pairs.filter(p=>{const fp=p.length===6?p.slice(0,3)+'/'+p.slice(3):p;return wl.has(fp);}):pairs;
+    sel.innerHTML=pairsToShow.map(p=>{
+      const fp=p.length===6?p.slice(0,3)+'/'+p.slice(3):p;
+      const h4d=D.h4&&D.h4[fp];
+      const lbl=h4d?pillAbbr(h4d.label):'';
+      return`<option value="${p}">${p}${lbl&&lbl!=='—'?' · '+lbl:''}</option>`;
+    }).join('');
+    if(corrSelectedPair)sel.value=corrSelectedPair;
+  }
+  const btn=document.getElementById('corr-wl-filter-btn');
+  if(btn){btn.textContent=corrWlOnly?'Watchlist':'All';btn.style.borderColor=corrWlOnly?'rgba(227,179,65,.5)':'';btn.style.color=corrWlOnly?'#e3b341':'';}
+  if(corrSelectedPair){
+    const fp=corrSelectedPair.length===6?corrSelectedPair.slice(0,3)+'/'+corrSelectedPair.slice(3):corrSelectedPair;
+    updateWatchlistStar(fp,'corr-wl-star');
+  }
+  renderWatchlistRow('corr-wl-row','corr-wl-btns',`(p)=>{corrSelectedPair=p.replace('/','');renderCorr(D.corr)}`);
 }
 
 function toggleWatchlist(pair){
@@ -1011,14 +1122,11 @@ function toggleWatchlist(pair){
   if(idx>=0)wl.splice(idx,1);else wl.push(pair);
   wlSave(wl);
   renderChartPills();
-  // Keep corr pills in sync
   if(D.corr&&D.corr.pairs)renderCorrPills(D.corr.pairs);
 }
 
 function toggleWatchlistFilter(){
   chartTabWlOnly=!chartTabWlOnly;
-  const btn=document.getElementById('wl-filter-btn');
-  if(btn){btn.textContent=chartTabWlOnly?'★ Watchlist':'★ All';btn.style.borderColor=chartTabWlOnly?'#e3b341':'';btn.style.color=chartTabWlOnly?'#e3b341':'';}
   renderChartPills();
 }
 
@@ -1365,30 +1473,7 @@ let corrWlOnly=false;
 
 function toggleCorrWatchlistFilter(){
   corrWlOnly=!corrWlOnly;
-  const btn=document.getElementById('corr-wl-filter-btn');
-  if(btn){btn.textContent=corrWlOnly?'★ Watchlist':'★ All';btn.style.borderColor=corrWlOnly?'#e3b341':'';btn.style.color=corrWlOnly?'#e3b341':'';}
   renderCorr(D.corr);
-}
-
-function renderCorrPills(pairs){
-  const container=document.getElementById('corr-pill-row');
-  if(!container||!pairs)return;
-  const wl=new Set(wlLoad());
-  const pairsToShow=corrWlOnly?pairs.filter(p=>wl.has(p.replace('','').length===6?p.slice(0,3)+'/'+p.slice(3):p)):pairs;
-  // pairs in corr are stored without slash e.g. "EURUSD"
-  container.innerHTML=pairsToShow.map(p=>{
-    const fullPair=p.length===6?p.slice(0,3)+'/'+p.slice(3):p;
-    const isWl=wl.has(fullPair);
-    const isActive=p===corrSelectedPair;
-    const h4d=D.h4&&D.h4[fullPair];
-    const lbl=h4d?h4d.label:'';
-    const dotColor=lbl==='Strong Buy'?'var(--buy)':lbl==='Buy'?'rgba(63,185,80,.7)':lbl==='Strong Sell'?'var(--sell)':lbl==='Sell'?'rgba(248,81,73,.7)':'transparent';
-    const dot=`<span style="width:7px;height:7px;border-radius:50%;background:${dotColor};display:inline-block;flex-shrink:0;vertical-align:middle;margin-right:1px;"></span>`;
-    return`<div class="cpill${isActive?' active':''}${isWl?' watchlisted':''}" data-pair="${p}" onclick="corrSelectedPair='${p}';renderCorr(D.corr)">
-      ${dot}<span>${p}</span>
-      <span class="star" onclick="event.stopPropagation();toggleWatchlist('${fullPair}')" title="Watchlist">★</span>
-    </div>`;
-  }).join('');
 }
 
 function renderCorr(corr){
