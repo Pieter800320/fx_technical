@@ -793,7 +793,7 @@ function buildTickerItems(){
     const d1=pillAbbr(D.d1&&D.d1[s.pair]?D.d1[s.pair].label:'');
     const h4=pillAbbr(D.h4&&D.h4[s.pair]?D.h4[s.pair].label:'');
     const h1=pillAbbr(D.h1&&D.h1[s.pair]?D.h1[s.pair].label:'');
-    items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SHORTLIST</span><span class="${cls}"><span style="font-size:20px;">${arrow}</span> ${s.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
+    items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SHORTLIST</span><span class="${cls}"><span style="font-size:22px;line-height:1;vertical-align:middle;">${arrow}</span> ${s.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
   });
 
   // Signal items from alerts.json (last 24h)
@@ -812,7 +812,7 @@ function buildTickerItems(){
       const d1=a.d1_label?pillAbbr(a.d1_label):'—';
       const h4=a.h4_label?pillAbbr(a.h4_label):'—';
       const h1=a.h1_label?pillAbbr(a.h1_label):'—';
-      items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SIGNAL</span><span class="${cls}"><span style="font-size:20px;">${arrow}</span> ${a.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
+      items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SIGNAL</span><span class="${cls}"><span style="font-size:22px;line-height:1;vertical-align:middle;">${arrow}</span> ${a.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
     });
   }
 
@@ -1452,8 +1452,9 @@ function toggleLive(){
 function renderLive(){
   const el=document.getElementById("live-content");if(!el)return;
   const h1=D.h1||{},d1=D.d1||{};
+  const parseUTC=s=>{if(!s)return null;const clean=s.endsWith('Z')||s.includes('+')? s : s+'Z';return new Date(clean);};
   const ts=[h1,d1].flatMap(x=>Object.values(x).map(v=>v&&v.updated)).filter(Boolean).sort();
-  const updated=ts.length?new Date(ts[ts.length-1]).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"--:--";
+  const updated=ts.length?parseUTC(ts[ts.length-1]).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"--:--";
   let rows=PAIRS.map(pair=>{
     const h=h1[pair];
     const nowClose=h&&h.raw?parseFloat(h.raw.close):null;
@@ -1618,7 +1619,8 @@ async function init(){
     load("regime.json"),load("correlation.json"),
   ]);
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v.updated):[]).filter(Boolean).sort();
-  if(ts.length)document.getElementById("last-updated").textContent="Updated: "+new Date(ts[ts.length-1]).toLocaleString();
+  const parseTS=s=>{if(!s)return new Date(s);const c=s.endsWith('Z')||s.includes('+')?s:s+'Z';return new Date(c);};
+  if(ts.length)document.getElementById("last-updated").textContent="Updated: "+parseTS(ts[ts.length-1]).toLocaleString();
   D={h1,h4,d1,csm,alerts,regime,corr};
   renderRegime(regime);renderCSM(csm);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
   if(document.getElementById('tab-charts').classList.contains('active')){renderChartPills();if(chartTabPair)renderCurrentChart();else if(PAIRS.length)selectChartPair(PAIRS[0]);}
