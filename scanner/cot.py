@@ -47,25 +47,45 @@ def _fetch_zip(url: str) -> bytes | None:
 
 
 def _zip_to_rows(data: bytes) -> list[dict]:
-    """Extract first CSV from a ZIP and return list of row dicts."""
+    """
+    Extract first CSV/TXT file from a ZIP and return list of row dicts.
+    CFTC _txt_ ZIP files contain a single comma-delimited .txt file.
+    """
     try:
         z = zipfile.ZipFile(io.BytesIO(data))
-        csv_name = next(n for n in z.namelist() if n.lower().endswith((".csv", ".txt")))
+        names = z.namelist()
+        # Find the data file — CFTC txt ZIPs contain a single .txt file
+        matches = [n for n in names if n.lower().endswith((".txt", ".csv"))]
+        if not matches:
+            print(f"  [COT] No .txt/.csv found in ZIP. Contents: {names}")
+            return []
+        csv_name = matches[0]
         with z.open(csv_name) as f:
+            # CFTC files are comma-delimited despite .txt extension
             reader = csv.DictReader(io.TextIOWrapper(f, encoding="latin-1"))
-            return list(reader)
+            rows = list(reader)
+            # Strip whitespace from all keys (CFTC headers sometimes have spaces)
+            cleaned = []
+            for row in rows:
+                cleaned.append({k.strip(): v.strip() if isinstance(v, str) else v
+                                 for k, v in row.items()})
+            return cleaned
+    except zipfile.BadZipFile:
+        print(f"  [COT] Invalid ZIP (server may have returned HTML/403 page)")
+        return []
     except Exception as e:
-        print(f"  [COT] ZIP parse error: {e}")
+        print(f"  [COT] ZIP parse error: {type(e).__name__}: {e}")
         return []
 
 
 def _fetch_cot_rows(report: str, year: int) -> list[dict]:
     """
     Fetch COT rows for a given report type and year.
-    report: 'legacy' or 'disagg'
-    Tries current year then falls back to combined historical.
+    Uses _txt_ ZIP files which contain comma-delimited text (not Excel binary).
+    _xls_ ZIP files contain Excel .xls format which cannot be read as CSV.
+    Tries current year then previous year for a full 52-week window.
     """
-    tag = "fut_fin_xls" if report == "legacy" else "fut_disagg_xls"
+    tag = "fut_fin_txt" if report == "legacy" else "fut_disagg_txt"
     urls = [
         f"https://www.cftc.gov/files/dea/history/{tag}_{year}.zip",
         f"https://www.cftc.gov/files/dea/history/{tag}_{year - 1}.zip",
@@ -73,9 +93,15 @@ def _fetch_cot_rows(report: str, year: int) -> list[dict]:
     rows = []
     for url in urls:
         data = _fetch_zip(url)
-        if data:
-            rows.extend(_zip_to_rows(data))
-            print(f"  [COT] {report} {url.split('_')[-1].split('.')[0]}: {len(rows)} rows")
+        if not data:
+            continue
+        year_label = url.split("_")[-1].split(".")[0]
+        batch = _zip_to_rows(data)
+        if batch:
+            rows.extend(batch)
+            print(f"  [COT] {report} {year_label}: {len(batch)} rows")
+        else:
+            print(f"  [COT] {report} {year_label}: parsed 0 rows (check ZIP contents)")
     return rows
 
 
@@ -102,6 +128,18 @@ def _parse_date(date_str: str) -> datetime.date | None:
 
 # ── Main parsing functions ────────────────────────────────────────────────────
 
+def _get(row: dict, *keys: str) -> str:
+    """Get a value from a row, tolerating whitespace in key names."""
+    for key in keys:
+        if key in row:
+            return row[key]
+        # Try stripped version
+        for k, v in row.items():
+            if k.strip() == key:
+                return v
+    return "0"
+
+
 def parse_legacy(rows: list[dict]) -> dict[str, list[dict]]:
     """
     Parse Legacy COT rows.
@@ -111,7 +149,7 @@ def parse_legacy(rows: list[dict]) -> dict[str, list[dict]]:
     by_currency: dict[str, list] = {c: [] for c in CURRENCY_KEYWORDS}
 
     for row in rows:
-        market = row.get("Market_and_Exchange_Names", "")
+        market = row.get("Market_and_Exchange_Names", "").strip()
         ccy = _match_currency(market)
         if not ccy:
             continue
@@ -119,9 +157,9 @@ def parse_legacy(rows: list[dict]) -> dict[str, list[dict]]:
         if not date:
             continue
         try:
-            longs  = int(str(row.get("NonComm_Positions_Long_All",  "0")).replace(",", ""))
-            shorts = int(str(row.get("NonComm_Positions_Short_All", "0")).replace(",", ""))
-            oi     = int(str(row.get("Open_Interest_All",            "0")).replace(",", ""))
+            longs  = int(_get(row, "NonComm_Positions_Long_All").replace(",", ""))
+            shorts = int(_get(row, "NonComm_Positions_Short_All").replace(",", ""))
+            oi     = int(_get(row, "Open_Interest_All").replace(",", ""))
         except (ValueError, TypeError):
             continue
         by_currency[ccy].append({
@@ -135,9 +173,9 @@ def parse_legacy(rows: list[dict]) -> dict[str, list[dict]]:
     for ccy, records in by_currency.items():
         seen = {}
         for r in records:
-            seen[r["date"]] = r  # last wins on duplicate date
+            seen[r["date"]] = r
         sorted_recs = sorted(seen.values(), key=lambda x: x["date"])
-        result[ccy] = sorted_recs[-60:]  # 60 weeks = ~15 months for stable percentile
+        result[ccy] = sorted_recs[-60:]
 
     return result
 
@@ -150,7 +188,7 @@ def parse_disaggregated(rows: list[dict]) -> dict[str, list[dict]]:
     by_currency: dict[str, list] = {c: [] for c in CURRENCY_KEYWORDS}
 
     for row in rows:
-        market = row.get("Market_and_Exchange_Names", "")
+        market = row.get("Market_and_Exchange_Names", "").strip()
         ccy = _match_currency(market)
         if not ccy:
             continue
@@ -158,10 +196,10 @@ def parse_disaggregated(rows: list[dict]) -> dict[str, list[dict]]:
         if not date:
             continue
         try:
-            am_long  = int(str(row.get("Asset_Mgr_Positions_Long_All",  "0")).replace(",", ""))
-            am_short = int(str(row.get("Asset_Mgr_Positions_Short_All", "0")).replace(",", ""))
-            lf_long  = int(str(row.get("Lev_Money_Positions_Long_All",  "0")).replace(",", ""))
-            lf_short = int(str(row.get("Lev_Money_Positions_Short_All", "0")).replace(",", ""))
+            am_long  = int(_get(row, "Asset_Mgr_Positions_Long_All").replace(",", ""))
+            am_short = int(_get(row, "Asset_Mgr_Positions_Short_All").replace(",", ""))
+            lf_long  = int(_get(row, "Lev_Money_Positions_Long_All").replace(",", ""))
+            lf_short = int(_get(row, "Lev_Money_Positions_Short_All").replace(",", ""))
         except (ValueError, TypeError):
             continue
         by_currency[ccy].append({
