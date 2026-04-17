@@ -68,7 +68,6 @@ tr:last-child td{border-bottom:none;}
 .csm-track{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;}
 .csm-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:0 4px 4px 0;}
 .csm-val{width:38px;text-align:right;font-size:var(--f-info);color:var(--muted);}
-#blurb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px;}
 .bcard{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
 .bcard-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .bcard-pair{font-weight:700;font-size:var(--f-primary);}
@@ -160,7 +159,7 @@ tr:last-child td{border-bottom:none;}
   <div class="tab active" onclick="go('dashboard')">Dashboard</div>
   <div class="tab" onclick="go('charts')">Charts</div>
   <div class="tab" onclick="go('correlation')">Correlation</div>
-  <div class="tab" onclick="go('signals')">Signals</div>
+  <div class="tab" onclick="go('signals')">Technical</div>
   <div class="tab" onclick="go('journal')">Journal</div>
   <div class="tab" onclick="go('log')">Log</div>
 </div>
@@ -319,14 +318,9 @@ tr:last-child td{border-bottom:none;}
 </div>
 
 <div id="tab-signals" class="tab-panel">
-  <div class="tbl-wrap">
-    <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:10px 14px 8px;border-bottom:1px solid var(--border);">Technical Scores</div>
-    <table class="sig-tbl"><thead><tr><th>Pair</th><th>H1</th><th>H4</th><th>D1</th></tr></thead>
-    <tbody id="sig-tbody"><tr><td colspan="4" class="loading">Loading...</td></tr></tbody></table>
-  </div>
-  <div class="module" style="margin-top:12px;padding:10px;">
-    <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px;">Latest Signals</div>
-    <div id="blurb-grid"><div class="loading">No alerts yet.</div></div>
+  <div class="module" style="padding:0;overflow:hidden;">
+    <div class="mod-hdr" style="padding:10px 14px 8px;margin:0;border-bottom:1px solid var(--border);">Technical Scores</div>
+    <div id="tech-grid"><div class="loading">Loading...</div></div>
   </div>
 </div>
 
@@ -626,65 +620,55 @@ function renderCSM(csm){
 }
 
 function renderTable(h1,h4,d1){
-  document.getElementById("sig-tbody").innerHTML=PAIRS.map(pair=>{
-    const s=pair.replace("/","");
-    return`<tr><td class="pair-cell">${pair.replace("/","")}</td>${tfCell(h1&&h1[pair],s+"-h1","right")}${tfCell(h4&&h4[pair],s+"-h4","center")}${tfCell(d1&&d1[pair],s+"-d1","left")}</tr>`;
-  }).join("");
+  const el=document.getElementById('tech-grid');
+  if(!el)return;
+  el.innerHTML=PAIRS.map(pair=>{
+    const h1d=h1&&h1[pair];const h4d=h4&&h4[pair];const d1d=d1&&d1[pair];
+    const h1lbl=h1d?h1d.label:'—';const h4lbl=h4d?h4d.label:'—';const d1lbl=d1d?d1d.label:'—';
+    const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
+    const atrOk=h4d?h4d.filter_ok!==false:null;
+    const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
+    const score=h4d?h4d.score:null;
+
+    // Determine overall direction for row accent
+    const dir=h4d?h4d.direction:'neutral';
+    const accentCol=dir==='bull'?'rgba(35,134,54,.15)':dir==='bear'?'rgba(248,81,73,.1)':'transparent';
+    const borderCol=dir==='bull'?'rgba(35,134,54,.35)':dir==='bear'?'rgba(248,81,73,.3)':'var(--border)';
+
+    // Score pills D1/H4/H1
+    const scorePills=['D1','H4','H1'].map((tf,i)=>{
+      const lbl=[d1lbl,h4lbl,h1lbl][i];
+      return`<div class="pill ${pillClass(lbl)}" style="flex:1;text-align:center;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;border-radius:6px;">
+        <span style="font-size:var(--f-pill);font-weight:700;">${pillAbbr(lbl)}</span>
+        <span style="font-size:var(--f-th);opacity:.6;">${tf}</span>
+      </div>`;
+    }).join('');
+
+    // Indicator strip ADX/ATR/Score/Ext
+    const adxCol=adxV!==null?(adxV>=25?'var(--buy)':adxV>=20?'#e3b341':'var(--sell)'):'var(--muted)';
+    const atrCol=atrOk===null?'var(--muted)':atrOk?'var(--buy)':'var(--sell)';
+    const extCol=ext?'#e3b341':'var(--buy)';
+    const scoreCol=score!==null?(score>0?'var(--buy)':score<0?'var(--sell)':'var(--muted)'):'var(--muted)';
+    const indItems=[
+      {l:'ADX',v:adxV!==null?adxV.toFixed(0):'—',c:adxCol},
+      {l:'ATR',v:atrOk===null?'—':atrOk?'OK':'Low',c:atrCol},
+      {l:'Score',v:score!==null?(score>0?'+'+score:String(score)):'—',c:scoreCol},
+      {l:'Ext',v:ext?'Yes':'No',c:extCol},
+    ];
+    const indStrip=indItems.map((x,i)=>`${i>0?'<span style="color:var(--border);user-select:none;padding:0 3px;">│</span>':''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${x.c};">${x.v}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${x.l}</span></div>`).join('');
+
+    return`<div style="padding:10px 14px;border-bottom:1px solid var(--border);background:${accentCol};">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-weight:700;font-size:var(--f-primary);color:var(--text);">${pair.replace('/','')}</span>
+        <span style="font-size:var(--f-th);color:var(--muted);">${h4d&&h4d.updated?new Date(h4d.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):''}</span>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:6px;">${scorePills}</div>
+      <div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${borderCol};border-radius:6px;padding:6px 6px;">${indStrip}</div>
+    </div>`;
+  }).join('');
 }
 
-const prompts={};
-function renderSignals(blurbs){
-  const el=document.getElementById("blurb-grid");
-  if(!blurbs||!blurbs.alerts||!blurbs.alerts.length){el.innerHTML='<div class="loading">No alerts yet.</div>';return;}
-  const cutoff=Date.now()-24*60*60*1000;
-  const recent=blurbs.alerts.slice().reverse().filter(a=>{if(!a.timestamp)return true;return new Date(a.timestamp).getTime()>cutoff;});
-  const latest=recent.length>0?recent:(()=>{const seen=new Set();return blurbs.alerts.slice().reverse().filter(a=>{if(seen.has(a.pair))return false;seen.add(a.pair);return true;});})();
-  const reg=(D.regime&&D.regime.regime)||"Unknown";
-  const regConf=(D.regime&&D.regime.confidence)||"";
-  el.innerHTML=latest.map((a,i)=>{
-    const isBull=a.direction==="bull";
-    const dLabel=isBull?"BUY":"SELL";
-    const time=a.timestamp?new Date(a.timestamp).toLocaleString():"";
-    const headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||"");
-    const h4d=D.h4&&D.h4[a.pair];
-    const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
-    const adxS=adxV!==null?adxV.toFixed(1):"N/A";
-    const adxC=adxV!==null?(adxV>=25?"var(--buy)":adxV>=20?"#e3b341":"var(--sell)"):"var(--muted)";
-    const atrOk=h4d?h4d.filter_ok!==false:true;
-    const ext=h4d&&h4d.extended&&h4d.extended.extended;
-    const aReg=a.regime||reg;const aConf=a.regime_confidence||regConf;
-    const rC=RC[aReg]||RC["Mixed"];
-    prompts[i]="You are an institutional FX trader with web search access.\n\nSIGNAL:\nPair: "+a.pair.replace("/","")+" | Direction: "+dLabel+"\nD1: "+(a.d1_label||"N/A")+" | H4: "+(a.h4_label||"N/A")+" | H1: "+(a.h1_label||"N/A")+"\nADX: "+adxS+" | ATR: "+(atrOk?"Normal":"Contracted")+" | Extended: "+(ext?"Yes":"No")+"\nRegime (proxy): "+aReg+" ("+aConf+")\nNews: \""+headline+"\"\nTime: "+time+"\n\nSearch current VIX, DXY, and "+a.pair.replace("/","")+" macro context.\nAssess: (1) does macro support this direction? (2) is price fresh or extended?\n\nOutput strictly:\nRegime / Edge or Flaw / Verdict\nMax 40 words. Be decisive.";
-    return`<div class="bcard">
-      <div class="bcard-hdr"><span class="bcard-pair">${a.pair.replace("/","")}</span><span class="bdir ${isBull?"bull":"bear"}" onclick="const bi=this.closest('.bcard').querySelector('.binfo');bi.classList.toggle('open')">${dLabel}</span></div>
-      <div class="binfo">
-        <div style="font-size:var(--f-info);line-height:1.9;">${(()=>{
-          const h4d=D.h4&&D.h4[a.pair];
-          const st=h4d&&h4d.structure;
-          const cf=h4d&&h4d.conflict;
-          let L=[];
-          L.push("<b>"+dLabel+" "+a.pair.replace("/","")+"</b>");
-          L.push("D1: "+(a.d1_label||"N/A")+"&nbsp;&nbsp;H4: "+(a.h4_label||"N/A")+"&nbsp;&nbsp;H1: "+(a.h1_label||"N/A"));
-          L.push("ADX: "+adxS+"&nbsp;&nbsp;ATR: "+(atrOk?"Normal":"Contracted"));
-          if(ext)L.push("<span style='color:#e3b341'>&#9888;&#65039; Extended</span>");
-          if(st&&st.event&&st.event!=="none"){const evC=st.event==="BOS"?"var(--buy)":"#e3b341";L.push("Structure: <span style='color:"+evC+"'>"+st.event+"</span> ("+st.direction+") &times;"+(st.multiplier||1).toFixed(2));}
-          if(cf)L.push("<span style='color:#e3b341'>&#9888;&#65039; Conflict: structure vs momentum</span>");
-          L.push("Regime: <span style='color:"+rC.c+"'>"+aReg+(aConf?" ("+aConf+")":"")+"</span>");
-          return L.map(l=>"<div>"+l+"</div>").join("");
-        })()}</div>
-      </div>
-      <div class="btext">${headline||"<em>No news.</em>"}</div>
-      <div class="btime">${time}</div>
-      <button class="cpbtn" id="cp-${i}" onclick="copyPrompt(${i})">Copy Prompt</button>
-    </div>`;
-  }).join("");
-}
-function copyPrompt(i){
-  navigator.clipboard.writeText(prompts[i]||"").then(()=>{
-    const b=document.getElementById("cp-"+i);b.textContent="✓ Copied!";b.classList.add("ok");
-    setTimeout(()=>{b.textContent="Copy Prompt";b.classList.remove("ok");},2000);
-  });
-}
+function renderSignals(){}  // stub — signal cards removed
 
 function getCorrVal(pair1,pair2){
   if(!D.corr||!D.corr.pairs||!D.corr.matrix)return null;
@@ -802,18 +786,13 @@ function buildTickerItems(){
 function tickerRender(){
   const win=document.getElementById('dash-ticker-window');
   if(!win||!tickerItems.length)return;
-  const total=tickerItems.length;
-
-  // Build 3 visible slots: top = newest, bottom = oldest
-  const indices=[
-    ((tickerIdx-2)%total+total)%total,
-    ((tickerIdx-1)%total+total)%total,
-    tickerIdx%total,
-  ];
-
-  win.innerHTML=indices.map((idx,pos)=>{
-    const age=2-pos; // 0=newest(top), 2=oldest(bottom)
-    const opacity=age===0?1:age===1?.75:.5;
+  const n=tickerItems.length;
+  // Show 3 rows: [idx] on top (newest arrival), scrolling down over time
+  const i0=(tickerIdx%n+n)%n;
+  const i1=((tickerIdx+1)%n+n)%n;
+  const i2=((tickerIdx+2)%n+n)%n;
+  win.innerHTML=[i0,i1,i2].map((idx,pos)=>{
+    const opacity=pos===0?1:pos===1?.7:.4;
     return`<div class="ticker-row visible" style="opacity:${opacity};">${tickerItems[idx]}</div>`;
   }).join('');
 }
@@ -821,45 +800,41 @@ function tickerRender(){
 function tickerStep(){
   const win=document.getElementById('dash-ticker-window');
   if(!win||!tickerItems.length)return;
+
+  // Advance index — next item enters at TOP, bottom exits
+  const n=tickerItems.length;
+  tickerIdx=((tickerIdx-1)%n+n)%n; // step backwards so top gets newest
+
   const rows=win.querySelectorAll('.ticker-row');
 
-  // Mark bottom row as exiting
-  if(rows[0])rows[0].classList.replace('visible','exiting');
+  // Mark bottom (last) row as exiting downward
+  const lastRow=rows[rows.length-1];
+  if(lastRow)lastRow.classList.replace('visible','exiting');
 
-  // Prepare new row at top (entering)
-  const newIdx=((tickerIdx+1)%tickerItems.length);
+  // Build new row entering from top
   const newRow=document.createElement('div');
   newRow.className='ticker-row entering';
-  newRow.innerHTML=tickerItems[newIdx];
+  newRow.innerHTML=tickerItems[tickerIdx];
   win.insertBefore(newRow,win.firstChild);
 
-  // Trigger transition on next frame
-  requestAnimationFrame(()=>{
-    requestAnimationFrame(()=>{
-      newRow.classList.replace('entering','visible');
-      // Fade down opacity on existing rows
-      const allRows=win.querySelectorAll('.ticker-row');
-      allRows.forEach((r,i)=>{
-        const age=i; // 0=newest
-        r.style.opacity=age===0?1:age===1?.75:.5;
-      });
-    });
-  });
+  requestAnimationFrame(()=>{requestAnimationFrame(()=>{
+    newRow.classList.replace('entering','visible');
+    const all=win.querySelectorAll('.ticker-row:not(.exiting)');
+    all.forEach((r,i)=>{r.style.opacity=i===0?1:i===1?.7:.4;});
+  });});
 
-  // Remove exiting row after transition
   setTimeout(()=>{
-    const exiting=win.querySelector('.exiting');
-    if(exiting)exiting.remove();
-    tickerIdx=newIdx;
+    const ex=win.querySelector('.exiting');
+    if(ex)ex.remove();
   },500);
 }
 
 function updateTicker(){
   tickerItems=buildTickerItems();
-  tickerIdx=tickerItems.length>0?tickerItems.length-1:0;
+  tickerIdx=0;
   tickerRender();
   if(tickerTimer)clearInterval(tickerTimer);
-  tickerTimer=setInterval(tickerStep,3000);
+  tickerTimer=setInterval(tickerStep,6000);
 }
 
 // ── Shortlist cards ────────────────────────────────────────────────────────────
