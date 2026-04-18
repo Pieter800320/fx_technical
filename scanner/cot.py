@@ -247,8 +247,15 @@ def fetch_cot_data(year: int | None = None) -> dict:
 
     print(f"  [COT] Fetching Legacy report...")
     leg_rows  = _fetch_cot_rows("legacy", year)
+    # Diagnostic: show first 3 market names and all column headers
+    if leg_rows:
+        print(f"  [COT] Legacy columns sample: {list(leg_rows[0].keys())[:6]}")
+        markets = list(dict.fromkeys(r.get("Market_and_Exchange_Names","") for r in leg_rows[:50]))
+        print(f"  [COT] First market names: {markets[:8]}")
     print(f"  [COT] Fetching Disaggregated report...")
     dis_rows  = _fetch_cot_rows("disagg", year)
+    if dis_rows:
+        print(f"  [COT] Disagg columns sample: {list(dis_rows[0].keys())[:6]}")
 
     legacy = parse_legacy(leg_rows)
     disagg = parse_disaggregated(dis_rows)
