@@ -205,17 +205,6 @@ tr:last-child td{border-bottom:none;}
     <div id="csm-grid"><div class="loading">Loading...</div></div>
   </div>
 
-  <!-- Decision Reference -->
-  <div class="module" style="padding:0;overflow:hidden;">
-    <div onclick="toggleDecision()" style="cursor:pointer;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
-      <span style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Decision Reference</span>
-      <span id="decision-chevron" style="color:var(--muted);font-size:var(--f-th);">▾</span>
-    </div>
-    <div id="decision-drawer" style="display:none;border-top:1px solid var(--border);">
-      <div id="decision-content" style="padding:10px 14px;font-size:var(--f-info);line-height:2.0;"></div>
-    </div>
-  </div>
-
   <!-- Market Brief / Live -->
   <div class="module" style="padding:0;overflow:hidden;">
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);">
@@ -233,16 +222,20 @@ tr:last-child td{border-bottom:none;}
 
   <!-- Trade Qualification Checklist (TQC) -->
   <div class="module" style="padding:0;overflow:hidden;">
-    <div onclick="toggleTQC()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid transparent;" id="tqc-header">
-      <span style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Trade Checklist</span>
-      <div style="display:flex;align-items:center;gap:8px;">
-        <select id="tqc-pair" onchange="renderTQC()" onclick="event.stopPropagation()" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:3px 8px;font-size:var(--f-pill);font-weight:600;">
-          <option value="">— pair —</option>
-        </select>
-        <span id="tqc-chevron" style="color:var(--muted);font-size:var(--f-th);">▾</span>
-      </div>
+    <div onclick="toggleTQC()" id="tqc-header" style="cursor:pointer;text-align:center;padding:10px 14px;border-bottom:1px solid transparent;">
+      <span style="font-weight:600;font-size:var(--f-info);color:#58a6ff;">Trade Checklist</span>
     </div>
-    <div id="tqc-body" style="display:none;background:#0d1117;border-top:1px solid var(--border);"></div>
+    <div id="tqc-body" style="display:none;background:#0d1117;border-top:1px solid var(--border);">
+      <!-- Pair selector inside drawer — same style as Charts tab -->
+      <div style="display:flex;align-items:center;border-bottom:1px solid var(--border);">
+        <div class="fg" style="flex:1;margin:0;padding:10px 14px;">
+          <select id="tqc-pair" onchange="renderTQC()" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-size:var(--f-input);width:100%;font-weight:600;">
+            <option value="">— select pair —</option>
+          </select>
+        </div>
+      </div>
+      <div id="tqc-content"></div>
+    </div>
   </div>
 
   <div id="charts-wrap" style="display:none;"></div>
@@ -1131,17 +1124,15 @@ function toggleTQC(){
   tqcOpen=!tqcOpen;
   const body=document.getElementById('tqc-body');
   const hdr=document.getElementById('tqc-header');
-  const chev=document.getElementById('tqc-chevron');
-  if(body){body.style.display=tqcOpen?'block':'none';}
-  if(hdr){hdr.style.borderBottomColor=tqcOpen?'var(--border)':'transparent';}
-  if(chev){chev.textContent=tqcOpen?'▴':'▾';}
+  if(body)body.style.display=tqcOpen?'block':'none';
+  if(hdr)hdr.style.borderBottomColor=tqcOpen?'var(--border)':'transparent';
   if(tqcOpen)renderTQC();
 }
 
 function renderTQC(){
   const sel=document.getElementById('tqc-pair');
   const pair=sel?sel.value:'';
-  const body=document.getElementById('tqc-body');
+  const body=document.getElementById('tqc-content');
   if(!body)return;
   if(!pair){
     body.innerHTML='<div style="padding:12px 14px;color:var(--muted);font-size:var(--f-info);">Select a pair above to check setup quality.</div>';
@@ -1799,121 +1790,6 @@ function renderCharts(){
   if(wrap)wrap.style.display='none';
 }
 
-function toggleDecision(){
-  const drawer=document.getElementById('decision-drawer');
-  const chevron=document.getElementById('decision-chevron');
-  if(!drawer)return;
-  const open=drawer.style.display==='block';
-  drawer.style.display=open?'none':'block';
-  if(chevron)chevron.textContent=open?'▾':'▴';
-  if(!open)renderDecision();
-}
-
-function renderDecision(){
-  const el=document.getElementById('decision-content');
-  if(!el)return;
-
-  // Use drum center pair if available, else first pair
-  const drum=document.getElementById('drum-scroll');
-  let pair=PAIRS[0];
-  if(drum){
-    const centerEl=drum.querySelector('.drum-center');
-    if(centerEl){
-      const idx=parseInt(centerEl.dataset.idx||'0');
-      if(drumRows[idx])pair=drumRows[idx].pair;
-    }
-  }
-
-  const h1d=D.h1&&D.h1[pair];
-  const h4d=D.h4&&D.h4[pair];
-  const d1d=D.d1&&D.d1[pair];
-  const regime=D.regime&&D.regime.regime||'Unknown';
-  const convPairs=D.conviction&&D.conviction.pairs||{};
-  const conv=convPairs[pair];
-  const qai=computeQAI(pair);
-  const[base,quote]=pair.split('/');
-  const csm=D.csm&&D.csm.rankings||{};
-
-  function check(pass, label, detail){
-    const icon=pass==='pass'?'✓':pass==='warn'?'△':'✗';
-    const col=pass==='pass'?'var(--buy)':pass==='warn'?'#e3b341':'var(--sell)';
-    return`<div style="display:flex;gap:8px;padding:2px 0;">
-      <span style="color:${col};font-weight:700;width:14px;flex-shrink:0;">${icon}</span>
-      <span style="flex:1;color:var(--text);">${label}</span>
-      <span style="color:var(--muted);font-size:10px;">${detail}</span>
-    </div>`;
-  }
-
-  const rows=[];
-  // Pair label
-  rows.push(`<div style="font-weight:700;font-size:var(--f-primary);color:var(--text);margin-bottom:6px;">${pair.replace('/','')}</div>`);
-
-  // 1. Regime
-  const regOk=regime==='Risk-On'||regime==='Risk-Off';
-  rows.push(check(regOk?'pass':'warn','Regime is directional',regime));
-
-  // 2. D1 direction
-  const d1dir=d1d?d1d.direction:'neutral';
-  const d1ok=d1dir!=='neutral';
-  rows.push(check(d1ok?'pass':'fail','D1 is directional',d1d?d1d.label:'No data'));
-
-  // 3. H4 agrees with D1
-  const h4dir=h4d?h4d.direction:'neutral';
-  const h4ok=h4dir===d1dir&&d1ok;
-  rows.push(check(h4ok?'pass':h4dir==='neutral'?'warn':'fail','H4 agrees with D1',h4d?h4d.label:'No data'));
-
-  // 4. H1 not opposing
-  const h1dir=h1d?h1d.direction:'neutral';
-  const h1ok=h1dir===d1dir||h1dir==='neutral';
-  rows.push(check(h1ok?'pass':'warn','H1 not opposing',h1d?h1d.label:'No data'));
-
-  // 5. Conviction ≥ 0
-  const convOk=conv===undefined?null:conv>=30;
-  const convWarn=conv!==undefined&&conv>=0&&conv<30;
-  rows.push(check(convOk===null?'warn':convOk?'pass':convWarn?'warn':'fail',
-    'Conviction ≥ 0',conv!==undefined?(conv>0?'+':'')+conv:'N/A'));
-
-  // 6. ADX ≥ 20
-  const adx=h4d&&h4d.raw?h4d.raw.adx:null;
-  const adxOk=adx!==null&&adx>=20;
-  rows.push(check(adx===null?'warn':adxOk?'pass':adx>=15?'warn':'fail','ADX ≥ 20',adx?adx.toFixed(0):'N/A'));
-
-  // 7. ATR Normal
-  const atrOk=h4d?h4d.filter_ok!==false:true;
-  rows.push(check(atrOk?'pass':'fail','ATR not contracted',atrOk?'Normal':'Contracted'));
-
-  // 8. Not extended
-  const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
-  rows.push(check(ext?'warn':'pass','Not extended',ext?'Extended — tighten TP':'Clean'));
-
-  // 9. CSM divergence
-  const csmB=csm[base]||50,csmQ=csm[quote]||50;
-  const csmDiv=Math.abs(csmB-csmQ);
-  rows.push(check(csmDiv>=20?'pass':csmDiv>=10?'warn':'fail',
-    'CSM divergence',base+': '+csmB.toFixed(0)+' / '+quote+': '+csmQ.toFixed(0)));
-
-  // 10. QAI
-  rows.push(check(qai.score>=70?'pass':qai.score>=40?'warn':'fail',
-    'QAI ≥ 70%',qai.score>0?qai.score+'%':'—'));
-
-  // Pass count
-  const passCount=rows.filter(r=>r.includes('var(--buy)')).length-1; // -1 for pair label
-  const total=9;
-  const summaryCol=passCount>=7?'var(--buy)':passCount>=5?'#e3b341':'var(--sell)';
-  rows.push(`<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--border);display:flex;justify-content:space-between;">
-    <span style="color:var(--muted);">Checklist</span>
-    <span style="font-weight:700;color:${summaryCol};">${passCount}/${total} pass</span>
-  </div>`);
-
-  el.innerHTML=rows.join('');
-}
-
-// Re-render decision reference on drum scroll
-const _drumEl=document.getElementById('drum-scroll');
-if(_drumEl)_drumEl.addEventListener('scroll',()=>{
-  if(document.getElementById('decision-drawer')&&document.getElementById('decision-drawer').style.display==='block')
-    setTimeout(renderDecision,200);
-});
 function toggleBrief(){
   const el=document.getElementById("brief-text");if(!el)return;
   const live=document.getElementById("live-drawer");
