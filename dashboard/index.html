@@ -646,13 +646,11 @@ function tfCell(data,uid,pos){
 
 function _convBadge(score){
   if(score===null||score===undefined)return'';
-  if(score===0)return`<span style="font-size:var(--f-th);font-weight:400;color:var(--muted);white-space:nowrap;margin-left:6px;min-width:42px;text-align:right;">0</span>`;
+  if(score===0)return`<span style="font-size:var(--f-th);font-weight:400;color:var(--muted);white-space:nowrap;margin-left:6px;min-width:36px;text-align:right;">0</span>`;
   const abs=Math.abs(score);
-  const col=abs>=60?'var(--buy)':abs>=30?'#e3b341':'var(--muted)';
-  const negCol=abs>=60?'var(--sell)':abs>=30?'#e3b341':'var(--muted)';
-  const c=score>0?col:negCol;
-  const arr=score>0?'▲':'▼';
-  return`<span style="font-size:var(--f-th);font-weight:400;color:${c};white-space:nowrap;margin-left:6px;min-width:42px;text-align:right;">${arr}${score>0?'+':''}${score}</span>`;
+  const col=score>0?(abs>=60?'var(--buy)':abs>=30?'#e3b341':'var(--muted)')
+                   :(abs>=60?'var(--sell)':abs>=30?'#e3b341':'var(--muted)');
+  return`<span style="font-size:var(--f-th);font-weight:400;color:${col};white-space:nowrap;margin-left:6px;min-width:36px;text-align:right;">${score>0?'+':''}${score}</span>`;
 }
 
 function renderCSM(csm, conviction){
@@ -684,8 +682,12 @@ function renderCSM(csm, conviction){
     if(cdata){
       convRows+=`<div class="ddiv"></div>`;
       convRows+=`<div class="drop-hd" style="margin-top:4px;">Conviction ${convScore!==null?`<span style="color:${convScore>0?'var(--buy)':convScore<0?'var(--sell)':'var(--muted)'};margin-left:6px;">${convScore>0?'+':''}${convScore}</span>`:''}</div>`;
-      if(cotStale||!cdata.cot_available){
-        convRows+=`<div class="dr"><span class="dn" style="color:#e3b341">⚠ COT</span><span style="color:#e3b341;font-weight:600">${cotStale?'Stale':'Pending'}</span></div>`;
+      if(cotStale){
+        convRows+=`<div class="dr"><span class="dn" style="color:#e3b341">⚠ COT</span><span style="color:#e3b341;font-weight:600">Stale</span></div>`;
+      } else if(!cdata.cot_available){
+        const naMsg=ccy==='USD'?'No futures contract':'Pending';
+        const naCol=ccy==='USD'?'var(--muted)':'#e3b341';
+        convRows+=`<div class="dr"><span class="dn" style="color:${naCol}">COT</span><span style="color:${naCol};font-weight:600">${naMsg}</span></div>`;
       } else if(cotDate){
         convRows+=`<div class="dr"><span class="dn">COT Date</span><span style="color:var(--muted);font-weight:600">${cotDate}</span></div>`;
       }
@@ -890,7 +892,20 @@ function generateBrief(){
   const adxVals=PAIRS.map(p=>D.h4&&D.h4[p]&&D.h4[p].raw?D.h4[p].raw.adx:null).filter(Boolean);
   const avgAdx=adxVals.length?adxVals.reduce((a,b)=>a+b,0)/adxVals.length:0;
   const adxText=avgAdx>25?"Average ADX "+avgAdx.toFixed(0)+" - trending market, signals carry weight.":avgAdx>20?"Average ADX "+avgAdx.toFixed(0)+" - borderline trend, use caution.":"Average ADX "+avgAdx.toFixed(0)+" - low trend participation, signals less reliable.";
-  return["Regime: "+r+"  "+conf+(regime.data_source?" ["+regime.data_source+"]":""),"",usdText+" "+shText,dispText,"","Strongest currencies: "+strongest+".","Weakest currencies:   "+weakest+".",""  ,signalText,"",extText,adxText,"","Note: correlation based on last "+(D.corr&&D.corr.lookback?D.corr.lookback:50)+" bars - may be less reliable if regime recently changed."].join("\n");
+  // Conviction summary
+  let convText='';
+  const convCurr=D.conviction&&D.conviction.currencies;
+  if(convCurr){
+    const convSorted=Object.entries(convCurr).map(([c,d])=>({c,v:d.conviction})).sort((a,b)=>b.v-a.v);
+    const highConv=convSorted.filter(x=>x.v>=40).map(x=>x.c+(x.v>0?'+':'')+x.v).join(', ');
+    const lowConv=convSorted.filter(x=>x.v<=-20).map(x=>x.c+x.v).join(', ');
+    const cotDate=D.conviction.cot_date&&D.conviction.cot_date!=='unknown'?` (COT: ${D.conviction.cot_date})`:'';
+    convText='\nConviction'+cotDate+':';
+    convSorted.forEach(({c,v})=>{convText+='\n  '+c+': '+(v>0?'+':'')+v;});
+    if(highConv)convText+='\nHigh conviction (≥40): '+highConv+'.';
+    if(lowConv)convText+='\nLow conviction (≤-20): '+lowConv+'.';
+  }
+  return["Regime: "+r+"  "+conf+(regime.data_source?" ["+regime.data_source+"]":""),"",usdText+" "+shText,dispText,"","Strongest currencies: "+strongest+".","Weakest currencies:   "+weakest+".",""  ,signalText,"",extText,adxText,convText,"","Note: correlation based on last "+(D.corr&&D.corr.lookback?D.corr.lookback:50)+" bars - may be less reliable if regime recently changed."].join("\n");
 }
 
 // ── Pair Drum Wheel ───────────────────────────────────────────────────────────
@@ -920,31 +935,33 @@ function buildDrumRows(){
     const isShort=keptPairs.has(pair);
     const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoff));
 
-    // Everything green — direction shown by arrow shape only
-    const dirChar=dir==='bull'?'▲':dir==='bear'?'▼':'–';
+    // Direction — explicit size so ▲ and ▼ render identically in VT323
+    const dirChar=dir==='bull'
+      ?`<span style="font-size:17px;line-height:1;vertical-align:middle;">▲</span>`
+      :dir==='bear'
+      ?`<span style="font-size:17px;line-height:1;vertical-align:middle;">▼</span>`
+      :`<span style="opacity:.4;">–</span>`;
 
-    // Category tag — same font size as pair name
+    // Pair name — leftmost
+    const pairSpan=`<span style="margin-right:4px;min-width:60px;">${pair.replace('/','')}</span>`;
+
+    // Category tag — after pair name, subtle
     const catTag=isShort
-      ?`<span style="opacity:.4;margin-right:8px;min-width:32px;">${hasSig?'SIG':'LST'}</span>`
-      :`<span style="margin-right:8px;min-width:32px;opacity:0;">LST</span>`;
-
-    // Pair name
-    const pairSpan=`<span style="margin-right:8px;min-width:58px;">${pair.replace('/','')}</span>`;
+      ?`<span style="opacity:.35;margin-right:8px;min-width:28px;">${hasSig?'SIG':'LST'}</span>`
+      :`<span style="margin-right:8px;min-width:28px;"></span>`;
 
     // Direction arrow
     const arrSpan=`<span style="margin-right:8px;">${dirChar}</span>`;
 
-    // D1 H4 H1 scores — space-separated
-    const scoresSpan=`<span style="opacity:.7;margin-right:8px;min-width:54px;">${d1} ${h4} ${h1}</span>`;
+    // D1 H4 H1 scores
+    const scoresSpan=`<span style="opacity:.7;margin-right:6px;min-width:54px;">${d1} ${h4} ${h1}</span>`;
 
-    // Conviction — always show, same size, right-aligned
+    // Conviction — always show
     const conv=convPairs[pair];
-    const convStr=conv!==undefined&&conv!==null
-      ?(conv===0?'0':(conv>0?'+':'')+conv)
-      :'';
+    const convStr=conv!==undefined&&conv!==null?(conv===0?'0':(conv>0?'+':'')+conv):'';
     const convSpan=`<span style="opacity:${conv&&Math.abs(conv)>=30?1:.55};min-width:32px;text-align:right;">${convStr}</span>`;
 
-    rows.push({pair,dir,html:`${catTag}${pairSpan}${arrSpan}${scoresSpan}${convSpan}`});
+    rows.push({pair,dir,html:`${pairSpan}${catTag}${arrSpan}${scoresSpan}${convSpan}`});
   });
 
   return rows;
