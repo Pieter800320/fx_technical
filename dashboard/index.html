@@ -248,7 +248,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <!-- Box 2: Chart -->
-  <div class="module" id="chart-main-module" style="padding:0;overflow:hidden;">
+  <div class="module" id="chart-main-module" style="padding:0;overflow:hidden;border-left-color:#0d1117;border-right-color:#0d1117;border-bottom-color:#0d1117;">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px 7px;border-bottom:1px solid var(--border);">
       <span id="chart-pair-label" style="font-weight:700;font-size:var(--f-primary);color:var(--text);">—</span>
       <div style="display:flex;gap:4px;">
@@ -484,11 +484,35 @@ function renderSessions(){
 
   // ── Shelf rows ────────────────────────────────
   if(shelfContent){
+    // When market is closed, calculate next actual session open AFTER market reopens
+    // Market reopens Sunday 22:00 UTC — sessions opening before that don't count
+    function nextActualOpen(startHour){
+      const now=new Date();
+      if(!isClosed){
+        // Normal: just use minsUntil
+        const t=minsUntil(startHour);
+        return t?'opens '+t:'—';
+      }
+      // Find next Sunday 22:00 UTC (market open)
+      const mktOpen=new Date();
+      const dow=mktOpen.getUTCDay();
+      const daysToSun=dow===0?0:(7-dow);
+      mktOpen.setUTCDate(mktOpen.getUTCDate()+daysToSun);
+      mktOpen.setUTCHours(22,0,0,0);
+      if(mktOpen<=now)mktOpen.setUTCDate(mktOpen.getUTCDate()+7);
+      // Find next occurrence of startHour that is at or after mktOpen
+      const cand=new Date(mktOpen);
+      cand.setUTCHours(startHour,0,0,0);
+      if(cand<=mktOpen)cand.setUTCDate(cand.getUTCDate()+1);
+      const diffM=Math.round((cand-now)/60000);
+      const h=Math.floor(diffM/60),m=diffM%60;
+      return 'opens '+(h>0?h+'h '+(m>0?m+'m':''):m+'m');
+    }
+
     shelfContent.innerHTML=Object.entries(SESS).map(([n,[s,e]])=>{
-      // When market is closed (weekend), no session is active regardless of clock
       const isActive=!isClosed&&act.includes(n);
       const timeStr=isActive?(()=>{const t=minsUntil(e);return t?'ACTIVE · closes '+t:'ACTIVE';})()
-                            :(()=>{const t=minsUntil(s);return t?'opens '+t:'—';})();
+                            :nextActualOpen(s);
       const nameCol=isActive?'var(--text)':'var(--muted)';
       const timeCol=isActive?'#58a6ff':'var(--muted)';
       const bg=isActive?'background:rgba(56,139,253,.04);':'';
@@ -620,13 +644,12 @@ function tfCell(data,uid,pos){
 }
 
 function _convBadge(score){
-  // Render a small conviction badge: coloured score + directional arrow
-  if(score===null||score===undefined)return'';
+  if(score===null||score===undefined||score===0)return'';
   const abs=Math.abs(score);
   const col=abs>=60?'var(--buy)':abs>=30?'#e3b341':'var(--muted)';
   const negCol=abs>=60?'var(--sell)':abs>=30?'#e3b341':'var(--muted)';
-  const c=score>0?col:score<0?negCol:'var(--muted)';
-  const arr=score>0?'▲':score<0?'▼':'▬';
+  const c=score>0?col:negCol;
+  const arr=score>0?'▲':'▼';
   return`<span style="font-size:var(--f-th);font-weight:700;color:${c};white-space:nowrap;margin-left:6px;min-width:42px;text-align:right;">${arr}${score>0?'+':''}${score}</span>`;
 }
 
@@ -697,7 +720,7 @@ function tfCellFlat(data,uid,pos,tfLabel){
   const fok=data.filter_ok!==false;
   const ext=!!(data.extended&&data.extended.extended);
   const struct=data.structure,cf=data.conflict;
-  const pr=uid.replace(/-[dh][14]t$/,'').toUpperCase();
+  const pr=uid.replace(/-c?[dh][14]t$/i,'').toUpperCase();
   let rows=`<div class="drop-hd">${pr} — ${tfLabel}</div>`;
   rows+=Object.entries(SIGS).map(([k,l])=>`<div class="dr"><span class="dn">${l}</span>${sv(sigs[k]??null)}</div>`).join('');
   rows+=`<div class="ddiv"></div>`;
@@ -907,31 +930,32 @@ function buildDrumRows(){
       pairCol=isShort?'#f85149':'rgba(248,81,73,.7)';
     }
 
-    // Category tag
+    // Category tag — subtle, should not dominate the pair name
     let catTag='';
     if(isShort){
-      // Check if has recent signal
       const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoff));
-      catTag=`<span style="color:${hasSig?'rgba(0,204,51,.6)':'rgba(0,204,51,.35)'};font-size:14px;width:48px;flex-shrink:0;">${hasSig?'SIG':'LIST'}</span>`;
+      catTag=`<span style="color:rgba(0,204,51,.28);font-size:13px;width:48px;flex-shrink:0;">${hasSig?'SIG':'LIST'}</span>`;
     } else {
-      catTag=`<span style="color:rgba(0,204,51,.2);font-size:14px;width:48px;flex-shrink:0;">    </span>`;
+      catTag=`<span style="width:48px;flex-shrink:0;"></span>`;
     }
 
-    // Conviction badge
+    // Conviction badge — hide when zero
     const conv=convPairs[pair];
     let convStr='';
-    if(conv!==undefined&&conv!==null){
+    if(conv!==undefined&&conv!==null&&conv!==0){
       const convAbs=Math.abs(conv);
-      const convCol=convAbs>=60?'#3fb950':convAbs>=30?'#e3b341':'rgba(0,204,51,.35)';
       if(conv<0){
-        convCol2=convAbs>=60?'#f85149':convAbs>=30?'#e3b341':'rgba(0,204,51,.35)';
+        const convCol2=convAbs>=60?'#f85149':convAbs>=30?'#e3b341':'rgba(200,80,80,.5)';
         convStr=`<span style="color:${convCol2};font-size:14px;width:36px;text-align:right;flex-shrink:0;">${conv}</span>`;
       } else {
-        convStr=`<span style="color:${convCol};font-size:14px;width:36px;text-align:right;flex-shrink:0;">${conv>0?'+':''}${conv}</span>`;
+        const convCol=convAbs>=60?'#3fb950':convAbs>=30?'#e3b341':'rgba(0,180,60,.5)';
+        convStr=`<span style="color:${convCol};font-size:14px;width:36px;text-align:right;flex-shrink:0;">+${conv}</span>`;
       }
+    } else {
+      convStr=`<span style="width:36px;flex-shrink:0;"></span>`;
     }
 
-    rows.push({pair,html:`${catTag}<span style="color:${pairCol};font-weight:700;width:56px;flex-shrink:0;">${pair.replace('/','')}</span>${dirSpan}<span style="color:rgba(0,204,51,.5);flex:1;letter-spacing:.04em;"> ${d1} ${h4} ${h1}</span>${convStr}`});
+    rows.push({pair,dir,html:`${catTag}<span style="color:${pairCol};font-weight:700;width:56px;flex-shrink:0;">${pair.replace('/','')}</span>${dirSpan}<span style="color:rgba(0,204,51,.5);flex:1;letter-spacing:.04em;"> ${d1} ${h4} ${h1}</span>${convStr}`});
   });
 
   return rows;
@@ -948,7 +972,7 @@ function updateTicker(){
 
   // Build: PAD blanks + rows + PAD blanks (so first/last pair can be centered)
   const blanks=(n)=>Array(n).fill(`<div class="drum-row" style="opacity:0;"></div>`).join('');
-  drum.innerHTML=blanks(PAD)+drumRows.map((r,i)=>`<div class="drum-row" data-idx="${i}">${r.html}</div>`).join('')+blanks(PAD);
+  drum.innerHTML=blanks(PAD)+drumRows.map((r,i)=>`<div class="drum-row" data-idx="${i}" data-dir="${r.dir||'neutral'}">${r.html}</div>`).join('')+blanks(PAD);
 
   // Scroll to first shortlist row (idx 0) centered
   drum.scrollTop=0;
@@ -962,14 +986,22 @@ function updateDrumHighlight(){
   const drum=document.getElementById('drum-scroll');
   if(!drum)return;
   const ROW_H=37;
-  const PAD=2; // blank padding rows at top — center of 5-row window is topRow + PAD
+  const PAD=2;
   const centerIdx=Math.round(drum.scrollTop/ROW_H)+PAD;
   drum.querySelectorAll('.drum-row').forEach((el,i)=>{
     const dist=Math.abs(i-centerIdx);
-    // Brighter values — center full, adjacent rows clearly visible
     el.style.opacity=dist===0?1:dist===1?0.75:dist===2?0.45:0.18;
-    if(dist===0)el.classList.add('drum-center');
-    else el.classList.remove('drum-center');
+    if(dist===0){
+      el.classList.add('drum-center');
+      // Direction-aware glow — sell=red, buy=green, neutral=green
+      const dir=el.dataset.dir||'neutral';
+      el.style.textShadow=dir==='bear'?'0 0 10px rgba(248,81,73,.8)':
+                           dir==='bull'?'0 0 10px rgba(0,255,65,.7)':
+                           '0 0 6px rgba(0,255,65,.4)';
+    } else {
+      el.classList.remove('drum-center');
+      el.style.textShadow='';
+    }
   });
 }
 
