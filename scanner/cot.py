@@ -143,14 +143,17 @@ def _get_date(row: dict) -> datetime.date | None:
 # ── Main parsing functions ────────────────────────────────────────────────────
 
 def _get(row: dict, *keys: str) -> str:
-    """Get a value from a row, tolerating whitespace in key names."""
+    """Get value from row, tolerating case differences and whitespace in key names."""
     for key in keys:
+        # Exact match first
         if key in row:
-            return row[key]
-        # Try stripped version
+            v = row[key]
+            return str(v).strip() if v is not None else "0"
+        # Case-insensitive match
+        key_lower = key.lower()
         for k, v in row.items():
-            if k.strip() == key:
-                return v
+            if k.strip().lower() == key_lower:
+                return str(v).strip() if v is not None else "0"
     return "0"
 
 
@@ -270,6 +273,14 @@ def fetch_cot_data(year: int | None = None) -> dict:
     dis_rows  = _fetch_cot_rows("disagg", year)
     if dis_rows:
         print(f"  [COT] Disagg columns sample: {list(dis_rows[0].keys())[:6]}")
+
+    # Diagnostic: show first matching EUR row to verify column names
+    for row in leg_rows:
+        market = row.get("Market_and_Exchange_Names", "").strip().upper()
+        if "EURO" in market:
+            print(f"  [COT] Sample EUR row keys: {[k for k in row.keys() if 'NONCOMM' in k.upper() or 'INTEREST' in k.upper()]}")
+            print(f"  [COT] Sample EUR row values: long={row.get('NonComm_Positions_Long_All','MISSING')} short={row.get('NonComm_Positions_Short_All','MISSING')} oi={row.get('Open_Interest_All','MISSING')}")
+            break
 
     legacy = parse_legacy(leg_rows)
     disagg = parse_disaggregated(dis_rows)
