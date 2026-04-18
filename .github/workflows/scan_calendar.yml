@@ -1,14 +1,17 @@
-name: D1 Scan + Deploy Dashboard
+name: Calendar Scan + Deploy Dashboard
+
 on:
   schedule:
-    - cron: "10 0 * * *"   # Daily at 00:10 UTC
+    - cron: "0 6 * * *"   # Daily at 06:00 UTC
   workflow_dispatch:
+
 permissions:
   contents: write
   pages:    write
   id-token: write
+
 jobs:
-  scan_d1:
+  scan_calendar:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -18,33 +21,20 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - name: Run D1 scan
-        env:
-          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
-        run: python scanner/scan_d1.py
-      - name: Embed D1 OHLCV
-        env:
-          TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
-        run: python scanner/embed_d1_ohlcv.py
-      - name: Commit D1 data
+      - name: Run calendar scan
+        run: python scanner/scan_calendar.py
+      - name: Commit calendar data
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          cp data/d1_scores.json  dashboard/
-          cp data/csm.json        dashboard/
-          cp data/regime.json     dashboard/ || true
-          cp data/h1_scores.json  dashboard/ || true
-          cp data/h4_scores.json  dashboard/ || true
-          cp data/alerts.json     dashboard/ || true
-          cp data/conviction.json dashboard/ || true
-          cp data/cot.json        dashboard/ || true
-          cp data/calendar.json   dashboard/ || true
-          git add data/ dashboard/ || true
-          git diff --cached --quiet || git commit -m "chore: D1 scan $(date -u +%Y-%m-%dT%H:%M)"
+          cp data/calendar.json dashboard/ || true
+          git add data/calendar.json dashboard/calendar.json || true
+          git diff --cached --quiet || git commit -m "chore: calendar scan $(date -u +%Y-%m-%dT%H:%M)"
           git pull origin main --no-rebase
           git push
+
   deploy_dashboard:
-    needs: scan_d1
+    needs: scan_calendar
     runs-on: ubuntu-latest
     environment:
       name: github-pages
