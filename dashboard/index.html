@@ -364,10 +364,10 @@ tr:last-child td{border-bottom:none;}
     <table id="j-tbl">
       <thead><tr>
         <th>Date</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th>
-        <th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>AI Rec</th>
+        <th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>Conv</th><th>AI Rec</th>
         <th>Result</th><th>Edit</th><th>Del</th>
       </tr></thead>
-      <tbody id="j-tbody"><tr><td colspan="15" class="loading">No trades yet.</td></tr></tbody>
+      <tbody id="j-tbody"><tr><td colspan="16" class="loading">No trades yet.</td></tr></tbody>
     </table>
   </div>
   <div id="trash-sec" style="padding:0 14px 10px;">
@@ -1794,6 +1794,14 @@ function addTrade(){
   const tp=parseFloat(document.getElementById("j-tp").value)||null;
   const{h4,d1,csm,regime}=D;
   const h4d=h4&&h4[pair],d1d=d1&&d1[pair];
+  const [base,quote]=pair.split("/");
+  // Conviction snapshot at entry time
+  const convCurr=D.conviction&&D.conviction.currencies;
+  const convPairs=D.conviction&&D.conviction.pairs||{};
+  const conv_pair=convPairs[pair]!==undefined?convPairs[pair]:null;
+  const conv_base=convCurr&&convCurr[base]?convCurr[base].conviction:null;
+  const conv_quote=convCurr&&convCurr[quote]?convCurr[quote].conviction:null;
+  const conv_cot_ok=convCurr&&convCurr[base]?convCurr[base].cot_available:false;
   const trade={
     id:Date.now(),date:new Date().toLocaleString(),pair,direction:dir,
     entry,sl,tp,r_planned:calcR(entry,sl,tp),outcome:"open",
@@ -1804,8 +1812,9 @@ function addTrade(){
     adx:h4d&&h4d.raw?h4d.raw.adx:null,atr_ok:h4d?h4d.filter_ok!==false:null,
     extended:!!(h4d&&h4d.extended&&h4d.extended.extended),
     regime:regime?regime.regime:"Unknown",regime_conf:regime?regime.confidence:"",
-    csm_base:csm&&csm.rankings?csm.rankings[pair.split("/")[0]]||null:null,
-    csm_quote:csm&&csm.rankings?csm.rankings[pair.split("/")[1]]||null:null,
+    csm_base:csm&&csm.rankings?csm.rankings[base]||null:null,
+    csm_quote:csm&&csm.rankings?csm.rankings[quote]||null:null,
+    conv_pair,conv_base,conv_quote,conv_cot_ok,
   };
   const e=jLoad();e.push(trade);jSave(e);
   renderJournal();
@@ -1841,13 +1850,18 @@ function saveEdit(){
 function renderJournal(){
   const entries=jLoad().slice().reverse();
   const tbody=document.getElementById("j-tbody");
-  if(!entries.length){tbody.innerHTML='<tr><td colspan="15" class="loading">No trades yet.</td></tr>';}
+  if(!entries.length){tbody.innerHTML='<tr><td colspan="16" class="loading">No trades yet.</td></tr>';}
   else{
     tbody.innerHTML=entries.map(t=>{
       const r=t.r_planned!==null?`<span class="${t.r_planned>=1?"rp":"rn"}">${t.r_planned}R</span>`:" - ";
       const ext=t.extended?'<span style="color:#e3b341">&#9888;&#65039;</span>':'<span style="color:var(--buy)">&#10003;</span>';
       const obs=[{o:"win",l:"&#10003;&#10003;",c:"ow",tip:"TP hit - Win"},{o:"loss",l:"&#10007;",c:"ol",tip:"SL hit - Loss"},{o:"early",l:"&#9889;",c:"oe",tip:"Closed early"}];
       const btns=obs.map(({o,l,c,tip})=>`<button class="ob ${t.outcome===o?c:"oo"}" onclick="setOutcome(${t.id},'${o}')" title="${tip}">${t.outcome===o?l:"&middot;"}</button>`).join("");
+      // Conviction display: pair score, base/quote on hover via title
+      const cp=t.conv_pair;
+      const convCol=cp===null||cp===undefined?'var(--muted)':cp>=40?'var(--buy)':cp<=-20?'var(--sell)':cp>=20?'#e3b341':'var(--muted)';
+      const convDisp=cp!==null&&cp!==undefined?(cp>0?'+':'')+cp+(!t.conv_cot_ok?'*':''):'-';
+      const convTitle=cp!==null?`${t.pair.split('/')[0]}: ${t.conv_base!=null?(t.conv_base>0?'+':'')+t.conv_base:'?'} / ${t.pair.split('/')[1]}: ${t.conv_quote!=null?(t.conv_quote>0?'+':'')+t.conv_quote:'?'}${!t.conv_cot_ok?' (no COT)':''}`:'' ;
       return`<tr>
         <td style="font-size:var(--f-th)">${t.date}</td>
         <td><b>${t.pair.replace("/","")}</b></td>
@@ -1858,6 +1872,7 @@ function renderJournal(){
         <td style="font-size:11px">${t.h4_label}</td>
         <td style="font-size:var(--f-th);color:var(--muted)">${t.regime}</td>
         <td>${ext}</td>
+        <td style="font-size:11px;font-weight:600;color:${convCol};" title="${convTitle}">${convDisp}</td>
         <td style="font-size:11px;color:var(--muted)">${t.ai_rec||" - "}</td>
         <td style="white-space:nowrap">${btns}</td>
         <td><button class="btn" onclick="openEdit(${t.id})">&#9998;</button></td>
@@ -1895,8 +1910,17 @@ function renderJournal(){
 
 function exportCSV(){
   const e=jLoad();if(!e.length){alert("No trades.");return;}
-  const h=["Date","Pair","Dir","Entry","SL","TP","R_Planned","Outcome","AI_Rec","D1","H4","H1","Regime","Extended","ADX","ATR_OK","CSM_Base","CSM_Quote","Notes","Post_Notes"];
-  const r=e.map(t=>[t.date,t.pair,t.direction,t.entry,t.sl,t.tp,t.r_planned,t.outcome,t.ai_rec,t.d1_label,t.h4_label,t.h1_label,t.regime,t.extended,t.adx,t.atr_ok,t.csm_base,t.csm_quote,`"${t.notes||""}"`,`"${t.post_notes||""}"`]);
+  const h=["Date","Pair","Dir","Entry","SL","TP","R_Planned","Outcome","AI_Rec","D1","H4","H1","Regime","Extended","ADX","ATR_OK","CSM_Base","CSM_Quote","Conv_Pair","Conv_Base","Conv_Quote","Conv_COT_OK","Notes","Post_Notes"];
+  const r=e.map(t=>[
+    t.date,t.pair,t.direction,t.entry,t.sl,t.tp,t.r_planned,t.outcome,t.ai_rec,
+    t.d1_label,t.h4_label,t.h1_label,t.regime,t.extended,t.adx,t.atr_ok,
+    t.csm_base,t.csm_quote,
+    t.conv_pair!==undefined?t.conv_pair:'',
+    t.conv_base!==undefined?t.conv_base:'',
+    t.conv_quote!==undefined?t.conv_quote:'',
+    t.conv_cot_ok!==undefined?t.conv_cot_ok:'',
+    `"${t.notes||""}"`,`"${t.post_notes||""}"`
+  ]);
   const csv=[h.join(","),...r.map(x=>x.join(","))].join("\n");
   const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="forex1212.csv";a.click();
 }
