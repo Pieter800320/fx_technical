@@ -1,49 +1,6 @@
 {
   "alerts": [
     {
-      "pair": "EUR/USD",
-      "direction": "bull",
-      "h1_label": "Buy",
-      "h4_label": "Strong Buy",
-      "d1_label": "Strong Buy",
-      "blurb": [
-        "MarketPulse",
-        "Gold (XAU/USD) stalls at critical $4900/oz resistance as bear signal flashes"
-      ],
-      "levels": {
-        "support": [
-          {
-            "price": 1.16789,
-            "pips": 3.2
-          },
-          {
-            "price": 1.16357,
-            "pips": 46.4
-          },
-          {
-            "price": 1.15133,
-            "pips": 168.8
-          }
-        ],
-        "resistance": [
-          {
-            "price": 1.16825,
-            "pips": 0.4
-          },
-          {
-            "price": 1.16934,
-            "pips": 11.3
-          },
-          {
-            "price": 1.17144,
-            "pips": 32.3
-          }
-        ],
-        "current_price": 1.16821
-      },
-      "timestamp": "2026-04-08T17:19:47.744773"
-    },
-    {
       "pair": "GBP/USD",
       "direction": "bull",
       "h1_label": "Buy",
@@ -5278,6 +5235,38 @@
         "multiplier": 1.0
       },
       "timestamp": "2026-04-18T05:15:22.980575"
+    },
+    {
+      "pair": "USD/CAD",
+      "direction": "bear",
+      "h1_label": "Neutral",
+      "h4_label": "Sell",
+      "d1_label": "Sell",
+      "blurb": [
+        "MarketPulse",
+        "FX levels for EUR/USD, USD/CAD & GBP/USD \u2013 USD dumps amid peace repricing"
+      ],
+      "levels": {},
+      "extended": {
+        "extended": true,
+        "reasons": [
+          "Price 3.9x ATR from EMA200",
+          "10 consecutive bars beyond EMA50"
+        ],
+        "atr_dist": 3.87
+      },
+      "regime": "Risk-On",
+      "regime_confidence": "High",
+      "adx": 38.9,
+      "atr_ok": true,
+      "conflict": true,
+      "structure": {
+        "direction": "bear",
+        "event": "none",
+        "strength": 1.0,
+        "multiplier": 1.0
+      },
+      "timestamp": "2026-04-18T09:08:28.202635"
     }
   ]
 }
