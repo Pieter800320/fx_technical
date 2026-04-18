@@ -136,8 +136,8 @@ tr:last-child td{border-bottom:none;}
 #dash-ticker-wrap{background:#020e02;border-bottom:1px solid rgba(0,204,51,.18);margin:-16px -16px 12px -16px;overflow:hidden;position:relative;}
 #drum-scroll{height:185px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;}
 #drum-scroll::-webkit-scrollbar{display:none;}
-.drum-row{height:37px;scroll-snap-align:center;display:flex;align-items:center;padding:0 14px;font-family:'VT323',monospace;font-size:19px;color:#00e040;text-shadow:0 0 5px rgba(0,255,65,.3);border-bottom:1px solid rgba(0,204,51,.1);box-sizing:border-box;gap:8px;white-space:nowrap;transition:opacity .1s;}
-.drum-row.drum-center{color:#00ff55;text-shadow:0 0 10px rgba(0,255,65,.7);font-size:20px;}
+.drum-row{height:37px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:0 10px;font-family:'VT323',monospace;font-size:19px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.1);box-sizing:border-box;gap:0;white-space:nowrap;transition:opacity .1s;}
+.drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.6);}
 #drum-fade-top{position:absolute;top:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to bottom,#020e02 0%,transparent 100%);z-index:2;}
 #drum-fade-bot{position:absolute;bottom:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to top,#020e02 0%,transparent 100%);z-index:2;}
 #drum-center-line{position:absolute;top:50%;left:0;right:0;height:37px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.25);border-bottom:1px solid rgba(0,204,51,.25);pointer-events:none;z-index:1;}
@@ -248,7 +248,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 
   <!-- Box 2: Chart -->
-  <div class="module" id="chart-main-module" style="padding:0;overflow:hidden;background:#0d1117;border-left-color:#0d1117;border-right-color:#0d1117;border-bottom-color:#0d1117;">
+  <div class="module" id="chart-main-module" style="padding:0;overflow:hidden;background:#0d1117;">
     <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px 7px;border-bottom:1px solid var(--border);">
       <span id="chart-pair-label" style="font-weight:700;font-size:var(--f-primary);color:var(--text);">—</span>
       <div style="display:flex;gap:4px;">
@@ -905,11 +905,9 @@ function buildDrumRows(){
   const cutoff=Date.now()-24*60*60*1000;
   const convPairs=(D.conviction&&D.conviction.pairs)||{};
 
-  // Build rows for all 12 pairs
-  const rows=[];
-
-  // Shortlist / signal pairs first
+  // All 12 pairs: shortlist first, then the rest
   const ordered=[...kept.map(s=>s.pair),...PAIRS.filter(p=>!keptPairs.has(p))];
+  const rows=[];
 
   ordered.forEach(pair=>{
     const h4d=D.h4&&D.h4[pair];
@@ -920,44 +918,33 @@ function buildDrumRows(){
     const h1=pillAbbr(h1d?h1d.label:'');
     const dir=h4d?h4d.direction:'neutral';
     const isShort=keptPairs.has(pair);
+    const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoff));
 
-    // Direction arrow (CSS triangles)
-    let dirSpan='<span style="color:rgba(0,204,51,.3);font-size:14px;">—</span>';
-    let pairCol='rgba(0,204,51,.55)';
-    if(dir==='bull'){
-      dirSpan='<span style="display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid #3fb950;vertical-align:middle;"></span>';
-      pairCol=isShort?'#3fb950':'rgba(63,185,80,.7)';
-    } else if(dir==='bear'){
-      dirSpan='<span style="display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:9px solid #f85149;vertical-align:middle;"></span>';
-      pairCol=isShort?'#f85149':'rgba(248,81,73,.7)';
-    }
+    // Everything green — direction shown by arrow shape only
+    const dirChar=dir==='bull'?'▲':dir==='bear'?'▼':'–';
 
-    // Category tag — very subtle, should barely be noticed
-    let catTag='';
-    if(isShort){
-      const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoff));
-      catTag=`<span style="color:rgba(0,204,51,.15);font-size:11px;width:48px;flex-shrink:0;letter-spacing:.04em;">${hasSig?'SIG':'LIST'}</span>`;
-    } else {
-      catTag=`<span style="width:48px;flex-shrink:0;"></span>`;
-    }
+    // Category tag — same font size as pair name
+    const catTag=isShort
+      ?`<span style="opacity:.4;margin-right:8px;min-width:32px;">${hasSig?'SIG':'LST'}</span>`
+      :`<span style="margin-right:8px;min-width:32px;opacity:0;">LST</span>`;
 
-    // Conviction badge — hide when zero
+    // Pair name
+    const pairSpan=`<span style="margin-right:8px;min-width:58px;">${pair.replace('/','')}</span>`;
+
+    // Direction arrow
+    const arrSpan=`<span style="margin-right:8px;">${dirChar}</span>`;
+
+    // D1 H4 H1 scores — space-separated
+    const scoresSpan=`<span style="opacity:.7;margin-right:8px;min-width:54px;">${d1} ${h4} ${h1}</span>`;
+
+    // Conviction — always show, same size, right-aligned
     const conv=convPairs[pair];
-    let convStr='';
-    if(conv!==undefined&&conv!==null&&conv!==0){
-      const convAbs=Math.abs(conv);
-      if(conv<0){
-        const convCol2=convAbs>=60?'#f85149':convAbs>=30?'#e3b341':'rgba(200,80,80,.5)';
-        convStr=`<span style="color:${convCol2};font-size:14px;width:36px;text-align:right;flex-shrink:0;">${conv}</span>`;
-      } else {
-        const convCol=convAbs>=60?'#3fb950':convAbs>=30?'#e3b341':'rgba(0,180,60,.5)';
-        convStr=`<span style="color:${convCol};font-size:14px;width:36px;text-align:right;flex-shrink:0;">+${conv}</span>`;
-      }
-    } else {
-      convStr=`<span style="width:36px;flex-shrink:0;"></span>`;
-    }
+    const convStr=conv!==undefined&&conv!==null
+      ?(conv===0?'0':(conv>0?'+':'')+conv)
+      :'';
+    const convSpan=`<span style="opacity:${conv&&Math.abs(conv)>=30?1:.55};min-width:32px;text-align:right;">${convStr}</span>`;
 
-    rows.push({pair,dir,html:`${catTag}<span style="color:${pairCol};font-weight:700;width:56px;flex-shrink:0;">${pair.replace('/','')}</span>${dirSpan}<span style="color:rgba(0,204,51,.5);flex:1;letter-spacing:.04em;"> ${d1} ${h4} ${h1}</span>${convStr}`});
+    rows.push({pair,dir,html:`${catTag}${pairSpan}${arrSpan}${scoresSpan}${convSpan}`});
   });
 
   return rows;
