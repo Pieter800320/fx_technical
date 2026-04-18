@@ -749,6 +749,105 @@ function tfCellFlat(data,uid,pos,tfLabel){
 }
 
 // ── Shared indicator strip: Regime | D1% | D5% | Signal ──────────────────────
+// ── Quality Alignment Index (QAI) ────────────────────────────────────────────
+// Composite 0-100 score answering: "How well aligned is this pair right now?"
+// Seven inputs, weighted. Direction determined by D1 — if D1 Neutral, QAI = 0.
+//
+// Weights: D1 25% | H4 20% | Conviction 20% | Regime 15% | H1 10% | ADX 5% | Extension 5%
+//
+// Hard rules:
+//   - D1 Neutral → QAI = 0 (no trade)
+//   - Extended AND conviction < +20 → cap at 40
+//   - Result is always directional: positive = bull setup, 0 = no setup
+
+function computeQAI(pair){
+  const h1d=D.h1&&D.h1[pair];
+  const h4d=D.h4&&D.h4[pair];
+  const d1d=D.d1&&D.d1[pair];
+  const convPairs=(D.conviction&&D.conviction.pairs)||{};
+  const regime=D.regime&&D.regime.regime?D.regime.regime:'Unknown';
+
+  // D1 — must exist and be directional
+  const d1dir=d1d?d1d.direction:'neutral';
+  if(d1dir==='neutral')return{score:0,dir:'neutral',label:'—'};
+
+  const isBull=d1dir==='bull';
+
+  // Helper: label → 0-10 score in direction
+  function labelScore(data, inDir){
+    if(!data)return 0;
+    const l=data.label||'';
+    const dir=data.direction||'neutral';
+    if(dir==='neutral')return 0;
+    const matchDir=(inDir==='bull'&&dir==='bull')||(inDir==='bear'&&dir==='bear');
+    if(!matchDir)return 0; // opposing = 0, not negative
+    if(l==='Strong Buy'||l==='Strong Sell')return 10;
+    if(l==='Buy'||l==='Sell')return 7;
+    return 3;
+  }
+
+  // 1. D1 (25%)
+  const d1Score=labelScore(d1d,d1dir);
+
+  // 2. H4 (20%)
+  const h4Score=labelScore(h4d,d1dir);
+
+  // 3. Conviction (20%) — map pair conviction -100/+100 → 0-10 in D1 direction
+  const convRaw=convPairs[pair];
+  let convScore=5; // neutral default
+  if(convRaw!==undefined&&convRaw!==null){
+    const convDir=isBull?convRaw:-convRaw; // flip if bear trade
+    if(convDir>=60)      convScore=10;
+    else if(convDir>=40) convScore=8;
+    else if(convDir>=20) convScore=6;
+    else if(convDir>=0)  convScore=5;
+    else if(convDir>=-20)convScore=3;
+    else                 convScore=1;
+  }
+
+  // 4. Regime (15%)
+  let regScore=5;
+  if(regime==='Risk-On') regScore=isBull?9:6;
+  else if(regime==='Risk-Off') regScore=isBull?6:9;
+  else if(regime==='Ranging')  regScore=4;
+  else if(regime==='Mixed')    regScore=5;
+
+  // 5. H1 (10%)
+  let h1Score=5; // neutral H1 is acceptable
+  if(h1d){
+    if(h1d.direction===d1dir)                    h1Score=10;
+    else if(h1d.direction==='neutral')            h1Score=6;
+    else                                          h1Score=2; // opposing H1
+  }
+
+  // 6. ADX quality (5%) — from H4
+  const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
+  const adxScore=adxV===null?5:adxV>=25?10:adxV>=20?7:adxV>=15?4:1;
+
+  // 7. Extension penalty (5%)
+  const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
+  const extScore=ext?0:10;
+
+  // Weighted sum → 0-100
+  const raw=Math.round(
+    d1Score   * 0.25 +
+    h4Score   * 0.20 +
+    convScore * 0.20 +
+    regScore  * 0.15 +
+    h1Score   * 0.10 +
+    adxScore  * 0.05 +
+    extScore  * 0.05
+  ) * 10;
+
+  // Hard cap: extended AND low conviction → max 40
+  const convNum=convRaw!==undefined&&convRaw!==null?(isBull?convRaw:-convRaw):0;
+  const capped=(ext&&convNum<20)?Math.min(raw,40):raw;
+
+  // Colour thresholds
+  const col=capped>=70?'var(--buy)':capped>=40?'#e3b341':'var(--sell)';
+  return{score:capped,dir:d1dir,col,label:capped+'%'};
+}
+
 function buildIndicatorStrip(pair, borderCol){
   // Regime
   const reg=D.regime&&D.regime.regime?D.regime.regime:'—';
@@ -771,19 +870,16 @@ function buildIndicatorStrip(pair, borderCol){
     const prev5=d1Ohlcv[d1Ohlcv.length-6].close;
     if(prev5){d5Pct=(nowClose-prev5)/prev5*100;d5Col=d5Pct>=0?'var(--buy)':'var(--sell)';}
   }
-  // Signal: show direction of most recent alert if within 24h
-  const alertsArr=D.alerts&&D.alerts.alerts;
-  const cutoffSig=Date.now()-24*60*60*1000;
-  const recentAlert=alertsArr&&alertsArr.slice().reverse().find(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoffSig);
-  const sigLabel=recentAlert?(recentAlert.direction==='bull'?'BUY':'SELL'):'NO';
-  const sigCol=recentAlert?(recentAlert.direction==='bull'?'var(--buy)':'var(--sell)'):'var(--muted)';
+  // QAI — Quality Alignment Index
+  const qai=computeQAI(pair);
+  const qaiCol=qai.col||'var(--muted)';
 
   const fmt=v=>v!==null?(v>=0?'+':'')+v.toFixed(2)+'%':'—';
   const sep='<span style="color:var(--border);user-select:none;padding:0 3px;">│</span>';
   const cell=(val,lbl,col)=>`<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${col};">${val}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${lbl}</span></div>`;
 
   return`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${borderCol||'var(--border)'};border-radius:6px;padding:6px;">
-    ${cell(regAbbr,'Regime',regCol)}${sep}${cell(fmt(d1Pct),'D1 %',d1Col)}${sep}${cell(fmt(d5Pct),'D5 %',d5Col)}${sep}${cell(sigLabel,'Signal',sigCol)}
+    ${cell(regAbbr,'Regime',regCol)}${sep}${cell(fmt(d1Pct),'D1 %',d1Col)}${sep}${cell(fmt(d5Pct),'D5 %',d5Col)}${sep}${cell(qai.score>0?qai.score+'%':'—','QAI',qaiCol)}
   </div>`;
 }
 
@@ -918,7 +1014,6 @@ function buildDrumRows(){
   const keptPairs=new Set(kept.map(s=>s.pair));
   const alertsArr=D.alerts&&D.alerts.alerts;
   const cutoff=Date.now()-24*60*60*1000;
-  const convPairs=(D.conviction&&D.conviction.pairs)||{};
 
   // All 12 pairs: shortlist first, then the rest
   const ordered=[...kept.map(s=>s.pair),...PAIRS.filter(p=>!keptPairs.has(p))];
@@ -956,10 +1051,11 @@ function buildDrumRows(){
     // D1 H4 H1 scores
     const scoresSpan=`<span style="opacity:.7;margin-right:6px;min-width:54px;">${d1} ${h4} ${h1}</span>`;
 
-    // Conviction — always show
-    const conv=convPairs[pair];
-    const convStr=conv!==undefined&&conv!==null?(conv===0?'0':(conv>0?'+':'')+conv):'';
-    const convSpan=`<span style="opacity:${conv&&Math.abs(conv)>=30?1:.55};min-width:32px;text-align:right;">${convStr}</span>`;
+    // QAI — Quality Alignment Index (replaces conviction in drum)
+    const qai=computeQAI(pair);
+    const qaiStr=qai.score>0?qai.score+'%':'—';
+    const qaiOpacity=qai.score>=70?1:qai.score>=40?0.75:0.45;
+    const convSpan=`<span style="opacity:${qaiOpacity};min-width:36px;text-align:right;">${qaiStr}</span>`;
 
     rows.push({pair,dir,html:`${pairSpan}${catTag}${arrSpan}${scoresSpan}${convSpan}`});
   });
