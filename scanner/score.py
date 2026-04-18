@@ -55,6 +55,19 @@ def _atr_series(high, low, close, period=14):
     ], axis=1).max(axis=1)
     return tr.rolling(period).mean()
 
+def atr_percentile(df, window=52):
+    atr = _atr_series(
+        df["high"].astype(float),
+        df["low"].astype(float),
+        df["close"].astype(float),
+    ).dropna()
+    if len(atr) < window:
+        return None
+    vals = atr.iloc[-window:]
+    current = float(vals.iloc[-1])
+    n_below = int((vals < current).sum())
+    return round(n_below / (window - 1) * 100)
+
 def _dmi(high, low, close, period=14):
     up_move  = high.diff()
     dn_move  = -low.diff()

@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from config.pairs import PAIRS, pair_display, REGIME_EXTRA_PAIRS
 from scanner.fetch import fetch_all_pairs
-from scanner.score import score_pair
+from scanner.score import score_pair, atr_percentile
 from scanner.csm import compute_currency_strength, MAJOR_PAIRS, STRENGTH_PAIRS, CSM_EXTRA_PAIRS
 from scanner.regime import classify_regime
 from scanner.conviction import compute_conviction
@@ -83,16 +83,17 @@ def main():
         print(f"  {display}: {result['score']:+d} → {result['label']}{filter_note}")
 
         d1_results[pair] = {
-            "score":      result["score"],
-            "label":      result["label"],
-            "direction":  result["direction"],
-            "raw":        result["raw"],
-            "signals":    result["signals"],
-            "filter_ok":  result["filter_ok"],
-            "conflict":   result.get("conflict", False),
-            "structure":  result.get("structure", {}),
-            "adx_weight": result.get("adx_weight", 1.0),
-            "updated":    now.isoformat(),
+            "score":          result["score"],
+            "label":          result["label"],
+            "direction":      result["direction"],
+            "raw":            result["raw"],
+            "signals":        result["signals"],
+            "filter_ok":      result["filter_ok"],
+            "conflict":       result.get("conflict", False),
+            "structure":      result.get("structure", {}),
+            "adx_weight":     result.get("adx_weight", 1.0),
+            "atr_percentile": atr_percentile(df),
+            "updated":        now.isoformat(),
         }
 
     # ── Score XAU/USD for regime classifier ───────────────────────────────────
@@ -103,15 +104,16 @@ def main():
         gold_result = score_pair(gold_df, timeframe="D1")
         if gold_result:
             d1_results["XAU/USD"] = {
-                "score":     gold_result["score"],
-                "label":     gold_result["label"],
-                "direction": gold_result["direction"],
-                "raw":       gold_result["raw"],
-                "signals":   gold_result["signals"],
-                "filter_ok": gold_result["filter_ok"],
-                "conflict":  gold_result.get("conflict", False),
-                "structure": gold_result.get("structure", {}),
-                "updated":   now.isoformat(),
+                "score":          gold_result["score"],
+                "label":          gold_result["label"],
+                "direction":      gold_result["direction"],
+                "raw":            gold_result["raw"],
+                "signals":        gold_result["signals"],
+                "filter_ok":      gold_result["filter_ok"],
+                "conflict":       gold_result.get("conflict", False),
+                "structure":      gold_result.get("structure", {}),
+                "atr_percentile": atr_percentile(gold_df),
+                "updated":        now.isoformat(),
             }
             print(f"  XAU/USD: {gold_result['score']:+d} → {gold_result['label']} "
                   f"({gold_result['direction']}) — used for regime only")
