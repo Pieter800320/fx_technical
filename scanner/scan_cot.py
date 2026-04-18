@@ -35,8 +35,9 @@ def main():
     print(f"\n  COT date: {cot_data['cot_date']} | Stale: {cot_data['cot_stale']}")
     for ccy, d in cot_data["currencies"].items():
         if d.get("available"):
-            print(f"    {ccy}: net={d['net_noncomm']:+,d}  pct={d['noncomm_pct']:.0f}  "
-                  f"am={d['am_pct']:.0f}  lf={d['lf_pct']:.0f}")
+            def _fmt(v): return f"{v:.0f}" if v is not None else "N/A"
+            print(f"    {ccy}: net={d['net_noncomm']:+,d}  pct={_fmt(d['noncomm_pct'])}  "
+                  f"am={_fmt(d['am_pct'])}  lf={_fmt(d['lf_pct'])}")
         else:
             print(f"    {ccy}: no data")
 
