@@ -646,6 +646,14 @@ function tfCell(data,uid,pos){
   rows+=`<div class="ddiv"></div>`;
   rows+=`<div class="dr"><span class="dn">ADX</span><span style="color:${fok?"var(--buy)":"var(--sell)"};font-weight:600">${adx}</span></div>`;
   rows+=`<div class="dr"><span class="dn">ATR</span><span style="color:${fok?"var(--buy)":"var(--sell)"};font-weight:600">${fok?"Normal":"Contracted"}</span></div>`;
+  // ATR percentile from D1 data
+  const d1entry=D.d1&&D.d1[pr.replace(' ','/')];
+  const atrPct=d1entry&&d1entry.atr_percentile!==undefined?d1entry.atr_percentile:null;
+  if(atrPct!==null){
+    const atrPctCol=atrPct>=70?'var(--sell)':atrPct<=30?'var(--buy)':'#e3b341';
+    const atrPctLbl=atrPct>=70?'High vol':atrPct<=30?'Low vol (compression)':'Normal';
+    rows+=`<div class="dr"><span class="dn">ATR %ile</span><span style="color:${atrPctCol};font-weight:600">${atrPct} — ${atrPctLbl}</span></div>`;
+  }
   const struct=data.structure,cf=data.conflict;
   if(struct&&struct.event&&struct.event!=="none"){
     const evC=struct.event==="BOS"?"var(--buy)":"#e3b341";
@@ -748,6 +756,12 @@ function tfCellFlat(data,uid,pos,tfLabel){
   rows+=`<div class="ddiv"></div>`;
   rows+=`<div class="dr"><span class="dn">ADX</span><span style="color:${fok?'var(--buy)':'var(--sell)'};font-weight:600">${adx}</span></div>`;
   rows+=`<div class="dr"><span class="dn">ATR</span><span style="color:${fok?'var(--buy)':'var(--sell)'};font-weight:600">${fok?'Normal':'Contr.'}</span></div>`;
+  const d1entryF=D.d1&&D.d1[pr.replace(' ','/')];
+  const atrPctF=d1entryF&&d1entryF.atr_percentile!==undefined?d1entryF.atr_percentile:null;
+  if(atrPctF!==null){
+    const atrPctColF=atrPctF>=70?'var(--sell)':atrPctF<=30?'var(--buy)':'#e3b341';
+    rows+=`<div class="dr"><span class="dn">ATR %ile</span><span style="color:${atrPctColF};font-weight:600">${atrPctF} — ${atrPctF>=70?'High vol':atrPctF<=30?'Compression':'Normal'}</span></div>`;
+  }
   if(struct&&struct.event&&struct.event!=='none'){
     const evC=struct.event==='BOS'?'var(--buy)':'#e3b341';
     rows+=`<div class="ddiv"></div>`;
@@ -1191,6 +1205,30 @@ function renderTQC(){
   const atrPass=atrOk===null?null:atrOk?true:false;
   const atrDetail=atrOk===null?'—':atrOk?'Normal':'Contracted';
 
+  // ATR percentile — from D1 data
+  const atrPct=d1d&&d1d.atr_percentile!==undefined?d1d.atr_percentile:null;
+  const atrPctPass=atrPct===null?null:atrPct>=70?null:atrPct<=30?null:true;
+  // ≤30 = compression (good for breakout watch, amber), ≥70 = high vol (amber caution), 30-70 = normal (green)
+  const atrPctDetail=atrPct===null?'—':atrPct+'  '+(atrPct>=70?'High vol — caution':atrPct<=30?'Compression — watch for breakout':'Normal range');
+  const atrPctPassFinal=atrPct===null?null:atrPct>30&&atrPct<70?true:null;
+
+  // Event warning — high-impact FF events within 48h for base or quote currency
+  const calEvents=(D.calendar&&D.calendar.events)||[];
+  const now48=Date.now()+48*60*60*1000;
+  const nowMs=Date.now();
+  const pairEvents=calEvents.filter(ev=>{
+    if(ev.currency!==base&&ev.currency!==quote)return false;
+    const evMs=new Date(ev.datetime+'Z').getTime();
+    return evMs>=nowMs&&evMs<=now48;
+  });
+  const eventPass=pairEvents.length===0?true:false;
+  const eventDetail=pairEvents.length===0?'Clear (48h)'
+    :pairEvents.slice(0,2).map(ev=>{
+      const evDate=new Date(ev.datetime+'Z');
+      const hrsAway=Math.round((evDate-new Date())/3600000);
+      return ev.currency+' '+ev.event.substring(0,20)+(hrsAway>0?' in '+hrsAway+'h':'');
+    }).join(' | ');
+
   const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
   const extPass=ext?false:true;
   const extDetail=ext?'⚠ Extended':'Clean';
@@ -1204,12 +1242,12 @@ function renderTQC(){
   const qaiPass=qai.score>=70?true:qai.score>=40?null:qai.score>0?false:null;
   const qaiDetail=qai.score>0?qai.score+'%':'—';
 
-  // Count pass/warn/fail
-  const results=[d1pass,h4pass,regPass,convPass,adxPass,atrPass,extPass,csmPass,qaiPass];
+  // Count pass/warn/fail — include ATR percentile and event warning
+  const results=[d1pass,h4pass,regPass,convPass,adxPass,atrPass,extPass,csmPass,qaiPass,atrPctPassFinal,eventPass];
   const passes=results.filter(x=>x===true).length;
   const fails=results.filter(x=>x===false).length;
   const total=results.length;
-  const verdict=fails===0&&passes>=7?'STRONG SETUP':fails===0&&passes>=5?'ACCEPTABLE':fails<=1&&passes>=5?'CAUTION':fails>=2?'DO NOT TRADE':'CAUTION';
+  const verdict=fails===0&&passes>=8?'STRONG SETUP':fails===0&&passes>=6?'ACCEPTABLE':fails<=1&&passes>=6?'CAUTION':fails>=2?'DO NOT TRADE':'CAUTION';
   const verdictCol=verdict==='STRONG SETUP'?'var(--buy)':verdict==='ACCEPTABLE'?'#e3b341':verdict==='CAUTION'?'#e3b341':'var(--sell)';
 
   body.innerHTML=
@@ -1226,6 +1264,8 @@ function renderTQC(){
     criterion('ADX ≥ 20 (trend strength)',adxPass,null,adxDetail)+
     criterion('ATR normal (volatility)',atrPass,null,atrDetail)+
     criterion('Not extended',extPass,null,extDetail)+
+    criterion('ATR percentile (vol context)',atrPctPassFinal,null,atrPctDetail)+
+    criterion('No high-impact event 48h',eventPass,null,eventDetail)+
     `<div style="padding:8px 14px;display:flex;justify-content:space-between;align-items:center;">
       <span style="font-size:var(--f-th);color:var(--muted);">QAI</span>
       <span style="font-size:var(--f-primary);font-weight:700;color:${qai.col||'var(--muted)'};">${qaiDetail}</span>
@@ -1980,15 +2020,16 @@ async function load(file,api=false){
 }
 async function init(){
   renderSessions();
-  const[h1,h4,d1,csm,alerts,regime,corr,conviction]=await Promise.all([
+  const[h1,h4,d1,csm,alerts,regime,corr,conviction,calendar]=await Promise.all([
     load("h1_scores.json",true),load("h4_scores.json",true),
     load("d1_scores.json"),load("csm.json"),load("alerts.json"),
     load("regime.json"),load("correlation.json"),load("conviction.json"),
+    load("calendar.json"),
   ]);
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v.updated):[]).filter(Boolean).sort();
   const parseTS=s=>{if(!s)return new Date(s);const c=s.endsWith('Z')||s.includes('+')?s:s+'Z';return new Date(c);};
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+parseTS(ts[ts.length-1]).toLocaleString();
-  D={h1,h4,d1,csm,alerts,regime,corr,conviction};
+  D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar};
   renderRegime(regime);renderCSM(csm,conviction);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
   if(document.getElementById('tab-charts').classList.contains('active')){renderChartPills();if(chartTabPair)renderCurrentChart();else if(PAIRS.length)selectChartPair(PAIRS[0]);}
   checkLevelAlerts();
