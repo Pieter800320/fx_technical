@@ -30,15 +30,17 @@ jobs:
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          cp data/d1_scores.json dashboard/
-          cp data/csm.json       dashboard/
-          cp data/regime.json    dashboard/ || true
-          cp data/h1_scores.json dashboard/ || true
-          cp data/h4_scores.json dashboard/ || true
-          cp data/alerts.json    dashboard/ || true
-          git add data/d1_scores.json data/csm.json data/regime.json dashboard/ || true
+          cp data/d1_scores.json  dashboard/
+          cp data/csm.json        dashboard/
+          cp data/regime.json     dashboard/ || true
+          cp data/h1_scores.json  dashboard/ || true
+          cp data/h4_scores.json  dashboard/ || true
+          cp data/alerts.json     dashboard/ || true
+          cp data/conviction.json dashboard/ || true
+          cp data/cot.json        dashboard/ || true
+          git add data/ dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: D1 scan $(date -u +%Y-%m-%dT%H:%M)"
-          git pull --rebase origin main
+          git pull origin main --no-rebase
           git push
   deploy_dashboard:
     needs: scan_d1
@@ -58,6 +60,8 @@ jobs:
           cp data/csm.json        dashboard/
           cp data/alerts.json     dashboard/
           cp data/regime.json     dashboard/ || true
+          cp data/conviction.json dashboard/ || true
+          cp data/cot.json        dashboard/ || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
