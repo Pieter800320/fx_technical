@@ -66,5 +66,5 @@ def fetch_all_pairs(pairs, timeframe):
             print(f"  Rate limit pause ({BATCH_SLEEP}s)...")
             time.sleep(BATCH_SLEEP)
         else:
-            time.sleep(0.5)
+            time.sleep(1.5)
     return results
