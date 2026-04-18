@@ -1,18 +1,16 @@
-"""scanner/embed_d1_ohlcv.py
-Fetches D1 OHLCV bars and embeds them into data/d1_scores.json as _ohlcv.
-Run AFTER scan_d1.py. Sleeps 70s first to respect Twelvedata rate limits.
+"""scanner/embed_d1_ohlcv.py — Fetch D1 OHLCV and embed into d1_scores.json.
+Run AFTER scan_d1.py. INITIAL_WAIT lets the per-minute credit window reset
+between the two processes. Per-fetch pacing is handled by _rate_limit_wait().
 """
 import json, os, sys, time, calendar, datetime as _dt
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from config.pairs import PAIRS
+from scanner.fetch import _rate_limit_wait, BATCH_SIZE, BATCH_SLEEP
 
 DATA_DIR  = os.path.join(os.path.dirname(__file__), "..", "data")
 D1_OUTPUT = os.path.join(DATA_DIR, "d1_scores.json")
 
-# Twelvedata free tier: 8 credits/min, each pair = 1 credit
-BATCH_SIZE   = 8
-RATE_DELAY   = 65   # seconds between batches
 INITIAL_WAIT = 70   # seconds to let rate limit reset after scan_d1.py
 
 def fetch_ohlcv_for_pair(pair: str, outputsize: int = 200) -> list:
@@ -21,14 +19,14 @@ def fetch_ohlcv_for_pair(pair: str, outputsize: int = 200) -> list:
     api_key = os.environ.get("TWELVEDATA_API_KEY", "")
     if not api_key:
         print(f"  [{pair}] No API key"); return []
-    symbol = pair  # e.g. EUR/USD
     url = "https://api.twelvedata.com/time_series"
     params = {
-        "symbol": symbol, "interval": "1day",
+        "symbol": pair, "interval": "1day",
         "outputsize": outputsize, "apikey": api_key,
         "format": "JSON", "timezone": "UTC",
     }
     try:
+        _rate_limit_wait()
         r = requests.get(url, params=params, timeout=20)
         data = r.json()
         if data.get("status") == "error":
@@ -68,17 +66,15 @@ def main():
 
     d1_ohlcv = {}
     for i, pair in enumerate(PAIRS):
-        # Rate limit: pause between batches
-        if i > 0 and i % BATCH_SIZE == 0:
-            print(f"  Batch complete — waiting {RATE_DELAY}s...")
-            time.sleep(RATE_DELAY)
-
         bars = fetch_ohlcv_for_pair(pair, outputsize=200)
         if bars:
             d1_ohlcv[pair] = bars
             print(f"  {pair}: {len(bars)} bars")
         else:
             print(f"  {pair}: no data")
+        if (i + 1) % BATCH_SIZE == 0 and (i + 1) < len(PAIRS):
+            print(f"  Rate limit pause ({BATCH_SLEEP}s)...")
+            time.sleep(BATCH_SLEEP)
 
     print(f"  OHLCV: {len(d1_ohlcv)}/{len(PAIRS)} pairs")
     d1_data["_ohlcv"] = d1_ohlcv
