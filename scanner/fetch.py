@@ -23,7 +23,7 @@ BARS_NEEDED = {
     "D1": 500,   # 500 daily bars (~2 years, needed for EMA200 + embed_d1_ohlcv 200-bar chart)
 }
 
-BATCH_SIZE  = 8
+BATCH_SIZE  = 7
 BATCH_SLEEP = 62
 
 
