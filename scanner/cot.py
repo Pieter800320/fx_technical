@@ -17,13 +17,13 @@ import ssl
 # ── Market name keywords for each currency ───────────────────────────────────
 # CFTC uses full descriptive names. Match by keyword to be format-change robust.
 CURRENCY_KEYWORDS = {
-    "EUR": ["EURO FX", "EURO"],
+    "EUR": ["EURO FX", "EURO CURRENCY", "EURO"],
     "GBP": ["BRITISH POUND", "POUND STERLING"],
     "JPY": ["JAPANESE YEN"],
     "CHF": ["SWISS FRANC"],
     "AUD": ["AUSTRALIAN DOLLAR"],
     "CAD": ["CANADIAN DOLLAR"],
-    "NZD": ["NZ DOLLAR", "NEW ZEALAND DOLLAR"],
+    "NZD": ["NZ DOLLAR", "NEW ZEALAND DOLLAR", "NZD"],
 }
 
 HEADERS = {
@@ -116,13 +116,27 @@ def _match_currency(market_name: str) -> str | None:
 
 
 def _parse_date(date_str: str) -> datetime.date | None:
-    """Parse CFTC date formats: YYMMDD or YYYY-MM-DD."""
+    """Parse CFTC date formats: YYMMDD, YYYY-MM-DD, MM/DD/YYYY."""
     s = date_str.strip()
-    for fmt in ("%y%m%d", "%Y-%m-%d", "%m/%d/%Y"):
+    if not s:
+        return None
+    for fmt in ("%y%m%d", "%Y-%m-%d", "%m/%d/%Y", "%Y%m%d"):
         try:
             return datetime.datetime.strptime(s, fmt).date()
         except ValueError:
             continue
+    return None
+
+
+def _get_date(row: dict) -> datetime.date | None:
+    """Get date from row trying multiple known CFTC column names."""
+    for key in ("As_of_Date_In_Form_YYMMDD", "As_of_Date_in_Form_YYMMDD",
+                "Report_Date_as_YYYY-MM-DD", "Report Date"):
+        val = row.get(key, "").strip()
+        if val:
+            d = _parse_date(val)
+            if d:
+                return d
     return None
 
 
@@ -153,7 +167,7 @@ def parse_legacy(rows: list[dict]) -> dict[str, list[dict]]:
         ccy = _match_currency(market)
         if not ccy:
             continue
-        date = _parse_date(row.get("As_of_Date_in_Form_YYMMDD", ""))
+        date = _get_date(row)
         if not date:
             continue
         try:
@@ -192,7 +206,7 @@ def parse_disaggregated(rows: list[dict]) -> dict[str, list[dict]]:
         ccy = _match_currency(market)
         if not ccy:
             continue
-        date = _parse_date(row.get("As_of_Date_in_Form_YYMMDD", ""))
+        date = _get_date(row)
         if not date:
             continue
         try:
