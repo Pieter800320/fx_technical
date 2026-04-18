@@ -205,6 +205,17 @@ tr:last-child td{border-bottom:none;}
     <div id="csm-grid"><div class="loading">Loading...</div></div>
   </div>
 
+  <!-- Decision Reference -->
+  <div class="module" style="padding:0;overflow:hidden;">
+    <div onclick="toggleDecision()" style="cursor:pointer;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Decision Reference</span>
+      <span id="decision-chevron" style="color:var(--muted);font-size:var(--f-th);">▾</span>
+    </div>
+    <div id="decision-drawer" style="display:none;border-top:1px solid var(--border);">
+      <div id="decision-content" style="padding:10px 14px;font-size:var(--f-info);line-height:2.0;"></div>
+    </div>
+  </div>
+
   <!-- Market Brief / Live -->
   <div class="module" style="padding:0;overflow:hidden;">
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);">
@@ -218,6 +229,20 @@ tr:last-child td{border-bottom:none;}
     <div id="live-drawer" style="display:none;background:#0d1117;overflow:hidden;">
       <div id="live-content"><div class="loading">Loading...</div></div>
     </div>
+  </div>
+
+  <!-- Trade Qualification Checklist (TQC) -->
+  <div class="module" style="padding:0;overflow:hidden;">
+    <div onclick="toggleTQC()" style="cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid transparent;" id="tqc-header">
+      <span style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">Trade Checklist</span>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <select id="tqc-pair" onchange="renderTQC()" onclick="event.stopPropagation()" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:3px 8px;font-size:var(--f-pill);font-weight:600;">
+          <option value="">— pair —</option>
+        </select>
+        <span id="tqc-chevron" style="color:var(--muted);font-size:var(--f-th);">▾</span>
+      </div>
+    </div>
+    <div id="tqc-body" style="display:none;background:#0d1117;border-top:1px solid var(--border);"></div>
   </div>
 
   <div id="charts-wrap" style="display:none;"></div>
@@ -364,10 +389,10 @@ tr:last-child td{border-bottom:none;}
     <table id="j-tbl">
       <thead><tr>
         <th>Date</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th>
-        <th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>Conv</th><th>AI Rec</th>
+        <th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>Conv</th><th>QAI</th><th>AI Rec</th>
         <th>Result</th><th>Edit</th><th>Del</th>
       </tr></thead>
-      <tbody id="j-tbody"><tr><td colspan="16" class="loading">No trades yet.</td></tr></tbody>
+      <tbody id="j-tbody"><tr><td colspan="17" class="loading">No trades yet.</td></tr></tbody>
     </table>
   </div>
   <div id="trash-sec" style="padding:0 14px 10px;">
@@ -753,12 +778,11 @@ function tfCellFlat(data,uid,pos,tfLabel){
 // Composite 0-100 score answering: "How well aligned is this pair right now?"
 // Seven inputs, weighted. Direction determined by D1 — if D1 Neutral, QAI = 0.
 //
-// Weights: D1 25% | H4 20% | Conviction 20% | Regime 15% | H1 10% | ADX 5% | Extension 5%
+// Weights: D1 25% | H4 20% | Regime 20% | Conviction 15% | H1 10% | ADX 5% | Extension 5%
 //
-// Hard rules:
-//   - D1 Neutral → QAI = 0 (no trade)
-//   - Extended AND conviction < +20 → cap at 40
-//   - Result is always directional: positive = bull setup, 0 = no setup
+// Rationale: Regime is the macro tide — weighted above conviction because a wrong-regime
+// trade can be wiped by a single macro event regardless of positioning. Conviction tells
+// you how crowded the trade is; regime tells you which direction the ocean flows.
 
 function computeQAI(pair){
   const h1d=D.h1&&D.h1[pair];
@@ -832,8 +856,8 @@ function computeQAI(pair){
   const raw=Math.round(
     d1Score   * 0.25 +
     h4Score   * 0.20 +
-    convScore * 0.20 +
-    regScore  * 0.15 +
+    regScore  * 0.20 +
+    convScore * 0.15 +
     h1Score   * 0.10 +
     adxScore  * 0.05 +
     extScore  * 0.05
@@ -1099,6 +1123,128 @@ function updateDrumHighlight(){
     else el.classList.remove('drum-center');
     el.style.textShadow='';
   });
+}
+
+// ── Trade Qualification Checklist (TQC) ──────────────────────────────────────
+let tqcOpen=false;
+function toggleTQC(){
+  tqcOpen=!tqcOpen;
+  const body=document.getElementById('tqc-body');
+  const hdr=document.getElementById('tqc-header');
+  const chev=document.getElementById('tqc-chevron');
+  if(body){body.style.display=tqcOpen?'block':'none';}
+  if(hdr){hdr.style.borderBottomColor=tqcOpen?'var(--border)':'transparent';}
+  if(chev){chev.textContent=tqcOpen?'▴':'▾';}
+  if(tqcOpen)renderTQC();
+}
+
+function renderTQC(){
+  const sel=document.getElementById('tqc-pair');
+  const pair=sel?sel.value:'';
+  const body=document.getElementById('tqc-body');
+  if(!body)return;
+  if(!pair){
+    body.innerHTML='<div style="padding:12px 14px;color:var(--muted);font-size:var(--f-info);">Select a pair above to check setup quality.</div>';
+    return;
+  }
+
+  const h1d=D.h1&&D.h1[pair];
+  const h4d=D.h4&&D.h4[pair];
+  const d1d=D.d1&&D.d1[pair];
+  const regime=D.regime&&D.regime.regime||'Unknown';
+  const csm=D.csm&&D.csm.rankings||{};
+  const convPairs=(D.conviction&&D.conviction.pairs)||{};
+  const [base,quote]=pair.split('/');
+  const qai=computeQAI(pair);
+  const conv=convPairs[pair];
+  const isBull=d1d&&d1d.direction==='bull';
+  const isBear=d1d&&d1d.direction==='bear';
+
+  // Criteria evaluation
+  function criterion(label, pass, warn, detail){
+    // pass: true=green, false=red, null=amber
+    const col=pass===true?'var(--buy)':pass===false?'var(--sell)':'#e3b341';
+    const icon=pass===true?'✓':pass===false?'✗':'~';
+    return`<div style="display:flex;align-items:baseline;padding:6px 14px;border-bottom:1px solid #21262d;gap:10px;">
+      <span style="color:${col};font-weight:700;font-size:var(--f-primary);flex-shrink:0;width:16px;">${icon}</span>
+      <span style="flex:1;font-size:var(--f-info);color:var(--text);">${label}</span>
+      <span style="font-size:var(--f-info);color:${col};font-weight:600;">${detail}</span>
+    </div>`;
+  }
+
+  const d1pass=d1d&&(d1d.direction==='bull'||d1d.direction==='bear');
+  const d1detail=d1d?d1d.label:'No data';
+
+  const h4match=h4d&&d1d&&h4d.direction===d1d.direction;
+  const h4pass=h4match?true:(h4d&&h4d.direction==='neutral'?null:false);
+  const h4detail=h4d?h4d.label:'No data';
+
+  const h1match=h1d&&d1d&&h1d.direction===d1d.direction;
+  const h1pass=h1match?true:(h1d&&h1d.direction==='neutral'?null:false);
+  const h1detail=h1d?h1d.label:'No data';
+
+  const regAligned=regime==='Risk-On'&&isBull||regime==='Risk-Off'&&isBear;
+  const regNeutral=regime==='Mixed'||regime==='Ranging';
+  const regPass=regAligned?true:regNeutral?null:d1pass?false:null;
+  const regDetail=regime;
+
+  const convDir=conv!==undefined&&conv!==null?(isBull?conv:-conv):null;
+  const convPass=convDir===null?null:convDir>=30?true:convDir>=0?null:false;
+  const convDetail=conv!==undefined&&conv!==null?(conv>0?'+':'')+conv:'—';
+
+  const adx=h4d&&h4d.raw?h4d.raw.adx:null;
+  const adxPass=adx===null?null:adx>=25?true:adx>=20?null:false;
+  const adxDetail=adx?adx.toFixed(0):'—';
+
+  const atrOk=h4d?h4d.filter_ok!==false:null;
+  const atrPass=atrOk===null?null:atrOk?true:false;
+  const atrDetail=atrOk===null?'—':atrOk?'Normal':'Contracted';
+
+  const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
+  const extPass=ext?false:true;
+  const extDetail=ext?'⚠ Extended':'Clean';
+
+  const csmBase=csm[base]||0,csmQuote=csm[quote]||0;
+  const csmDiv=isBull?csmBase-csmQuote:csmQuote-csmBase;
+  const csmPass=csmDiv>=20?true:csmDiv>=0?null:false;
+  const csmDetail=(csmBase.toFixed(0))+' vs '+(csmQuote.toFixed(0));
+
+  // QAI summary
+  const qaiPass=qai.score>=70?true:qai.score>=40?null:qai.score>0?false:null;
+  const qaiDetail=qai.score>0?qai.score+'%':'—';
+
+  // Count pass/warn/fail
+  const results=[d1pass,h4pass,regPass,convPass,adxPass,atrPass,extPass,csmPass,qaiPass];
+  const passes=results.filter(x=>x===true).length;
+  const fails=results.filter(x=>x===false).length;
+  const total=results.length;
+  const verdict=fails===0&&passes>=7?'STRONG SETUP':fails===0&&passes>=5?'ACCEPTABLE':fails<=1&&passes>=5?'CAUTION':fails>=2?'DO NOT TRADE':'CAUTION';
+  const verdictCol=verdict==='STRONG SETUP'?'var(--buy)':verdict==='ACCEPTABLE'?'#e3b341':verdict==='CAUTION'?'#e3b341':'var(--sell)';
+
+  body.innerHTML=
+    `<div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);">
+      <span style="font-size:var(--f-info);color:var(--muted);">${pair.replace('/','')}&nbsp;&nbsp;${isBull?'▲ BULL':isBear?'▼ BEAR':'— NEUTRAL'}</span>
+      <span style="font-size:var(--f-primary);font-weight:700;color:${verdictCol};">${verdict}</span>
+    </div>`+
+    criterion('D1 directional signal',d1pass,null,d1detail)+
+    criterion('H4 confirms D1 direction',h4pass,null,h4detail)+
+    criterion('H1 aligned or neutral',h1pass,null,h1detail)+
+    criterion('Regime supports direction',regPass,null,regDetail)+
+    criterion('Conviction ≥ +30',convPass,null,convDetail)+
+    criterion('CSM base > quote (in dir)',csmPass,null,csmDetail)+
+    criterion('ADX ≥ 20 (trend strength)',adxPass,null,adxDetail)+
+    criterion('ATR normal (volatility)',atrPass,null,atrDetail)+
+    criterion('Not extended',extPass,null,extDetail)+
+    `<div style="padding:8px 14px;display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:var(--f-th);color:var(--muted);">QAI</span>
+      <span style="font-size:var(--f-primary);font-weight:700;color:${qai.col||'var(--muted)'};">${qaiDetail}</span>
+    </div>`;
+}
+
+function initTQCPairs(){
+  const sel=document.getElementById('tqc-pair');
+  if(!sel)return;
+  sel.innerHTML='<option value="">— pair —</option>'+PAIRS.map(p=>`<option value="${p}">${p.replace('/','')}</option>`).join('');
 }
 
 // ── Shortlist cards ────────────────────────────────────────────────────────────
@@ -1653,6 +1799,121 @@ function renderCharts(){
   if(wrap)wrap.style.display='none';
 }
 
+function toggleDecision(){
+  const drawer=document.getElementById('decision-drawer');
+  const chevron=document.getElementById('decision-chevron');
+  if(!drawer)return;
+  const open=drawer.style.display==='block';
+  drawer.style.display=open?'none':'block';
+  if(chevron)chevron.textContent=open?'▾':'▴';
+  if(!open)renderDecision();
+}
+
+function renderDecision(){
+  const el=document.getElementById('decision-content');
+  if(!el)return;
+
+  // Use drum center pair if available, else first pair
+  const drum=document.getElementById('drum-scroll');
+  let pair=PAIRS[0];
+  if(drum){
+    const centerEl=drum.querySelector('.drum-center');
+    if(centerEl){
+      const idx=parseInt(centerEl.dataset.idx||'0');
+      if(drumRows[idx])pair=drumRows[idx].pair;
+    }
+  }
+
+  const h1d=D.h1&&D.h1[pair];
+  const h4d=D.h4&&D.h4[pair];
+  const d1d=D.d1&&D.d1[pair];
+  const regime=D.regime&&D.regime.regime||'Unknown';
+  const convPairs=D.conviction&&D.conviction.pairs||{};
+  const conv=convPairs[pair];
+  const qai=computeQAI(pair);
+  const[base,quote]=pair.split('/');
+  const csm=D.csm&&D.csm.rankings||{};
+
+  function check(pass, label, detail){
+    const icon=pass==='pass'?'✓':pass==='warn'?'△':'✗';
+    const col=pass==='pass'?'var(--buy)':pass==='warn'?'#e3b341':'var(--sell)';
+    return`<div style="display:flex;gap:8px;padding:2px 0;">
+      <span style="color:${col};font-weight:700;width:14px;flex-shrink:0;">${icon}</span>
+      <span style="flex:1;color:var(--text);">${label}</span>
+      <span style="color:var(--muted);font-size:10px;">${detail}</span>
+    </div>`;
+  }
+
+  const rows=[];
+  // Pair label
+  rows.push(`<div style="font-weight:700;font-size:var(--f-primary);color:var(--text);margin-bottom:6px;">${pair.replace('/','')}</div>`);
+
+  // 1. Regime
+  const regOk=regime==='Risk-On'||regime==='Risk-Off';
+  rows.push(check(regOk?'pass':'warn','Regime is directional',regime));
+
+  // 2. D1 direction
+  const d1dir=d1d?d1d.direction:'neutral';
+  const d1ok=d1dir!=='neutral';
+  rows.push(check(d1ok?'pass':'fail','D1 is directional',d1d?d1d.label:'No data'));
+
+  // 3. H4 agrees with D1
+  const h4dir=h4d?h4d.direction:'neutral';
+  const h4ok=h4dir===d1dir&&d1ok;
+  rows.push(check(h4ok?'pass':h4dir==='neutral'?'warn':'fail','H4 agrees with D1',h4d?h4d.label:'No data'));
+
+  // 4. H1 not opposing
+  const h1dir=h1d?h1d.direction:'neutral';
+  const h1ok=h1dir===d1dir||h1dir==='neutral';
+  rows.push(check(h1ok?'pass':'warn','H1 not opposing',h1d?h1d.label:'No data'));
+
+  // 5. Conviction ≥ 0
+  const convOk=conv===undefined?null:conv>=30;
+  const convWarn=conv!==undefined&&conv>=0&&conv<30;
+  rows.push(check(convOk===null?'warn':convOk?'pass':convWarn?'warn':'fail',
+    'Conviction ≥ 0',conv!==undefined?(conv>0?'+':'')+conv:'N/A'));
+
+  // 6. ADX ≥ 20
+  const adx=h4d&&h4d.raw?h4d.raw.adx:null;
+  const adxOk=adx!==null&&adx>=20;
+  rows.push(check(adx===null?'warn':adxOk?'pass':adx>=15?'warn':'fail','ADX ≥ 20',adx?adx.toFixed(0):'N/A'));
+
+  // 7. ATR Normal
+  const atrOk=h4d?h4d.filter_ok!==false:true;
+  rows.push(check(atrOk?'pass':'fail','ATR not contracted',atrOk?'Normal':'Contracted'));
+
+  // 8. Not extended
+  const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
+  rows.push(check(ext?'warn':'pass','Not extended',ext?'Extended — tighten TP':'Clean'));
+
+  // 9. CSM divergence
+  const csmB=csm[base]||50,csmQ=csm[quote]||50;
+  const csmDiv=Math.abs(csmB-csmQ);
+  rows.push(check(csmDiv>=20?'pass':csmDiv>=10?'warn':'fail',
+    'CSM divergence',base+': '+csmB.toFixed(0)+' / '+quote+': '+csmQ.toFixed(0)));
+
+  // 10. QAI
+  rows.push(check(qai.score>=70?'pass':qai.score>=40?'warn':'fail',
+    'QAI ≥ 70%',qai.score>0?qai.score+'%':'—'));
+
+  // Pass count
+  const passCount=rows.filter(r=>r.includes('var(--buy)')).length-1; // -1 for pair label
+  const total=9;
+  const summaryCol=passCount>=7?'var(--buy)':passCount>=5?'#e3b341':'var(--sell)';
+  rows.push(`<div style="margin-top:8px;padding-top:6px;border-top:1px solid var(--border);display:flex;justify-content:space-between;">
+    <span style="color:var(--muted);">Checklist</span>
+    <span style="font-weight:700;color:${summaryCol};">${passCount}/${total} pass</span>
+  </div>`);
+
+  el.innerHTML=rows.join('');
+}
+
+// Re-render decision reference on drum scroll
+const _drumEl=document.getElementById('drum-scroll');
+if(_drumEl)_drumEl.addEventListener('scroll',()=>{
+  if(document.getElementById('decision-drawer')&&document.getElementById('decision-drawer').style.display==='block')
+    setTimeout(renderDecision,200);
+});
 function toggleBrief(){
   const el=document.getElementById("brief-text");if(!el)return;
   const live=document.getElementById("live-drawer");
@@ -1855,7 +2116,7 @@ async function init(){
   renderRegime(regime);renderCSM(csm,conviction);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
   if(document.getElementById('tab-charts').classList.contains('active')){renderChartPills();if(chartTabPair)renderCurrentChart();else if(PAIRS.length)selectChartPair(PAIRS[0]);}
   checkLevelAlerts();
-  renderShortlist();renderBrief();updateTicker();
+  renderShortlist();renderBrief();updateTicker();initTQCPairs();
   if(document.getElementById('tab-correlation').classList.contains('active'))renderCorrWarning();
   if(document.getElementById("tab-correlation").classList.contains("active"))renderCorr(corr);
 }
@@ -1870,16 +2131,51 @@ const calcR=(en,sl,tp)=>{if(!en||!sl||!tp)return null;const risk=Math.abs(en-sl)
 
 function updateSnap(){
   const pair=document.getElementById("j-pair").value;
-  const{h4,d1,csm,regime}=D;
-  const h4d=h4&&h4[pair],d1d=d1&&d1[pair];
-  const parts=[];
-  if(d1d)parts.push("D1: "+d1d.label);
-  if(h4d)parts.push("H4: "+h4d.label);
-  if(csm&&csm.rankings){const[b,q]=pair.split("/");parts.push(b+": "+(csm.rankings[b]||0).toFixed(0)+"  "+q+": "+(csm.rankings[q]||0).toFixed(0));}
-  if(h4d&&h4d.raw)parts.push("ADX: "+(h4d.raw.adx||0).toFixed(1)+"  ATR: "+(h4d.filter_ok!==false?"Normal":"Contracted"));
-  if(h4d&&h4d.extended&&h4d.extended.extended)parts.push("Extended");
-  if(regime&&regime.regime)parts.push("Regime: "+regime.regime);
-  document.getElementById("j-snap").innerHTML=`<div style="color:var(--muted);font-size:11px;line-height:1.8;margin-bottom:8px;">${parts.join(" &nbsp;|&nbsp; ")}</div>`;
+  const[base,quote]=pair.split("/");
+  const{h4,d1,h1,csm,regime,conviction}=D;
+  const h4d=h4&&h4[pair],d1d=d1&&d1[pair],h1d=h1&&h1[pair];
+  const convCurr=conviction&&conviction.currencies;
+  const convPairs=conviction&&conviction.pairs||{};
+  const qai=computeQAI(pair);
+
+  const rows=[];
+
+  // Row 1: Signal labels
+  const sigRow=[];
+  if(d1d)sigRow.push("D1: "+d1d.label);
+  if(h4d)sigRow.push("H4: "+h4d.label);
+  if(h1d)sigRow.push("H1: "+h1d.label);
+  if(sigRow.length)rows.push(sigRow.join("  |  "));
+
+  // Row 2: Regime + QAI
+  const qaiStr=qai.score>0?qai.score+"%":"—";
+  const regStr=regime&&regime.regime?regime.regime+" ("+regime.confidence+")":"—";
+  rows.push("Regime: "+regStr+"  |  QAI: "+qaiStr);
+
+  // Row 3: CSM + conviction
+  if(csm&&csm.rankings){
+    const bVal=(csm.rankings[base]||0).toFixed(0);
+    const qVal=(csm.rankings[quote]||0).toFixed(0);
+    const bConv=convCurr&&convCurr[base]?convCurr[base].conviction:null;
+    const qConv=convCurr&&convCurr[quote]?convCurr[quote].conviction:null;
+    const pConv=convPairs[pair];
+    const bStr=base+" "+bVal+(bConv!==null?"  Conv:"+(bConv>0?"+":"")+bConv:"");
+    const qStr=quote+" "+qVal+(qConv!==null?"  Conv:"+(qConv>0?"+":"")+qConv:"");
+    const pStr=pConv!==null?"  |  Pair Conv: "+(pConv>0?"+":"")+pConv:"";
+    rows.push(bStr+"  |  "+qStr+pStr);
+  }
+
+  // Row 4: ADX, ATR, Extended
+  const techRow=[];
+  if(h4d&&h4d.raw)techRow.push("ADX: "+(h4d.raw.adx||0).toFixed(1));
+  if(h4d)techRow.push("ATR: "+(h4d.filter_ok!==false?"Normal":"Contracted"));
+  if(h4d&&h4d.extended&&h4d.extended.extended)techRow.push("⚠ Extended");
+  else techRow.push("Fresh");
+  if(techRow.length)rows.push(techRow.join("  |  "));
+
+  document.getElementById("j-snap").innerHTML=rows.map(r=>
+    `<div style="color:var(--muted);font-size:11px;line-height:1.9;">${r}</div>`
+  ).join("");
 }
 
 function addTrade(){
@@ -1898,6 +2194,7 @@ function addTrade(){
   const conv_base=convCurr&&convCurr[base]?convCurr[base].conviction:null;
   const conv_quote=convCurr&&convCurr[quote]?convCurr[quote].conviction:null;
   const conv_cot_ok=convCurr&&convCurr[base]?convCurr[base].cot_available:false;
+  const qai=computeQAI(pair);
   const trade={
     id:Date.now(),date:new Date().toLocaleString(),pair,direction:dir,
     entry,sl,tp,r_planned:calcR(entry,sl,tp),outcome:"open",
@@ -1911,6 +2208,7 @@ function addTrade(){
     csm_base:csm&&csm.rankings?csm.rankings[base]||null:null,
     csm_quote:csm&&csm.rankings?csm.rankings[quote]||null:null,
     conv_pair,conv_base,conv_quote,conv_cot_ok,
+    qai_score:qai.score,
   };
   const e=jLoad();e.push(trade);jSave(e);
   renderJournal();
@@ -1946,7 +2244,7 @@ function saveEdit(){
 function renderJournal(){
   const entries=jLoad().slice().reverse();
   const tbody=document.getElementById("j-tbody");
-  if(!entries.length){tbody.innerHTML='<tr><td colspan="16" class="loading">No trades yet.</td></tr>';}
+  if(!entries.length){tbody.innerHTML='<tr><td colspan="17" class="loading">No trades yet.</td></tr>';}
   else{
     tbody.innerHTML=entries.map(t=>{
       const r=t.r_planned!==null?`<span class="${t.r_planned>=1?"rp":"rn"}">${t.r_planned}R</span>`:" - ";
@@ -1958,6 +2256,9 @@ function renderJournal(){
       const convCol=cp===null||cp===undefined?'var(--muted)':cp>=40?'var(--buy)':cp<=-20?'var(--sell)':cp>=20?'#e3b341':'var(--muted)';
       const convDisp=cp!==null&&cp!==undefined?(cp>0?'+':'')+cp+(!t.conv_cot_ok?'*':''):'-';
       const convTitle=cp!==null?`${t.pair.split('/')[0]}: ${t.conv_base!=null?(t.conv_base>0?'+':'')+t.conv_base:'?'} / ${t.pair.split('/')[1]}: ${t.conv_quote!=null?(t.conv_quote>0?'+':'')+t.conv_quote:'?'}${!t.conv_cot_ok?' (no COT)':''}`:'' ;
+      const qs=t.qai_score;
+      const qaiCol=qs>=70?'var(--buy)':qs>=40?'#e3b341':qs>0?'var(--sell)':'var(--muted)';
+      const qaiDisp=qs>0?qs+'%':'-';
       return`<tr>
         <td style="font-size:var(--f-th)">${t.date}</td>
         <td><b>${t.pair.replace("/","")}</b></td>
@@ -1969,6 +2270,7 @@ function renderJournal(){
         <td style="font-size:var(--f-th);color:var(--muted)">${t.regime}</td>
         <td>${ext}</td>
         <td style="font-size:11px;font-weight:600;color:${convCol};" title="${convTitle}">${convDisp}</td>
+        <td style="font-size:11px;font-weight:600;color:${qaiCol};">${qaiDisp}</td>
         <td style="font-size:11px;color:var(--muted)">${t.ai_rec||" - "}</td>
         <td style="white-space:nowrap">${btns}</td>
         <td><button class="btn" onclick="openEdit(${t.id})">&#9998;</button></td>
@@ -2006,7 +2308,7 @@ function renderJournal(){
 
 function exportCSV(){
   const e=jLoad();if(!e.length){alert("No trades.");return;}
-  const h=["Date","Pair","Dir","Entry","SL","TP","R_Planned","Outcome","AI_Rec","D1","H4","H1","Regime","Extended","ADX","ATR_OK","CSM_Base","CSM_Quote","Conv_Pair","Conv_Base","Conv_Quote","Conv_COT_OK","Notes","Post_Notes"];
+  const h=["Date","Pair","Dir","Entry","SL","TP","R_Planned","Outcome","AI_Rec","D1","H4","H1","Regime","Extended","ADX","ATR_OK","CSM_Base","CSM_Quote","Conv_Pair","Conv_Base","Conv_Quote","Conv_COT_OK","QAI_Score","Notes","Post_Notes"];
   const r=e.map(t=>[
     t.date,t.pair,t.direction,t.entry,t.sl,t.tp,t.r_planned,t.outcome,t.ai_rec,
     t.d1_label,t.h4_label,t.h1_label,t.regime,t.extended,t.adx,t.atr_ok,
@@ -2015,6 +2317,7 @@ function exportCSV(){
     t.conv_base!==undefined?t.conv_base:'',
     t.conv_quote!==undefined?t.conv_quote:'',
     t.conv_cot_ok!==undefined?t.conv_cot_ok:'',
+    t.qai_score!==undefined?t.qai_score:'',
     `"${t.notes||""}"`,`"${t.post_notes||""}"`
   ]);
   const csv=[h.join(","),...r.map(x=>x.join(","))].join("\n");
