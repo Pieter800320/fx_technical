@@ -23,8 +23,19 @@ BARS_NEEDED = {
     "D1": 500,   # 500 daily bars (~2 years, needed for EMA200 + embed_d1_ohlcv 200-bar chart)
 }
 
-BATCH_SIZE  = 7
-BATCH_SLEEP = 62
+BATCH_SIZE   = 7
+BATCH_SLEEP  = 62
+MIN_INTERVAL = 8.0  # seconds between fetches → ≤7.5 req/min ceiling
+
+_last_fetch_time = 0.0
+
+
+def _rate_limit_wait():
+    global _last_fetch_time
+    elapsed = time.time() - _last_fetch_time
+    if elapsed < MIN_INTERVAL:
+        time.sleep(MIN_INTERVAL - elapsed)
+    _last_fetch_time = time.time()
 
 
 def fetch_pair(pair, timeframe):
@@ -36,12 +47,25 @@ def fetch_pair(pair, timeframe):
         "format":     "JSON",
     }
     try:
+        _rate_limit_wait()
         resp = requests.get(BASE_URL, params=params, timeout=15)
         resp.raise_for_status()
         data = resp.json()
         if data.get("status") == "error":
-            print(f"  [TD] Error for {pair}: {data.get('message')}")
-            return None
+            msg = data.get("message", "")
+            if "run out of API credits for the current minute" in msg:
+                print(f"  [TD] Per-minute limit hit for {pair}, waiting 62s and retrying...")
+                time.sleep(62)
+                _rate_limit_wait()
+                resp = requests.get(BASE_URL, params=params, timeout=15)
+                resp.raise_for_status()
+                data = resp.json()
+                if data.get("status") == "error":
+                    print(f"  [TD] Error for {pair} after retry: {data.get('message')}")
+                    return None
+            else:
+                print(f"  [TD] Error for {pair}: {msg}")
+                return None
         values = data.get("values", [])
         if not values:
             return None
@@ -65,6 +89,4 @@ def fetch_all_pairs(pairs, timeframe):
         if (i + 1) % BATCH_SIZE == 0 and (i + 1) < len(pairs):
             print(f"  Rate limit pause ({BATCH_SLEEP}s)...")
             time.sleep(BATCH_SLEEP)
-        else:
-            time.sleep(1.5)
     return results
