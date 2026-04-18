@@ -132,15 +132,16 @@ tr:last-child td{border-bottom:none;}
 @media(orientation:landscape) and (max-width:900px){
   #chart-auto-fs-hint{display:block;}
 }
-/* ── Vertical Ticker Window ───────────────────── */
-#dash-ticker-wrap{background:#020e02;border-bottom:1px solid rgba(0,204,51,.18);margin:-16px -16px 12px -16px;overflow:hidden;height:111px;}
-#dash-ticker-window{position:relative;height:111px;overflow:hidden;}
-.ticker-row{height:37px;display:flex;align-items:center;padding:0 16px;font-family:'VT323',monospace;font-size:20px;color:#00cc33;text-shadow:0 0 4px rgba(0,255,65,.18);border-bottom:1px solid rgba(0,204,51,.07);box-sizing:border-box;transition:transform .45s cubic-bezier(.4,0,.2,1),opacity .45s ease;will-change:transform,opacity;}
-.ticker-row.entering{transform:translateY(-37px);opacity:0;}
-.ticker-row.visible{transform:translateY(0);opacity:1;}
-.ticker-row.exiting{transform:translateY(37px);opacity:0;}
-.ticker-buy{color:#3fb950;}
-.ticker-sell{color:#f85149;}
+/* ── Pair Drum Wheel ──────────────────────────── */
+#dash-ticker-wrap{background:#020e02;border-bottom:1px solid rgba(0,204,51,.18);margin:-16px -16px 12px -16px;overflow:hidden;position:relative;}
+#drum-scroll{height:185px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;}
+#drum-scroll::-webkit-scrollbar{display:none;}
+.drum-row{height:37px;scroll-snap-align:center;display:flex;align-items:center;padding:0 14px;font-family:'VT323',monospace;font-size:19px;color:#00cc33;text-shadow:0 0 4px rgba(0,255,65,.18);border-bottom:1px solid rgba(0,204,51,.07);box-sizing:border-box;gap:8px;white-space:nowrap;transition:opacity .1s;}
+.drum-row.drum-center{color:#00ff41;text-shadow:0 0 8px rgba(0,255,65,.5);}
+#drum-fade-top{position:absolute;top:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to bottom,#020e02 0%,transparent 100%);z-index:2;}
+#drum-fade-bot{position:absolute;bottom:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to top,#020e02 0%,transparent 100%);z-index:2;}
+#drum-center-line{position:absolute;top:50%;left:0;right:0;height:37px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.25);border-bottom:1px solid rgba(0,204,51,.25);pointer-events:none;z-index:1;}
+.ticker-buy{color:#3fb950;}.ticker-sell{color:#f85149;}
 /* ── Dashboard Shortlist Cards ───────────────── */
 .sl-card{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:6px;}
 .sl-card:last-child{margin-bottom:0;}
@@ -166,9 +167,12 @@ tr:last-child td{border-bottom:none;}
 
 <div id="tab-dashboard" class="tab-panel active">
 
-  <!-- Vertical Ticker Window -->
+  <!-- Pair Drum Wheel -->
   <div id="dash-ticker-wrap">
-    <div id="dash-ticker-window"></div>
+    <div id="drum-fade-top"></div>
+    <div id="drum-center-line"></div>
+    <div id="drum-scroll"></div>
+    <div id="drum-fade-bot"></div>
   </div>
 
   <!-- Sessions — header + shelf like Market Brief/Live -->
@@ -481,7 +485,8 @@ function renderSessions(){
   // ── Shelf rows ────────────────────────────────
   if(shelfContent){
     shelfContent.innerHTML=Object.entries(SESS).map(([n,[s,e]])=>{
-      const isActive=act.includes(n);
+      // When market is closed (weekend), no session is active regardless of clock
+      const isActive=!isClosed&&act.includes(n);
       const timeStr=isActive?(()=>{const t=minsUntil(e);return t?'ACTIVE · closes '+t:'ACTIVE';})()
                             :(()=>{const t=minsUntil(s);return t?'opens '+t:'—';})();
       const nameCol=isActive?'var(--text)':'var(--muted)';
@@ -682,8 +687,8 @@ function renderCSM(csm, conviction){
 }
 
 // Flat (non-table) version for Technical tab — same dropdown, flex block layout
-function tfCellFlat(data,uid,pos){
-  const tfLabel=uid.split('-').pop().replace('t','').toUpperCase();
+function tfCellFlat(data,uid,pos,tfLabel){
+  if(!tfLabel)tfLabel=uid.split('-').pop().replace(/[tc]$/i,'').toUpperCase();
   if(!data)return`<div style="flex:1;"><span class="pill pill-N" style="width:100%;text-align:center;display:flex;flex-direction:column;align-items:center;padding:8px 2px;border-radius:6px;">—<br><span style="font-size:var(--f-th);opacity:.6;">${tfLabel}</span></span></div>`;
   const num=data.score>0?'+'+data.score:String(data.score);
   const col=data.score>0?'var(--buy)':data.score<0?'var(--sell)':'var(--muted)';
@@ -860,110 +865,114 @@ function generateBrief(){
   const adxVals=PAIRS.map(p=>D.h4&&D.h4[p]&&D.h4[p].raw?D.h4[p].raw.adx:null).filter(Boolean);
   const avgAdx=adxVals.length?adxVals.reduce((a,b)=>a+b,0)/adxVals.length:0;
   const adxText=avgAdx>25?"Average ADX "+avgAdx.toFixed(0)+" - trending market, signals carry weight.":avgAdx>20?"Average ADX "+avgAdx.toFixed(0)+" - borderline trend, use caution.":"Average ADX "+avgAdx.toFixed(0)+" - low trend participation, signals less reliable.";
-  return["Regime: "+r+"  "+conf+(regime.data_source?" ["+regime.data_source+"]":""),"",usdText+" "+shText,dispText,"","Strongest currencies: "+strongest+".","Weakest currencies:   "+weakest+".",""  ,signalText,"",extText,adxText,"","Note: correlation based on last 50 bars - may be less reliable if regime recently changed."].join("\n");
+  return["Regime: "+r+"  "+conf+(regime.data_source?" ["+regime.data_source+"]":""),"",usdText+" "+shText,dispText,"","Strongest currencies: "+strongest+".","Weakest currencies:   "+weakest+".",""  ,signalText,"",extText,adxText,"","Note: correlation based on last "+(D.corr&&D.corr.lookback?D.corr.lookback:50)+" bars - may be less reliable if regime recently changed."].join("\n");
 }
 
-// ── Matrix Ticker ─────────────────────────────────────────────────────────────
-// ── Vertical Ticker Engine ────────────────────────────────────────────────────
-let tickerItems=[];
-let tickerIdx=0;
-let tickerTimer=null;
+// ── Pair Drum Wheel ───────────────────────────────────────────────────────────
+// Manual scroll drum — user scrolls up/down to inspect pairs.
+// Shows all 12 pairs sorted: shortlist first, then neutral.
+// Each row: CATEGORY | PAIR | DIR | D1 H4 H1 | CONV | SIGNAL
 
-function buildTickerItems(){
-  const items=[];
+function buildDrumRows(){
   const{kept}=buildRankedShortlist();
+  const keptPairs=new Set(kept.map(s=>s.pair));
+  const alertsArr=D.alerts&&D.alerts.alerts;
+  const cutoff=Date.now()-24*60*60*1000;
+  const convPairs=(D.conviction&&D.conviction.pairs)||{};
 
-  // Shortlist items
-  kept.forEach(s=>{
-    const arrow=s.dir==='bull'?'<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid currentColor;vertical-align:middle;margin-right:4px;"></span>':'<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid currentColor;vertical-align:middle;margin-right:4px;"></span>';
-    const cls=s.dir==='bull'?'ticker-buy':'ticker-sell';
-    const d1=pillAbbr(D.d1&&D.d1[s.pair]?D.d1[s.pair].label:'');
-    const h4=pillAbbr(D.h4&&D.h4[s.pair]?D.h4[s.pair].label:'');
-    const h1=pillAbbr(D.h1&&D.h1[s.pair]?D.h1[s.pair].label:'');
-    items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SHORTLIST</span><span class="${cls}">${arrow}${s.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
+  // Build rows for all 12 pairs
+  const rows=[];
+
+  // Shortlist / signal pairs first
+  const ordered=[...kept.map(s=>s.pair),...PAIRS.filter(p=>!keptPairs.has(p))];
+
+  ordered.forEach(pair=>{
+    const h4d=D.h4&&D.h4[pair];
+    const d1d=D.d1&&D.d1[pair];
+    const h1d=D.h1&&D.h1[pair];
+    const d1=pillAbbr(d1d?d1d.label:'');
+    const h4=pillAbbr(h4d?h4d.label:'');
+    const h1=pillAbbr(h1d?h1d.label:'');
+    const dir=h4d?h4d.direction:'neutral';
+    const isShort=keptPairs.has(pair);
+
+    // Direction arrow (CSS triangles)
+    let dirSpan='<span style="color:rgba(0,204,51,.3);font-size:14px;">—</span>';
+    let pairCol='rgba(0,204,51,.55)';
+    if(dir==='bull'){
+      dirSpan='<span style="display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid #3fb950;vertical-align:middle;"></span>';
+      pairCol=isShort?'#3fb950':'rgba(63,185,80,.7)';
+    } else if(dir==='bear'){
+      dirSpan='<span style="display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:9px solid #f85149;vertical-align:middle;"></span>';
+      pairCol=isShort?'#f85149':'rgba(248,81,73,.7)';
+    }
+
+    // Category tag
+    let catTag='';
+    if(isShort){
+      // Check if has recent signal
+      const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoff));
+      catTag=`<span style="color:${hasSig?'rgba(0,204,51,.6)':'rgba(0,204,51,.35)'};font-size:14px;width:48px;flex-shrink:0;">${hasSig?'SIG':'LIST'}</span>`;
+    } else {
+      catTag=`<span style="color:rgba(0,204,51,.2);font-size:14px;width:48px;flex-shrink:0;">    </span>`;
+    }
+
+    // Conviction badge
+    const conv=convPairs[pair];
+    let convStr='';
+    if(conv!==undefined&&conv!==null){
+      const convAbs=Math.abs(conv);
+      const convCol=convAbs>=60?'#3fb950':convAbs>=30?'#e3b341':'rgba(0,204,51,.35)';
+      if(conv<0){
+        convCol2=convAbs>=60?'#f85149':convAbs>=30?'#e3b341':'rgba(0,204,51,.35)';
+        convStr=`<span style="color:${convCol2};font-size:14px;width:36px;text-align:right;flex-shrink:0;">${conv}</span>`;
+      } else {
+        convStr=`<span style="color:${convCol};font-size:14px;width:36px;text-align:right;flex-shrink:0;">${conv>0?'+':''}${conv}</span>`;
+      }
+    }
+
+    rows.push({pair,html:`${catTag}<span style="color:${pairCol};font-weight:700;width:56px;flex-shrink:0;">${pair.replace('/','')}</span>${dirSpan}<span style="color:rgba(0,204,51,.5);flex:1;letter-spacing:.04em;"> ${d1} ${h4} ${h1}</span>${convStr}`});
   });
 
-  // Signal items from alerts.json (last 24h)
-  const alertsData=D.alerts&&D.alerts.alerts;
-  if(alertsData&&alertsData.length){
-    const cutoff=Date.now()-24*60*60*1000;
-    const seen=new Set();
-    alertsData.slice().reverse().forEach(a=>{
-      if(!a.timestamp||new Date(a.timestamp).getTime()<cutoff)return;
-      const key=a.pair+a.direction;
-      if(seen.has(key))return;
-      seen.add(key);
-      const isBull=a.direction==='bull';
-      const arrow=isBull?'<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid currentColor;vertical-align:middle;margin-right:4px;"></span>':'<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid currentColor;vertical-align:middle;margin-right:4px;"></span>';
-      const cls=isBull?'ticker-buy':'ticker-sell';
-      const d1=a.d1_label?pillAbbr(a.d1_label):'—';
-      const h4=a.h4_label?pillAbbr(a.h4_label):'—';
-      const h1=a.h1_label?pillAbbr(a.h1_label):'—';
-      items.push(`<span style="color:rgba(0,204,51,.4);font-size:15px;margin-right:8px;">SIGNAL</span><span class="${cls}">${arrow}${a.pair.replace('/','')}</span><span style="color:rgba(0,204,51,.5);margin-left:10px;">${d1} ${h4} ${h1}</span>`);
-    });
-  }
-
-  if(!items.length)items.push('<span style="color:rgba(0,204,51,.3);">NO SIGNALS</span>');
-  return items;
+  return rows;
 }
 
-function tickerRender(){
-  const win=document.getElementById('dash-ticker-window');
-  if(!win||!tickerItems.length)return;
-  const n=tickerItems.length;
-  // Show 3 rows: [idx] on top (newest arrival), scrolling down over time
-  const i0=(tickerIdx%n+n)%n;
-  const i1=((tickerIdx+1)%n+n)%n;
-  const i2=((tickerIdx+2)%n+n)%n;
-  win.innerHTML=[i0,i1,i2].map((idx,pos)=>{
-    const opacity=pos===0?1:pos===1?.7:.4;
-    return`<div class="ticker-row visible" style="opacity:${opacity};">${tickerItems[idx]}</div>`;
-  }).join('');
-}
-
-function tickerStep(){
-  const win=document.getElementById('dash-ticker-window');
-  if(!win||!tickerItems.length)return;
-
-  // Advance index — next item enters at TOP, bottom exits
-  const n=tickerItems.length;
-  tickerIdx=((tickerIdx-1)%n+n)%n; // step backwards so top gets newest
-
-  const rows=win.querySelectorAll('.ticker-row');
-
-  // Mark bottom (last) row as exiting downward
-  const lastRow=rows[rows.length-1];
-  if(lastRow)lastRow.classList.replace('visible','exiting');
-
-  // Build new row entering from top
-  const newRow=document.createElement('div');
-  newRow.className='ticker-row entering';
-  newRow.innerHTML=tickerItems[tickerIdx];
-  win.insertBefore(newRow,win.firstChild);
-
-  requestAnimationFrame(()=>{requestAnimationFrame(()=>{
-    newRow.classList.replace('entering','visible');
-    const all=win.querySelectorAll('.ticker-row:not(.exiting)');
-    all.forEach((r,i)=>{r.style.opacity=i===0?1:i===1?.7:.4;});
-  });});
-
-  setTimeout(()=>{
-    const ex=win.querySelector('.exiting');
-    if(ex)ex.remove();
-  },500);
-}
-
+let drumRows=[];
 function updateTicker(){
-  tickerItems=buildTickerItems();
-  tickerIdx=0;
-  tickerRender();
-  if(tickerTimer)clearInterval(tickerTimer);
-  tickerTimer=setInterval(tickerStep,6000);
+  const drum=document.getElementById('drum-scroll');
+  if(!drum)return;
+  drumRows=buildDrumRows();
+  const ROW_H=37;
+  const VISIBLE=5;
+  const PAD=Math.floor(VISIBLE/2); // 2 blank rows top+bottom for centering
+
+  // Build: PAD blanks + rows + PAD blanks (so first/last pair can be centered)
+  const blanks=(n)=>Array(n).fill(`<div class="drum-row" style="opacity:0;"></div>`).join('');
+  drum.innerHTML=blanks(PAD)+drumRows.map((r,i)=>`<div class="drum-row" data-idx="${i}">${r.html}</div>`).join('')+blanks(PAD);
+
+  // Scroll to first shortlist row (idx 0) centered
+  drum.scrollTop=0;
+  updateDrumHighlight();
+
+  // Highlight center row on scroll
+  drum.onscroll=()=>updateDrumHighlight();
+}
+
+function updateDrumHighlight(){
+  const drum=document.getElementById('drum-scroll');
+  if(!drum)return;
+  const ROW_H=37;
+  const centerIdx=Math.round(drum.scrollTop/ROW_H);
+  drum.querySelectorAll('.drum-row').forEach((el,i)=>{
+    const dist=Math.abs(i-centerIdx);
+    el.style.opacity=dist===0?1:dist===1?0.55:dist===2?0.25:0.1;
+    if(dist===0)el.classList.add('drum-center');
+    else el.classList.remove('drum-center');
+  });
 }
 
 // ── Shortlist cards ────────────────────────────────────────────────────────────
 function renderShortlist(){
-  const{kept,dropped:dr}=buildRankedShortlist();
   updateTicker();
   renderCharts();
 }
@@ -1113,6 +1122,16 @@ function syncTimeScales(mainChart,macdChart){
 function renderSingleChart(pair,tf,mainContainer,macdContainer,mainH,macdH){
   const ohlcv=getOhlcv(pair,tf);
   clearChartInst(mainContainer._lwInst);
+
+  // Add 22px scroll edges on left/right so thumb can scroll page without hitting chart
+  ['_edgeL','_edgeR'].forEach(k=>{if(mainContainer[k])mainContainer[k].remove();});
+  mainContainer.style.position='relative';
+  ['left','right'].forEach(side=>{
+    const e=document.createElement('div');
+    e.style.cssText=`position:absolute;top:0;${side}:0;width:22px;height:100%;z-index:5;touch-action:pan-y;cursor:default;`;
+    mainContainer.appendChild(e);
+    mainContainer['_edge'+(side==='left'?'L':'R')]=e;
+  });
   let mainChart=null;
   if(ohlcv.length){
     mainChart=buildLwChart(mainContainer,mainH);
@@ -1313,9 +1332,9 @@ function renderChartDataPanel(pair){
   // Row 1: clickable D1/H4/H1 pills — identical to Technical tab
   const pKey=pair.replace('/','');
   const scorePills=
-    tfCellFlat(d1d,pKey+'-cd1t','left')+
-    tfCellFlat(h4d,pKey+'-ch4t','center')+
-    tfCellFlat(h1d,pKey+'-ch1t','right');
+    tfCellFlat(d1d,pKey+'-cd1t','left','D1')+
+    tfCellFlat(h4d,pKey+'-ch4t','center','H4')+
+    tfCellFlat(h1d,pKey+'-ch1t','right','H1');
 
   // Row 2: Regime | D1% | D5% | Signal — shared with Technical tab
   const strip=buildIndicatorStrip(pair,'var(--border)');
@@ -1372,8 +1391,11 @@ function copyChartPrompt(){
   if(alerts){const a=alerts.slice().reverse().find(x=>x.pair===pair);if(a)headline=Array.isArray(a.blurb)?a.blurb[1]:(a.blurb||'');}
   const struct=h4d&&h4d.structure;
   const structStr=struct&&struct.event&&struct.event!=='none'?struct.event+' ('+struct.direction+')':'None';
+  const convPairs=(D.conviction&&D.conviction.pairs)||{};
+  const convScore=convPairs[pair];
+  const convStr=convScore!==undefined?`Conviction: ${convScore>0?'+':''}${convScore}/100\n`:'';
   const prompt=`You are an institutional FX trader with web search access.
-Pair: ${pair.replace('/','')}\nD1: ${d1d?d1d.label:'N/A'} | H4: ${h4d?h4d.label:'N/A'} | H1: ${h1d?h1d.label:'N/A'}\nADX: ${adxV!==null?adxV.toFixed(1):'N/A'} | ATR: ${atrOk===null?'N/A':atrOk?'Normal':'Contracted'} | Extended: ${ext?'Yes':'No'}\nStructure: ${structStr}\nRegime (proxy): ${reg} (${regConf})\nNews: "${headline||'None'}"\nTime: ${new Date().toLocaleString()}\n\nSearch current VIX, DXY, and ${pair.replace('/','').substring(3)} macro context.\nAssess: (1) which direction does price support? (2) is price fresh or extended?\n\nOutput strictly:\nRegime / Edge or Flaw / Verdict\nMax 40 words. Be decisive.`;
+Pair: ${pair.replace('/','')}\nD1: ${d1d?d1d.label:'N/A'} | H4: ${h4d?h4d.label:'N/A'} | H1: ${h1d?h1d.label:'N/A'}\n${convStr}ADX: ${adxV!==null?adxV.toFixed(1):'N/A'} | ATR: ${atrOk===null?'N/A':atrOk?'Normal':'Contracted'} | Extended: ${ext?'Yes':'No'}\nStructure: ${structStr}\nRegime (proxy): ${reg} (${regConf})\nNews: "${headline||'None'}"\nTime: ${new Date().toLocaleString()}\n\nSearch current VIX, DXY, and ${pair.replace('/','').substring(3)} macro context.\nAssess: (1) which direction does price support? (2) is price fresh or extended?\n\nOutput strictly:\nRegime / Edge or Flaw / Verdict\nMax 40 words. Be decisive.`;
   navigator.clipboard.writeText(prompt).then(()=>{
     const b=document.getElementById('chart-cp-btn');
     b.textContent='✓ Copied!';b.classList.add('ok');
@@ -1571,8 +1593,7 @@ function renderLive(){
     <div style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-top:1px solid #21262d;${r.isMover?"background:rgba(255,255,255,.02);":""}">
       <span style="width:56px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${r.pair.replace("/","")}</span>
       <span style="flex:1;font-size:var(--f-info);color:var(--muted);">${r.nowClose.toFixed(r.dec)}</span>
-      <span style="font-size:var(--f-info);font-weight:600;color:${r.col};min-width:50px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pips)}p</span>
-      <span style="font-size:${r.isMover?"var(--f-primary)":"var(--f-info)"};font-weight:${r.isMover?"700":"600"};color:${r.col};min-width:48px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pct).toFixed(2)}%${r.isMover?" ●":""}</span>
+      <span style="font-size:${r.isMover?"var(--f-primary)":"var(--f-info)"};font-weight:${r.isMover?"700":"600"};color:${r.col};min-width:52px;text-align:right;">${r.diff>=0?"+":"-"}${Math.abs(r.pct).toFixed(2)}%${r.isMover?" ●":""}</span>
       ${hasW1?`<span style="font-size:var(--f-th);font-weight:600;color:${r.w1Col};min-width:44px;text-align:right;border-left:1px solid #21262d;padding-left:8px;">${r.w1Pct!==null?(r.w1Pct>=0?"+":"")+r.w1Pct.toFixed(2)+"%":"—"}</span>`:''}
     </div>`).join("");
 }
@@ -1599,6 +1620,12 @@ function buildPrompt(){
   });
   t+="\n";
   if(regime&&regime.regime){const s=regime.signals||{};t+="REGIME: "+regime.regime+" ("+regime.confidence+") ["+regime.data_source+"]\n";t+="SH-div:"+s.sh_divergence+"  USD-proxy:"+s.usd_proxy+"  Risk-basket:"+s.risk_basket+"  Dispersion:"+s.dispersion+"\n\n";}
+  const convCurr=D.conviction&&D.conviction.currencies;
+  if(convCurr){
+    t+="CONVICTION SCORES (COT+CSM+Extension+RSI breadth, -100 to +100):\n";
+    Object.entries(convCurr).forEach(([c,d])=>{t+=c+": "+(d.conviction>0?"+":"")+d.conviction+"  ";});
+    t+="\n\n";
+  }
   if(kept.length||dropped.length){
     t+="RANKED SIGNALS (score desc, ADX tiebreaker):\n";
     kept.forEach((x,i)=>{t+=(i+1)+". "+x.pair.replace("/","")+"  score:"+x.score+"  ADX:"+x.adx.toFixed(0)+(x.ext?"  Extended":"")+"\n";});
@@ -1674,7 +1701,7 @@ function renderCorr(corr){
       <span style="width:34px;font-size:11px;font-weight:700;color:${col};flex-shrink:0;">${valStr}</span>
     </div>`;
   });
-  h+=`</div><div style="margin-top:10px;font-size:11px;color:var(--muted);">50-bar H4 returns &middot; ${corr.updated?new Date(corr.updated).toLocaleString():""}</div>`;
+  h+=`</div><div style="margin-top:10px;font-size:11px;color:var(--muted);">${corr.lookback||50}-bar H4 returns &middot; ${corr.updated?new Date(corr.updated).toLocaleString():""}</div>`;
   chartWrap.innerHTML=h;
 }
 
