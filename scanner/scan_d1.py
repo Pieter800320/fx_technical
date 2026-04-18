@@ -38,6 +38,11 @@ D1_FETCH_PAIRS = (
 )
 
 
+def load_json(path):
+    try:
+        with open(path) as f: return json.load(f)
+    except: return {}
+
 def load_prev_regime():
     try:
         with open(REGIME_OUTPUT) as f:
