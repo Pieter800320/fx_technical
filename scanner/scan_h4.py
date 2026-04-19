@@ -56,8 +56,9 @@ def main():
 
     now = datetime.datetime.utcnow()
     day, hour = now.weekday(), now.hour
-    if day == 5 or (day == 6 and hour < 22) or (day == 4 and hour >= 22):
-        print("  Market closed (weekend) — running in data-refresh mode.")
+    market_closed = day == 5 or (day == 6 and hour < 22) or (day == 4 and hour >= 22)
+    if market_closed:
+        print("  Market closed (weekend) — scoring/alerts run, OHLCV frozen.")
 
     ohlcv           = fetch_all_pairs(PAIRS, "H4")
     h1_data         = load_scores(H1_SCORES)
@@ -149,34 +150,38 @@ def main():
     print(f"  Correlation matrix: {len(corr_result['pairs'])} pairs")
 
     # ── Embed last 100 OHLCV bars per pair ───────────────────────────────────
-    h4_ohlcv = {}
-    try:
-        for pair in PAIRS:
-            df = ohlcv.get(pair)
-            if df is None or len(df) < 2:
-                continue
-            bars_list = []
-            for ts, row in df.tail(100).iterrows():
-                try:
-                    import calendar, datetime as _dt
-                    dt_raw = row.get("datetime") if hasattr(row, "get") else str(ts)
-                    dt_obj = _dt.datetime.fromisoformat(str(dt_raw))
-                    t = calendar.timegm(dt_obj.timetuple())
-                    bars_list.append({
-                        "time":  t,
-                        "open":  round(float(row["open"]),  6),
-                        "high":  round(float(row["high"]),  6),
-                        "low":   round(float(row["low"]),   6),
-                        "close": round(float(row["close"]), 6),
-                    })
-                except Exception as bar_err:
-                    print(f"    [OHLCV] bar error {pair}: {bar_err}")
+    if market_closed:
+        h4_ohlcv = load_scores(H4_OUTPUT).get("_ohlcv", {})
+        print(f"  OHLCV: frozen — {len(h4_ohlcv)} pairs retained from last market close")
+    else:
+        h4_ohlcv = {}
+        try:
+            for pair in PAIRS:
+                df = ohlcv.get(pair)
+                if df is None or len(df) < 2:
                     continue
-            if bars_list:
-                h4_ohlcv[pair] = bars_list
-        print(f"  OHLCV: {len(h4_ohlcv)} pairs saved")
-    except Exception as e:
-        print(f"  [OHLCV] ERROR: {e}")
+                bars_list = []
+                for ts, row in df.tail(100).iterrows():
+                    try:
+                        import calendar, datetime as _dt
+                        dt_raw = row.get("datetime") if hasattr(row, "get") else str(ts)
+                        dt_obj = _dt.datetime.fromisoformat(str(dt_raw))
+                        t = calendar.timegm(dt_obj.timetuple())
+                        bars_list.append({
+                            "time":  t,
+                            "open":  round(float(row["open"]),  6),
+                            "high":  round(float(row["high"]),  6),
+                            "low":   round(float(row["low"]),   6),
+                            "close": round(float(row["close"]), 6),
+                        })
+                    except Exception as bar_err:
+                        print(f"    [OHLCV] bar error {pair}: {bar_err}")
+                        continue
+                if bars_list:
+                    h4_ohlcv[pair] = bars_list
+            print(f"  OHLCV: {len(h4_ohlcv)} pairs saved")
+        except Exception as e:
+            print(f"  [OHLCV] ERROR: {e}")
 
     h4_output = {**h4_results, "_ohlcv": h4_ohlcv}
     with open(H4_OUTPUT, "w") as f:
