@@ -282,11 +282,9 @@ tr:last-child td{border-bottom:none;}
     <div id="chart-main-canvas" style="width:calc(100% - 44px);margin:0 22px;height:240px;background:#0d1117;"></div>
     <!-- Indicator toggle row -->
     <div style="display:flex;gap:4px;padding:6px 10px;background:#0d1117;border-top:1px solid #21262d;flex-wrap:wrap;">
-      <button id="ind-ema200" onclick="toggleIndicator('ema200')" class="ind-btn ind-on" style="">EMA200</button>
-      <button id="ind-ema50"  onclick="toggleIndicator('ema50')"  class="ind-btn" style="">EMA50</button>
-      <button id="ind-bb"     onclick="toggleIndicator('bb')"     class="ind-btn" style="">BB</button>
-      <button id="ind-sr"     onclick="toggleIndicator('sr')"     class="ind-btn" style="">S/R</button>
-      <button id="ind-levels" onclick="toggleIndicator('levels')" class="ind-btn" style="">Levels</button>
+      <button id="ind-ema200" onclick="toggleIndicator('ema200')" class="ind-btn ind-on">EMA200</button>
+      <button id="ind-ema50"  onclick="toggleIndicator('ema50')"  class="ind-btn">EMA50</button>
+      <button id="ind-bb"     onclick="toggleIndicator('bb')"     class="ind-btn">BB</button>
     </div>
     <div style="padding:4px 10px 2px;background:#0d1117;">
       <span class="mod-hdr" style="margin-bottom:0;">MACD (12/26/9)</span>
@@ -1547,7 +1545,7 @@ function syncTimeScales(mainChart,macdChart){
 
 // ── Chart Indicator Toggles ───────────────────────────────────────────────────
 const IND_KEY='fx1212_indicators_v1';
-let indState={ema200:true,ema50:false,bb:false,sr:false,levels:false};
+let indState={ema200:true,ema50:false,bb:false};
 try{const s=JSON.parse(localStorage.getItem(IND_KEY)||'{}');Object.assign(indState,s);}catch{}
 
 function toggleIndicator(key){
@@ -1617,14 +1615,14 @@ function renderSingleChart(pair,tf,mainContainer,macdContainer,mainH,macdH){
     candles.setData(ohlcv);
 
     // ── EMA200 ────────────────────────────────────────────────────────────────
-    if(indState.ema200&&ohlcv.length>=200){
+    if(indState.ema200&&ohlcv.length>=10){
       const ema200vals=computeEMA(ohlcv.map(d=>d.close),200);
       const ema200series=mainChart.addLineSeries({color:'rgba(63,185,80,.7)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
       ema200series.setData(ohlcv.map((d,i)=>({time:d.time,value:ema200vals[i]})));
     }
 
     // ── EMA50 ─────────────────────────────────────────────────────────────────
-    if(indState.ema50&&ohlcv.length>=50){
+    if(indState.ema50&&ohlcv.length>=10){
       const ema50vals=computeEMA(ohlcv.map(d=>d.close),50);
       const ema50series=mainChart.addLineSeries({color:'rgba(56,139,253,.8)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
       ema50series.setData(ohlcv.map((d,i)=>({time:d.time,value:ema50vals[i]})));
