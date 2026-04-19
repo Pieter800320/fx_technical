@@ -1,4 +1,4 @@
-"""scanner/scan_rates.py — Fetch central bank policy rates from Stooq."""
+"""scanner/scan_rates.py — Fetch central bank policy rates from FRED."""
 import csv, io, json, os, sys, datetime, urllib.request
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -9,17 +9,17 @@ RATES_OUT  = os.path.join(DATA_DIR, "rates.json")
 STATE_FILE = os.path.join(DATA_DIR, "alert_state.json")
 HEADERS    = {"User-Agent": "Mozilla/5.0 (FX-Dashboard-Bot/1.0)"}
 
-# Stooq daily CSV: https://stooq.com/q/d/l/?s={ticker}&i=d
-# Tickers reflect Stooq's naming convention — verify with a test run if any return no data.
+FRED_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
+
 RATE_SOURCES = {
-    "USD": {"ticker": "FFDTR.US",    "bank": "Fed"},
-    "EUR": {"ticker": "ECBDFR.EU",   "bank": "ECB"},
-    "GBP": {"ticker": "BOEBASE.UK",  "bank": "BOE"},
-    "JPY": {"ticker": "BOJPOLR.JP",  "bank": "BOJ"},
-    "CHF": {"ticker": "SNBPOLR.CH",  "bank": "SNB"},
-    "AUD": {"ticker": "RBARATE.AU",  "bank": "RBA"},
-    "CAD": {"ticker": "BOCOVERN.CA", "bank": "BOC"},
-    "NZD": {"ticker": "RBNZOCR.NZ",  "bank": "RBNZ"},
+    "USD": {"series": "FEDFUNDS",        "bank": "Fed"},
+    "EUR": {"series": "ECBDFR",          "bank": "ECB"},
+    "GBP": {"series": "BOERUKM",         "bank": "BOE"},
+    "JPY": {"series": "IRSTCI01JPM156N", "bank": "BOJ"},
+    "CHF": {"series": "IRSTCI01CHM156N", "bank": "SNB"},
+    "AUD": {"series": "IRSTCI01AUM156N", "bank": "RBA"},
+    "CAD": {"series": "IRSTCI01CAM156N", "bank": "BOC"},
+    "NZD": {"series": "IRSTCI01NZM156N", "bank": "RBNZ"},
 }
 
 
@@ -43,26 +43,22 @@ def save_state(state: dict):
         json.dump(state, f, indent=2)
 
 
-def _fetch_rate(ticker: str) -> float | None:
-    url = f"https://stooq.com/q/d/l/?s={ticker.lower()}&i=d"
+def _fetch_rate(series: str) -> float | None:
+    url = FRED_BASE.format(series=series)
     try:
         req = urllib.request.Request(url, headers=HEADERS)
-        with urllib.request.urlopen(req, timeout=10) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             text = resp.read().decode()
-        reader = csv.DictReader(io.StringIO(text))
-        last = None
-        for row in reader:
-            last = row
-        if last is None:
-            print(f"  [Stooq] {ticker}: empty response")
-            return None
-        close = last.get("Close") or last.get("close")
-        if close is None:
-            print(f"  [Stooq] {ticker}: no Close column in {list(last.keys())}")
-            return None
-        return round(float(close), 4)
+        last_val = None
+        for row in csv.DictReader(io.StringIO(text)):
+            v = row.get("VALUE", "").strip()
+            if v and v != ".":
+                last_val = round(float(v), 4)
+        if last_val is None:
+            print(f"  [FRED] {series}: no valid rows")
+        return last_val
     except Exception as e:
-        print(f"  [Stooq] {ticker}: {e}")
+        print(f"  [FRED] {series}: {e}")
         return None
 
 
@@ -88,9 +84,9 @@ def main():
     new_rates  = []
 
     for ccy, src in RATE_SOURCES.items():
-        rate = _fetch_rate(src["ticker"])
+        rate = _fetch_rate(src["series"])
         if rate is None:
-            print(f"  {ccy} ({src['bank']}): fetch failed — skipping")
+            print(f"  {ccy} ({src['bank']}): fetch failed — carrying forward")
             if ccy in prev_rates:
                 new_rates.append(prev_rates[ccy])
             continue
