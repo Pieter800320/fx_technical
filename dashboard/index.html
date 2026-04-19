@@ -1290,13 +1290,11 @@ function renderTQC(){
     const evDate=new Date(ev.datetime+'Z');
     const hrsAway=Math.round((evDate-new Date())/3600000);
     const timeStr=hrsAway>0?'in '+hrsAway+'h':'now';
-    const searchQ=encodeURIComponent(ev.event+' '+ev.currency+' forex impact');
-    const searchUrl='https://news.google.com/search?q='+searchQ;
+    const name=ev.event.length>24?ev.event.substring(0,24)+'…':ev.event;
     return`<div style="display:flex;align-items:center;padding:5px 12px;border-bottom:1px solid #21262d;gap:6px;">
       <span style="color:var(--sell);font-weight:700;font-size:12px;width:12px;flex-shrink:0;">!</span>
-      <span style="flex:1;font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ev.currency} · ${ev.event.length>22?ev.event.substring(0,22)+'…':ev.event}</span>
-      <span style="font-size:10px;color:var(--muted);margin-right:4px;flex-shrink:0;">${timeStr}</span>
-      <a href="${searchUrl}" target="_blank" rel="noopener" style="font-size:10px;color:#58a6ff;text-decoration:none;flex-shrink:0;border:1px solid rgba(56,139,253,.3);border-radius:4px;padding:1px 5px;">→</a>
+      <span style="flex:1;font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ev.currency} · ${name}</span>
+      <span style="font-size:10px;color:var(--sell);font-weight:600;flex-shrink:0;">${timeStr}</span>
     </div>`;
   }
 
@@ -1310,7 +1308,7 @@ function renderTQC(){
         ${dirPill(d1dir,'D1')}${dirPill(h4dir,'H4')}${dirPill(h1dir,'H1')}
       </div>
       <div style="display:flex;flex-direction:column;align-items:flex-end;">
-        <span style="font-size:18px;font-weight:700;color:${qai.col||'var(--muted)'};">${qaiDetail}</span>
+        <span style="font-size:var(--f-primary);font-weight:700;color:${qai.col||'var(--muted)'};">${qaiDetail}</span>
         <span style="font-size:9px;color:var(--muted);letter-spacing:.06em;">QAI</span>
       </div>
     </div>`+
