@@ -230,7 +230,10 @@ tr:last-child td{border-bottom:none;}
       <div style="display:flex;align-items:center;border-bottom:1px solid var(--border);">
         <div class="fg" style="flex:1;margin:0;padding:10px 14px;">
           <select id="tqc-pair" onchange="renderTQC()" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-size:var(--f-input);width:100%;font-weight:600;">
-            <option value="">— select pair —</option>
+            <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
+            <option>USD/CHF</option><option>AUD/USD</option><option>USD/CAD</option>
+            <option>NZD/USD</option><option>EUR/JPY</option><option>GBP/JPY</option>
+            <option>AUD/JPY</option><option>NZD/JPY</option><option>CAD/JPY</option>
           </select>
         </div>
       </div>
@@ -427,7 +430,7 @@ tr:last-child td{border-bottom:none;}
 const PAIRS=["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","AUD/JPY","NZD/JPY","CAD/JPY"];
 const GH_API="https://api.github.com/repos/Pieter800320/fx_technical/contents/data";
 const SIGS={EMA200:"EMA 200",EMA50:"EMA 50",RSI:"RSI>50",MACD:"MACD",DMI:"DMI+/-",Structure:"Structure"};
-const SESS={Sydney:[21,6],Tokyo:[23,8],London:[7,16],"New York":[13,22]};
+const SESS={Sydney:[22,7],Tokyo:[23,8],London:[7,16],"New York":[12,21]};
 const SESS_IDS={Sydney:"s-sydney",Tokyo:"s-tokyo",London:"s-london","New York":"s-newyork"};
 const RC={"Risk-Off":{bg:"rgba(182,35,36,.15)",b:"#b62324",c:"#f85149"},"Risk-On":{bg:"rgba(35,134,54,.15)",b:"#238636",c:"#3fb950"},"Ranging":{bg:"rgba(139,148,158,.1)",b:"#30363d",c:"#8b949e"},"Mixed":{bg:"rgba(227,179,65,.15)",b:"#e3b341",c:"#e3b341"}};
 let D={};
@@ -502,7 +505,7 @@ function renderSessions(){
 
   // ── Shelf rows ────────────────────────────────
   if(shelfContent){
-    function nextActualOpen(startHour){
+    function nextActualOpen(name, startHour, endHour){
       const now=new Date();
       if(!isClosed){
         const t=minsUntil(startHour);
@@ -515,7 +518,23 @@ function renderSessions(){
       mktOpen.setUTCDate(mktOpen.getUTCDate()+daysToSun);
       mktOpen.setUTCHours(22,0,0,0);
       if(mktOpen<=now)mktOpen.setUTCDate(mktOpen.getUTCDate()+7);
-      // Next occurrence of startHour AT or AFTER market open
+
+      // Check if this session is ACTIVE at market open time
+      // Sessions that cross midnight: startHour > endHour
+      const mktHour=22; // market opens at 22:00 UTC
+      const crossesMidnight=startHour>endHour;
+      const activeAtOpen=crossesMidnight
+        ?(mktHour>=startHour||mktHour<endHour)
+        :(mktHour>=startHour&&mktHour<endHour);
+
+      if(activeAtOpen){
+        // Already open when market reopens — show time until market open
+        const diffM=Math.round((mktOpen-now)/60000);
+        const h=Math.floor(diffM/60),m=diffM%60;
+        return{str:'Open at market open ('+(h>0?h+'h '+(m>0?m+'m':''):m+'m')+')',mins:diffM};
+      }
+
+      // Otherwise find next start after market open
       const cand=new Date(mktOpen);
       cand.setUTCHours(startHour,0,0,0);
       if(cand<=mktOpen)cand.setUTCDate(cand.getUTCDate()+1);
@@ -527,7 +546,7 @@ function renderSessions(){
     // Build session rows with open times, then sort by next open ascending
     const sessRows=Object.entries(SESS).map(([n,[s,e]])=>{
       const isActive=!isClosed&&act.includes(n);
-      const openInfo=isActive?{str:'',mins:-1}:nextActualOpen(s);
+      const openInfo=isActive?{str:'',mins:-1}:nextActualOpen(n,s,e);
       const timeStr=isActive?(()=>{const t=minsUntil(e);return t?'ACTIVE · closes '+t:'ACTIVE';})():openInfo.str;
       const nameCol=isActive?'var(--text)':'var(--muted)';
       const timeCol=isActive?'#58a6ff':'var(--muted)';
@@ -1061,12 +1080,12 @@ function buildDrumRows(){
     const isShort=keptPairs.has(pair);
     const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoff));
 
-    // Direction — explicit size so ▲ and ▼ render identically in VT323
+    // Direction — CSS border triangles guarantee identical size regardless of font
     const dirChar=dir==='bull'
-      ?`<span style="font-size:17px;line-height:1;vertical-align:middle;">▲</span>`
+      ?`<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid currentColor;vertical-align:middle;margin:0 4px;"></span>`
       :dir==='bear'
-      ?`<span style="font-size:17px;line-height:1;vertical-align:middle;">▼</span>`
-      :`<span style="opacity:.4;">–</span>`;
+      ?`<span style="display:inline-block;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid currentColor;vertical-align:middle;margin:0 4px;"></span>`
+      :`<span style="opacity:.4;margin:0 4px;">–</span>`;
 
     // Pair name — leftmost
     const pairSpan=`<span style="margin-right:4px;min-width:60px;">${pair.replace('/','')}</span>`;
@@ -1145,13 +1164,9 @@ function toggleTQC(){
 
 function renderTQC(){
   const sel=document.getElementById('tqc-pair');
-  const pair=sel?sel.value:'';
+  const pair=sel?sel.value||PAIRS[0]:'';
   const body=document.getElementById('tqc-content');
-  if(!body)return;
-  if(!pair){
-    body.innerHTML='<div style="padding:12px 14px;color:var(--muted);font-size:var(--f-info);">Select a pair above to check setup quality.</div>';
-    return;
-  }
+  if(!body||!pair)return;
 
   const h1d=D.h1&&D.h1[pair];
   const h4d=D.h4&&D.h4[pair];
@@ -1273,9 +1288,9 @@ function renderTQC(){
 }
 
 function initTQCPairs(){
-  const sel=document.getElementById('tqc-pair');
-  if(!sel)return;
-  sel.innerHTML='<option value="">— pair —</option>'+PAIRS.map(p=>`<option value="${p}">${p.replace('/','')}</option>`).join('');
+  // Dropdown already has hardcoded options matching Charts tab
+  // Just trigger render of the first pair (EUR/USD) when drawer opens
+  renderTQC();
 }
 
 // ── Shortlist cards ────────────────────────────────────────────────────────────
@@ -1855,20 +1870,28 @@ function renderLive(){
   const el=document.getElementById("live-content");if(!el)return;
   const h1=D.h1||{},d1=D.d1||{};
   const parseUTC=s=>{if(!s)return null;const clean=s.endsWith('Z')||s.includes('+')? s : s+'Z';return new Date(clean);};
-  const ts=[h1,d1].flatMap(x=>Object.values(x).map(v=>v&&v.updated)).filter(Boolean).sort();
-  const updated=ts.length?parseUTC(ts[ts.length-1]).toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}):"--:--";
+  const isWeekend=closed();
+
+  // Weekend: use last confirmed D1 close (bar[-1]) as "current" price — frozen at Friday close
+  // Weekday: use live H1 close as usual
   let rows=PAIRS.map(pair=>{
     const h=h1[pair];
-    const nowClose=h&&h.raw?parseFloat(h.raw.close):null;
-    if(!nowClose)return null;
-    // Use D1 OHLCV for correct yesterday close (bar[-2]) and 5-day close (bar[-6])
     const d1Ohlcv=D.d1&&D.d1._ohlcv&&D.d1._ohlcv[pair];
+
+    let nowClose=null;
+    if(isWeekend){
+      // Frozen at Friday close: use last D1 bar close
+      nowClose=d1Ohlcv&&d1Ohlcv.length>=1?d1Ohlcv[d1Ohlcv.length-1].close:null;
+    } else {
+      nowClose=h&&h.raw?parseFloat(h.raw.close):null;
+    }
+    if(!nowClose)return null;
+
+    // Previous close = bar[-2] for D1 (or fallback)
     let prevClose=null,weekAgoClose=null;
     if(d1Ohlcv&&d1Ohlcv.length>=2){
-      // bar[-2] = yesterday's confirmed close (bar[-1] may be today's incomplete D1)
       prevClose=d1Ohlcv[d1Ohlcv.length-2].close;
     } else {
-      // fallback: use raw close from D1 scores if no OHLCV
       const d=D.d1&&D.d1[pair];
       prevClose=d&&d.raw?parseFloat(d.raw.close):null;
     }
@@ -1876,11 +1899,10 @@ function renderLive(){
       weekAgoClose=d1Ohlcv[d1Ohlcv.length-6].close;
     }
     if(!prevClose)return null;
+
     const diff=nowClose-prevClose;
     const pct=diff/prevClose*100;
     const dec=nowClose>50?2:nowClose>5?3:5;
-    const pipMult=nowClose>50?100:10000;
-    const pips=Math.round(diff*pipMult);
     const col=diff>=0?"var(--buy)":"var(--sell)";
     const isJpy=pair.includes("JPY");
     const threshold=isJpy?1.2:0.8;
@@ -1890,12 +1912,19 @@ function renderLive(){
       w1Pct=(nowClose-weekAgoClose)/weekAgoClose*100;
       w1Col=w1Pct>=0?"var(--buy)":"var(--sell)";
     }
-    return{pair,nowClose,diff,pct,pips,col,dec,isMover,w1Pct,w1Col};
+    return{pair,nowClose,diff,pct,col,dec,isMover,w1Pct,w1Col};
   }).filter(Boolean);
+
   rows.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
   if(!rows.length){el.innerHTML='<div class="loading">No H1 data yet.</div>';return;}
   const hasW1=rows.some(r=>r.w1Pct!==null);
-  el.innerHTML=`<div style="font-size:var(--f-info);color:var(--muted);padding:8px 14px 6px;">Updated ${updated} — % Change over 24 hours${hasW1?' and 5 days':''}</div>`+
+  const headerNote=isWeekend
+    ?'Friday close · % Change vs Thursday'
+    :'% Change over 24 hours'+(hasW1?' and 5 days':'');
+  const ts=[h1,d1].flatMap(x=>Object.values(x).map(v=>v&&v.updated)).filter(Boolean).sort();
+  const updated=ts.length?parseUTC(ts[ts.length-1]).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"--:--";
+
+  el.innerHTML=`<div style="font-size:var(--f-info);color:var(--muted);padding:8px 14px 6px;">Updated ${updated}${isWeekend?' · <span style="color:#e3b341;">Market closed — frozen at Friday close</span>':''} — ${headerNote}</div>`+
   rows.map(r=>`
     <div style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-top:1px solid #21262d;${r.isMover?"background:rgba(255,255,255,.02);":""}">
       <span style="width:56px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${r.pair.replace("/","")}</span>
