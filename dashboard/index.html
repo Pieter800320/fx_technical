@@ -1263,12 +1263,17 @@ function renderTQC(){
   const h1dir=h1d?h1d.direction:'neutral';
 
   function dirPill(dir, tf){
-    const matchD1=dir===d1dir&&d1dir!=='neutral';
-    const opposing=dir!=='neutral'&&dir!==d1dir&&d1dir!=='neutral';
-    const col=matchD1?'var(--buy)':opposing?'var(--sell)':'var(--muted)';
-    const arr=dir==='bull'?'▲':dir==='bear'?'▼':'–';
-    return`<span style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;margin:0 6px;">
-      <span style="font-size:13px;color:${col};font-weight:700;">${arr}</span>
+    // Intrinsic colour: bull=green, bear=red, neutral=muted
+    // (independent of D1 direction — shows actual state, not relative alignment)
+    const col=dir==='bull'?'var(--buy)':dir==='bear'?'var(--sell)':'var(--muted)';
+    // CSS border triangles — geometrically identical size for ▲ and ▼
+    const arrow=dir==='bull'
+      ?`<span style="display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid ${col};vertical-align:middle;"></span>`
+      :dir==='bear'
+      ?`<span style="display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid ${col};vertical-align:middle;"></span>`
+      :`<span style="color:${col};font-size:11px;vertical-align:middle;">–</span>`;
+    return`<span style="display:inline-flex;flex-direction:column;align-items:center;gap:3px;margin:0 8px;">
+      ${arrow}
       <span style="font-size:9px;color:var(--muted);letter-spacing:.04em;">${tf}</span>
     </span>`;
   }
@@ -1961,13 +1966,22 @@ function renderLive(){
   rows.sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
   if(!rows.length){el.innerHTML='<div class="loading">No H1 data yet.</div>';return;}
   const hasW1=rows.some(r=>r.w1Pct!==null);
-  const headerNote=isWeekend
-    ?'Friday close · % Change vs Thursday'
-    :'% Change over 24 hours'+(hasW1?' and 5 days':'');
   const ts=[h1,d1].flatMap(x=>Object.values(x).map(v=>v&&v.updated)).filter(Boolean).sort();
   const updated=ts.length?parseUTC(ts[ts.length-1]).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"--:--";
 
-  el.innerHTML=`<div style="font-size:var(--f-info);color:var(--muted);padding:8px 14px 6px;">Updated ${updated}${isWeekend?' · <span style="color:#e3b341;">Market closed — frozen at Friday close</span>':''} — ${headerNote}</div>`+
+  // Professional column headers — always consistent regardless of weekend/weekday
+  const col1Hdr='D1 %';
+  const col2Hdr=hasW1?'D5 %':'';
+
+  el.innerHTML=
+    // Column header row
+    `<div style="display:flex;align-items:center;gap:8px;padding:5px 14px 4px;border-bottom:1px solid #21262d;">
+      <span style="width:56px;font-size:var(--f-th);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;">Pair</span>
+      <span style="flex:1;font-size:var(--f-th);color:var(--muted);">Last</span>
+      <span style="font-size:var(--f-th);color:var(--muted);min-width:52px;text-align:right;text-transform:uppercase;letter-spacing:.04em;">${col1Hdr}</span>
+      ${hasW1?`<span style="font-size:var(--f-th);color:var(--muted);min-width:44px;text-align:right;border-left:1px solid #21262d;padding-left:8px;text-transform:uppercase;letter-spacing:.04em;">${col2Hdr}</span>`:''}
+    </div>`+
+    `<div style="font-size:var(--f-th);color:var(--muted);padding:3px 14px 4px;border-bottom:1px solid #21262d;">Updated ${updated}${isWeekend?' · Friday close':''}</div>`+
   rows.map(r=>`
     <div style="display:flex;align-items:center;gap:8px;padding:7px 14px;border-top:1px solid #21262d;${r.isMover?"background:rgba(255,255,255,.02);":""}">
       <span style="width:56px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${r.pair.replace("/","")}</span>
