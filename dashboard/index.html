@@ -111,7 +111,9 @@ tr:last-child td{border-bottom:none;}
 }
 /* ── Chart Tab ─────────────────────────────────── */
 
-.tf-btn{font-size:var(--f-th);font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
+.ind-btn{font-size:var(--f-th);font-weight:600;padding:3px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:#0d1117;color:var(--muted);letter-spacing:.04em;transition:all .15s;}
+.ind-btn.ind-on{background:rgba(56,139,253,.15);border-color:rgba(56,139,253,.5);color:#58a6ff;}
+.tf-btn{font-size:var(--f-pill);font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
 .tf-btn.active{background:rgba(56,139,253,.2);border-color:#58a6ff;color:#58a6ff;}
 .stat-chip{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:7px 2px;width:100%;}
 .stat-chip .sv2{font-size:var(--f-primary);font-weight:700;}
@@ -278,7 +280,15 @@ tr:last-child td{border-bottom:none;}
       </div>
     </div>
     <div id="chart-main-canvas" style="width:calc(100% - 44px);margin:0 22px;height:240px;background:#0d1117;"></div>
-    <div style="padding:4px 10px 2px;background:#0d1117;border-top:1px solid #21262d;">
+    <!-- Indicator toggle row -->
+    <div style="display:flex;gap:4px;padding:6px 10px;background:#0d1117;border-top:1px solid #21262d;flex-wrap:wrap;">
+      <button id="ind-ema200" onclick="toggleIndicator('ema200')" class="ind-btn ind-on" style="">EMA200</button>
+      <button id="ind-ema50"  onclick="toggleIndicator('ema50')"  class="ind-btn" style="">EMA50</button>
+      <button id="ind-bb"     onclick="toggleIndicator('bb')"     class="ind-btn" style="">BB</button>
+      <button id="ind-sr"     onclick="toggleIndicator('sr')"     class="ind-btn" style="">S/R</button>
+      <button id="ind-levels" onclick="toggleIndicator('levels')" class="ind-btn" style="">Levels</button>
+    </div>
+    <div style="padding:4px 10px 2px;background:#0d1117;">
       <span class="mod-hdr" style="margin-bottom:0;">MACD (12/26/9)</span>
     </div>
     <div id="chart-macd-canvas" style="width:calc(100% - 44px);margin:0 22px;height:135px;background:#0d1117;"></div>
@@ -442,7 +452,7 @@ function go(name){
   const idx={dashboard:0,charts:1,correlation:2,signals:3,journal:4,log:5}[name]||0;
   document.querySelectorAll('.tab')[idx].classList.add('active');
   if(name==='correlation'){renderCorr(D.corr);renderCorrWarning();}
-  if(name==='charts'){renderChartPills();if(!chartTabPair&&PAIRS.length)selectChartPair(PAIRS[0]);}
+  if(name==='charts'){renderChartPills();syncIndButtons();if(!chartTabPair&&PAIRS.length)selectChartPair(PAIRS[0]);}
   if(name==='journal') updateSnap();
 }
 
@@ -672,6 +682,17 @@ function tfCell(data,uid,pos){
     const atrPctLbl=atrPct>=70?'High vol':atrPct<=30?'Low vol (compression)':'Normal';
     rows+=`<div class="dr"><span class="dn">ATR %ile</span><span style="color:${atrPctCol};font-weight:600">${atrPct} — ${atrPctLbl}</span></div>`;
   }
+  // Rate differential
+  const pairKey=pr.replace(' ','/');
+  const rd=computeRateDiff(pairKey);
+  if(rd){
+    const absDiff=Math.abs(rd.diff);
+    const dirStr=rd.direction==='widening'?'↑ widening':rd.direction==='narrowing'?'↓ narrowing':'→ stable';
+    const rdCol=rd.direction==='widening'?'var(--buy)':rd.direction==='narrowing'?'var(--sell)':'var(--muted)';
+    rows+=`<div class="ddiv"></div>`;
+    rows+=`<div class="dr"><span class="dn">Rate diff</span><span style="color:${rdCol};font-weight:600">${rd.diff>0?'+':''}${rd.diff}bps ${dirStr}</span></div>`;
+    rows+=`<div class="dr"><span class="dn">${rd.baseBank} / ${rd.quoteBank}</span><span style="color:var(--muted);font-weight:600">${rd.baseRate.toFixed(2)}% / ${rd.quoteRate.toFixed(2)}%</span></div>`;
+  }
   const struct=data.structure,cf=data.conflict;
   if(struct&&struct.event&&struct.event!=="none"){
     const evC=struct.event==="BOS"?"var(--buy)":"#e3b341";
@@ -895,6 +916,29 @@ function computeQAI(pair){
   // Colour thresholds
   const col=capped>=70?'var(--buy)':capped>=40?'#e3b341':'var(--sell)';
   return{score:capped,dir:d1dir,col,label:capped+'%'};
+}
+
+// ── Rate Differential ────────────────────────────────────────────────────────
+function computeRateDiff(pair){
+  if(!D.rates)return null;
+  const[base,quote]=pair.split('/');
+  const br=D.rates[base],qr=D.rates[quote];
+  if(!br||!qr)return null;
+  const diff=(br.rate-qr.rate)*100; // in bps
+  const direction=D.rates._prev?
+    (()=>{
+      const pb=D.rates._prev[base],pq=D.rates._prev[quote];
+      if(!pb||!pq)return'stable';
+      const prevDiff=(pb.rate-pq.rate)*100;
+      return diff>prevDiff+10?'widening':diff<prevDiff-10?'narrowing':'stable';
+    })():'stable';
+  return{
+    diff:Math.round(diff),
+    baseRate:br.rate,quoteRate:qr.rate,
+    baseBank:br.bank,quoteBank:qr.bank,
+    direction, // widening|narrowing|stable
+    base,quote
+  };
 }
 
 function buildIndicatorStrip(pair, borderCol){
@@ -1328,6 +1372,18 @@ function renderTQC(){
     crow('ATR',         atrPass, atrDetail)+
     crow('ATR %ile',    atrPctPassFinal, atrPctShort)+
     crow('Extension',   extPass, extDetail)+
+    // Rate differential criterion
+    (()=>{
+      const rd=computeRateDiff(pair);
+      if(!rd)return '';
+      const tradeDir=isBull?1:-1;
+      const diffInDir=rd.diff*tradeDir;
+      const rdPass=diffInDir>=100&&rd.direction!=='narrowing'?true:
+                   diffInDir<=-100?false:null;
+      const dirStr=rd.direction==='widening'?'↑':rd.direction==='narrowing'?'↓':'→';
+      const rdDetail=(rd.diff>0?'+':'')+rd.diff+'bps '+dirStr;
+      return crow('Rate diff', rdPass, rdDetail);
+    })()+
     // Events section
     (pairEvents.length===0
       ? crow('Events 48h', true, 'Clear')
@@ -1489,6 +1545,58 @@ function syncTimeScales(mainChart,macdChart){
   });
 }
 
+// ── Chart Indicator Toggles ───────────────────────────────────────────────────
+const IND_KEY='fx1212_indicators_v1';
+let indState={ema200:true,ema50:false,bb:false,sr:false,levels:false};
+try{const s=JSON.parse(localStorage.getItem(IND_KEY)||'{}');Object.assign(indState,s);}catch{}
+
+function toggleIndicator(key){
+  indState[key]=!indState[key];
+  localStorage.setItem(IND_KEY,JSON.stringify(indState));
+  const btn=document.getElementById('ind-'+key);
+  if(btn){btn.classList.toggle('ind-on',indState[key]);}
+  if(chartTabPair)renderCurrentChart();
+}
+
+function syncIndButtons(){
+  Object.keys(indState).forEach(k=>{
+    const btn=document.getElementById('ind-'+k);
+    if(btn)btn.classList.toggle('ind-on',indState[k]);
+  });
+}
+
+// Bollinger Bands (20-period, 2 std dev)
+function computeBB(ohlcv,period=20,mult=2){
+  if(!ohlcv||ohlcv.length<period)return[];
+  const closes=ohlcv.map(d=>d.close);
+  const out=[];
+  for(let i=period-1;i<closes.length;i++){
+    const slice=closes.slice(i-period+1,i+1);
+    const mean=slice.reduce((a,b)=>a+b,0)/period;
+    const variance=slice.reduce((a,b)=>a+(b-mean)**2,0)/period;
+    const std=Math.sqrt(variance);
+    out.push({time:ohlcv[i].time,upper:mean+mult*std,middle:mean,lower:mean-mult*std});
+  }
+  return out;
+}
+
+// S/R: recent swing highs and lows from visible bars
+function computeSR(ohlcv,lookback=5){
+  if(!ohlcv||ohlcv.length<lookback*2+1)return{highs:[],lows:[]};
+  const highs=[],lows=[];
+  for(let i=lookback;i<ohlcv.length-lookback;i++){
+    const bar=ohlcv[i];
+    const isHigh=ohlcv.slice(i-lookback,i).every(b=>b.high<=bar.high)&&
+                 ohlcv.slice(i+1,i+lookback+1).every(b=>b.high<=bar.high);
+    const isLow= ohlcv.slice(i-lookback,i).every(b=>b.low>=bar.low)&&
+                 ohlcv.slice(i+1,i+lookback+1).every(b=>b.low>=bar.low);
+    if(isHigh)highs.push({time:bar.time,price:bar.high});
+    if(isLow) lows.push({time:bar.time,price:bar.low});
+  }
+  // Return only the 4 most recent of each
+  return{highs:highs.slice(-4),lows:lows.slice(-4)};
+}
+
 function renderSingleChart(pair,tf,mainContainer,macdContainer,mainH,macdH){
   const ohlcv=getOhlcv(pair,tf);
   clearChartInst(mainContainer._lwInst);
@@ -1507,6 +1615,55 @@ function renderSingleChart(pair,tf,mainContainer,macdContainer,mainH,macdH){
     mainChart=buildLwChart(mainContainer,mainH);
     const candles=mainChart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149'});
     candles.setData(ohlcv);
+
+    // ── EMA200 ────────────────────────────────────────────────────────────────
+    if(indState.ema200&&ohlcv.length>=200){
+      const ema200vals=computeEMA(ohlcv.map(d=>d.close),200);
+      const ema200series=mainChart.addLineSeries({color:'rgba(63,185,80,.7)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+      ema200series.setData(ohlcv.map((d,i)=>({time:d.time,value:ema200vals[i]})));
+    }
+
+    // ── EMA50 ─────────────────────────────────────────────────────────────────
+    if(indState.ema50&&ohlcv.length>=50){
+      const ema50vals=computeEMA(ohlcv.map(d=>d.close),50);
+      const ema50series=mainChart.addLineSeries({color:'rgba(56,139,253,.8)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+      ema50series.setData(ohlcv.map((d,i)=>({time:d.time,value:ema50vals[i]})));
+    }
+
+    // ── Bollinger Bands ───────────────────────────────────────────────────────
+    if(indState.bb){
+      const bbData=computeBB(ohlcv);
+      if(bbData.length){
+        const bbUpper=mainChart.addLineSeries({color:'rgba(227,179,65,.5)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+        const bbMid=mainChart.addLineSeries({color:'rgba(227,179,65,.3)',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+        const bbLower=mainChart.addLineSeries({color:'rgba(227,179,65,.5)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
+        bbUpper.setData(bbData.map(d=>({time:d.time,value:d.upper})));
+        bbMid.setData(bbData.map(d=>({time:d.time,value:d.middle})));
+        bbLower.setData(bbData.map(d=>({time:d.time,value:d.lower})));
+      }
+    }
+
+    // ── S/R Levels ────────────────────────────────────────────────────────────
+    if(indState.sr){
+      const{highs,lows}=computeSR(ohlcv);
+      [...highs,...lows].forEach(lvl=>{
+        const isHigh=highs.includes(lvl);
+        const col=isHigh?'rgba(248,81,73,.5)':'rgba(63,185,80,.5)';
+        mainChart.addLineSeries({color:col,lineWidth:1,lineStyle:1,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false})
+          .setData([{time:ohlcv[0].time,value:lvl.price},{time:ohlcv[ohlcv.length-1].time,value:lvl.price}]);
+      });
+    }
+
+    // ── Price Alert Levels ────────────────────────────────────────────────────
+    if(indState.levels){
+      const alerts=laLoad().filter(a=>a.pair===pair&&a.active);
+      alerts.forEach(a=>{
+        const col=a.direction==='above'?'rgba(63,185,80,.8)':'rgba(248,81,73,.8)';
+        const lvlSeries=mainChart.addLineSeries({color:col,lineWidth:1,lineStyle:3,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+        lvlSeries.setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);
+      });
+    }
+
     mainChart.timeScale().fitContent();
     new ResizeObserver(()=>mainChart.applyOptions({width:mainContainer.clientWidth})).observe(mainContainer);
     mainContainer._lwInst=mainChart;
@@ -2106,16 +2263,16 @@ async function load(file,api=false){
 }
 async function init(){
   renderSessions();
-  const[h1,h4,d1,csm,alerts,regime,corr,conviction,calendar]=await Promise.all([
+  const[h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates]=await Promise.all([
     load("h1_scores.json",true),load("h4_scores.json",true),
     load("d1_scores.json"),load("csm.json"),load("alerts.json"),
     load("regime.json"),load("correlation.json"),load("conviction.json"),
-    load("calendar.json"),
+    load("calendar.json"),load("rates.json"),
   ]);
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v.updated):[]).filter(Boolean).sort();
   const parseTS=s=>{if(!s)return new Date(s);const c=s.endsWith('Z')||s.includes('+')?s:s+'Z';return new Date(c);};
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+parseTS(ts[ts.length-1]).toLocaleString();
-  D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar};
+  D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates};
   renderRegime(regime);renderCSM(csm,conviction);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
   if(document.getElementById('tab-charts').classList.contains('active')){renderChartPills();if(chartTabPair)renderCurrentChart();else if(PAIRS.length)selectChartPair(PAIRS[0]);}
   checkLevelAlerts();
