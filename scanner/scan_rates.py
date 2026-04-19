@@ -15,11 +15,11 @@ RATE_SOURCES = {
     "USD": {"series": "FEDFUNDS",        "bank": "Fed"},
     "EUR": {"series": "ECBDFR",          "bank": "ECB"},
     "GBP": {"series": "BOERUKM",         "bank": "BOE"},
-    "JPY": {"series": "IRSTCI01JPM156N", "bank": "BOJ"},
+    "JPY": {"series": "IRSTCB01JPM156N", "bank": "BOJ"},
     "CHF": {"series": "IRSTCI01CHM156N", "bank": "SNB"},
-    "AUD": {"series": "IRSTCI01AUM156N", "bank": "RBA"},
-    "CAD": {"series": "IRSTCI01CAM156N", "bank": "BOC"},
-    "NZD": {"series": "IRSTCI01NZM156N", "bank": "RBNZ"},
+    "AUD": {"series": "RBATCTR",         "bank": "RBA"},
+    "CAD": {"series": "CAOVRCRT",        "bank": "BOC"},
+    "NZD": {"series": "RBNZTCR",         "bank": "RBNZ"},
 }
 
 
