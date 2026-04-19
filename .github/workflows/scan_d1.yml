@@ -39,6 +39,7 @@ jobs:
           cp data/conviction.json dashboard/ || true
           cp data/cot.json        dashboard/ || true
           cp data/calendar.json   dashboard/ || true
+          cp data/rates.json      dashboard/ || true
           git add data/ dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: D1 scan $(date -u +%Y-%m-%dT%H:%M)"
           git pull origin main --no-rebase
@@ -64,6 +65,7 @@ jobs:
           cp data/conviction.json dashboard/ || true
           cp data/cot.json        dashboard/ || true
           cp data/calendar.json   dashboard/ || true
+          cp data/rates.json      dashboard/ || true
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
