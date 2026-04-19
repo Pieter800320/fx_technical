@@ -1,26 +1,13 @@
-"""scanner/scan_rates.py — Fetch central bank policy rates from FRED."""
-import csv, io, json, os, sys, datetime, urllib.request
+"""scanner/scan_rates.py — Publish central bank policy rates from rates_manual.json."""
+import json, os, sys, datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from alerts.telegram import send_telegram
 
 DATA_DIR   = os.path.join(os.path.dirname(__file__), "..", "data")
 RATES_OUT  = os.path.join(DATA_DIR, "rates.json")
+RATES_SRC  = os.path.join(DATA_DIR, "rates_manual.json")
 STATE_FILE = os.path.join(DATA_DIR, "alert_state.json")
-HEADERS    = {"User-Agent": "Mozilla/5.0 (FX-Dashboard-Bot/1.0)"}
-
-FRED_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={series}"
-
-RATE_SOURCES = {
-    "USD": {"series": "FEDFUNDS",        "bank": "Fed"},
-    "EUR": {"series": "ECBDFR",          "bank": "ECB"},
-    "GBP": {"series": "BOERUKM",         "bank": "BOE"},
-    "JPY": {"series": "IRSTCB01JPM156N", "bank": "BOJ"},
-    "CHF": {"series": "IRSTCI01CHM156N", "bank": "SNB"},
-    "AUD": {"series": "RBATCTR",         "bank": "RBA"},
-    "CAD": {"series": "CAOVRCRT",        "bank": "BOC"},
-    "NZD": {"series": "RBNZTCR",         "bank": "RBNZ"},
-}
 
 
 def load_json(path):
@@ -43,25 +30,6 @@ def save_state(state: dict):
         json.dump(state, f, indent=2)
 
 
-def _fetch_rate(series: str) -> float | None:
-    url = FRED_BASE.format(series=series)
-    try:
-        req = urllib.request.Request(url, headers=HEADERS)
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            text = resp.read().decode()
-        last_val = None
-        for row in csv.DictReader(io.StringIO(text)):
-            v = row.get("VALUE", "").strip()
-            if v and v != ".":
-                last_val = round(float(v), 4)
-        if last_val is None:
-            print(f"  [FRED] {series}: no valid rows")
-        return last_val
-    except Exception as e:
-        print(f"  [FRED] {series}: {e}")
-        return None
-
-
 def _implication(ccy: str, old: float, new: float, prev_move: str | None) -> str:
     move = "cut" if new < old else "hike"
     if move == "cut":
@@ -79,17 +47,13 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     now = datetime.datetime.utcnow()
 
+    manual     = load_json(RATES_SRC)
     prev_rates = {e["currency"]: e for e in load_json(RATES_OUT).get("rates", [])}
     state      = load_state()
     new_rates  = []
 
-    for ccy, src in RATE_SOURCES.items():
-        rate = _fetch_rate(src["series"])
-        if rate is None:
-            print(f"  {ccy} ({src['bank']}): fetch failed — carrying forward")
-            if ccy in prev_rates:
-                new_rates.append(prev_rates[ccy])
-            continue
+    for ccy, src in manual.items():
+        rate = float(src["rate"])
         entry = {
             "currency": ccy,
             "rate":     rate,
