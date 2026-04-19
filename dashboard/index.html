@@ -1256,34 +1256,80 @@ function renderTQC(){
   const qaiPass=qai.score>=70?true:qai.score>=40?null:qai.score>0?false:null;
   const qaiDetail=qai.score>0?qai.score+'%':'—';
 
-  // Count pass/warn/fail — include ATR percentile and event warning
-  const results=[d1pass,h4pass,regPass,convPass,adxPass,atrPass,extPass,csmPass,qaiPass,atrPctPassFinal,eventPass];
-  const passes=results.filter(x=>x===true).length;
-  const fails=results.filter(x=>x===false).length;
-  const total=results.length;
-  const verdict=fails===0&&passes>=8?'STRONG SETUP':fails===0&&passes>=6?'ACCEPTABLE':fails<=1&&passes>=6?'CAUTION':fails>=2?'DO NOT TRADE':'CAUTION';
-  const verdictCol=verdict==='STRONG SETUP'?'var(--buy)':verdict==='ACCEPTABLE'?'#e3b341':verdict==='CAUTION'?'#e3b341':'var(--sell)';
+  // ── Alignment indicator (replaces verdict) ─────────────────────────────────
+  // Shows D1/H4/H1 directional state — context-aware, not a binary pass/fail
+  const d1dir=d1d?d1d.direction:'neutral';
+  const h4dir=h4d?h4d.direction:'neutral';
+  const h1dir=h1d?h1d.direction:'neutral';
+
+  function dirPill(dir, tf){
+    const matchD1=dir===d1dir&&d1dir!=='neutral';
+    const opposing=dir!=='neutral'&&dir!==d1dir&&d1dir!=='neutral';
+    const col=matchD1?'var(--buy)':opposing?'var(--sell)':'var(--muted)';
+    const arr=dir==='bull'?'▲':dir==='bear'?'▼':'–';
+    return`<span style="display:inline-flex;flex-direction:column;align-items:center;gap:1px;margin:0 6px;">
+      <span style="font-size:13px;color:${col};font-weight:700;">${arr}</span>
+      <span style="font-size:9px;color:var(--muted);letter-spacing:.04em;">${tf}</span>
+    </span>`;
+  }
+
+  // ── Compact criterion row ──────────────────────────────────────────────────
+  // Two-column: [icon + label] [value] — tight, single line, mobile-friendly
+  function crow(label, pass, value){
+    const col=pass===true?'var(--buy)':pass===false?'var(--sell)':'#e3b341';
+    const icon=pass===true?'✓':pass===false?'✗':'~';
+    return`<div style="display:flex;align-items:center;padding:5px 12px;border-bottom:1px solid #21262d;gap:6px;">
+      <span style="color:${col};font-weight:700;font-size:12px;width:12px;flex-shrink:0;">${icon}</span>
+      <span style="flex:1;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">${label}</span>
+      <span style="font-size:11px;color:${col};font-weight:600;text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${value}</span>
+    </div>`;
+  }
+
+  // ── Event rows with search link ────────────────────────────────────────────
+  function eventRow(ev){
+    const evDate=new Date(ev.datetime+'Z');
+    const hrsAway=Math.round((evDate-new Date())/3600000);
+    const timeStr=hrsAway>0?'in '+hrsAway+'h':'now';
+    const searchQ=encodeURIComponent(ev.event+' '+ev.currency+' forex impact');
+    const searchUrl='https://news.google.com/search?q='+searchQ;
+    return`<div style="display:flex;align-items:center;padding:5px 12px;border-bottom:1px solid #21262d;gap:6px;">
+      <span style="color:var(--sell);font-weight:700;font-size:12px;width:12px;flex-shrink:0;">!</span>
+      <span style="flex:1;font-size:10px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${ev.currency} · ${ev.event.length>22?ev.event.substring(0,22)+'…':ev.event}</span>
+      <span style="font-size:10px;color:var(--muted);margin-right:4px;flex-shrink:0;">${timeStr}</span>
+      <a href="${searchUrl}" target="_blank" rel="noopener" style="font-size:10px;color:#58a6ff;text-decoration:none;flex-shrink:0;border:1px solid rgba(56,139,253,.3);border-radius:4px;padding:1px 5px;">→</a>
+    </div>`;
+  }
+
+  // ── Build output ───────────────────────────────────────────────────────────
+  const atrPctShort=atrPct===null?'—':atrPct+(atrPct>=70?' Hi':atrPct<=30?' Lo':' Mid');
 
   body.innerHTML=
-    `<div style="padding:10px 14px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);">
-      <span style="font-size:var(--f-info);color:var(--muted);">${pair.replace('/','')}&nbsp;&nbsp;${isBull?'▲ BULL':isBear?'▼ BEAR':'— NEUTRAL'}</span>
-      <span style="font-size:var(--f-primary);font-weight:700;color:${verdictCol};">${verdict}</span>
+    // Header: QAI score + alignment pills
+    `<div style="padding:10px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);background:#0d1117;">
+      <div style="display:flex;align-items:center;">
+        ${dirPill(d1dir,'D1')}${dirPill(h4dir,'H4')}${dirPill(h1dir,'H1')}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;">
+        <span style="font-size:18px;font-weight:700;color:${qai.col||'var(--muted)'};">${qaiDetail}</span>
+        <span style="font-size:9px;color:var(--muted);letter-spacing:.06em;">QAI</span>
+      </div>
     </div>`+
-    criterion('D1 directional signal',d1pass,null,d1detail)+
-    criterion('H4 confirms D1 direction',h4pass,null,h4detail)+
-    criterion('H1 aligned or neutral',h1pass,null,h1detail)+
-    criterion('Regime supports direction',regPass,null,regDetail)+
-    criterion('Conviction ≥ +30',convPass,null,convDetail)+
-    criterion('CSM base > quote (in dir)',csmPass,null,csmDetail)+
-    criterion('ADX ≥ 20 (trend strength)',adxPass,null,adxDetail)+
-    criterion('ATR normal (volatility)',atrPass,null,atrDetail)+
-    criterion('Not extended',extPass,null,extDetail)+
-    criterion('ATR percentile (vol context)',atrPctPassFinal,null,atrPctDetail)+
-    criterion('No high-impact event 48h',eventPass,null,eventDetail)+
-    `<div style="padding:8px 14px;display:flex;justify-content:space-between;align-items:center;">
-      <span style="font-size:var(--f-th);color:var(--muted);">QAI</span>
-      <span style="font-size:var(--f-primary);font-weight:700;color:${qai.col||'var(--muted)'};">${qaiDetail}</span>
-    </div>`;
+    // Criteria grid
+    crow('D1 Signal',   d1pass,  d1detail)+
+    crow('H4 Signal',   h4pass,  h4detail)+
+    crow('H1 Signal',   h1pass,  h1detail)+
+    crow('Regime',      regPass, regDetail)+
+    crow('Conviction',  convPass, convDetail)+
+    crow('CSM Divg',    csmPass, csmDetail)+
+    crow('ADX',         adxPass, adxDetail||'—')+
+    crow('ATR',         atrPass, atrDetail)+
+    crow('ATR %ile',    atrPctPassFinal, atrPctShort)+
+    crow('Extension',   extPass, extDetail)+
+    // Events section
+    (pairEvents.length===0
+      ? crow('Events 48h', true, 'Clear')
+      : pairEvents.map(eventRow).join('')
+    );
 }
 
 function initTQCPairs(){
