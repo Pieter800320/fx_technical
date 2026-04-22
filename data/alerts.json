@@ -1,108 +1,6 @@
 {
   "alerts": [
     {
-      "pair": "GBP/JPY",
-      "direction": "bull",
-      "h1_label": "Buy",
-      "h4_label": "Strong Buy",
-      "d1_label": "Strong Buy",
-      "blurb": [
-        "MarketPulse",
-        "USD/JPY under pressure as markets price in a BoJ rate hike"
-      ],
-      "levels": {
-        "support": [
-          {
-            "price": 212.37332,
-            "pips": 122.7
-          },
-          {
-            "price": 211.24886,
-            "pips": 235.2
-          },
-          {
-            "price": 210.5792,
-            "pips": 302.2
-          }
-        ],
-        "resistance": [
-          {
-            "price": 213.85187,
-            "pips": 25.1
-          }
-        ],
-        "current_price": 213.60081
-      },
-      "extended": {
-        "extended": true,
-        "reasons": [
-          "Price 10.3\u00d7 ATR from EMA200",
-          "10 consecutive bars beyond EMA50"
-        ],
-        "atr_dist": 10.26
-      },
-      "regime": "Risk-On",
-      "regime_confidence": "Medium",
-      "adx": 78.6,
-      "atr_ok": true,
-      "timestamp": "2026-04-10T02:05:43.883774"
-    },
-    {
-      "pair": "AUD/USD",
-      "direction": "bull",
-      "h1_label": "Buy",
-      "h4_label": "Strong Buy",
-      "d1_label": "Strong Buy",
-      "blurb": [
-        "MarketPulse",
-        "The Petrodollar trade is over, Dollar tumbles \u2013 EUR/USD, AUD/USD & Dollar Index (DXY) overview"
-      ],
-      "levels": {
-        "support": [
-          {
-            "price": 0.70687,
-            "pips": 0.3
-          },
-          {
-            "price": 0.70449,
-            "pips": 24.1
-          },
-          {
-            "price": 0.70314,
-            "pips": 37.6
-          }
-        ],
-        "resistance": [
-          {
-            "price": 0.70799,
-            "pips": 10.9
-          },
-          {
-            "price": 0.71089,
-            "pips": 39.9
-          },
-          {
-            "price": 0.71465,
-            "pips": 77.5
-          }
-        ],
-        "current_price": 0.7069
-      },
-      "extended": {
-        "extended": true,
-        "reasons": [
-          "Price 2.8\u00d7 ATR from EMA200",
-          "10 consecutive bars beyond EMA50"
-        ],
-        "atr_dist": 2.82
-      },
-      "regime": "Risk-On",
-      "regime_confidence": "Medium",
-      "adx": 70.9,
-      "atr_ok": true,
-      "timestamp": "2026-04-10T03:45:13.589434"
-    },
-    {
       "pair": "EUR/JPY",
       "direction": "bull",
       "h1_label": "Buy",
@@ -4955,6 +4853,70 @@
         "multiplier": 1.3
       },
       "timestamp": "2026-04-22T03:46:53.186692"
+    },
+    {
+      "pair": "USD/JPY",
+      "direction": "bull",
+      "h1_label": "Neutral",
+      "h4_label": "Buy",
+      "d1_label": "Buy",
+      "blurb": [
+        "MarketPulse",
+        "USD/JPY forms a major Head & Shoulders pattern as Oil crumbles \u2013 FX Analysis"
+      ],
+      "levels": {},
+      "extended": {
+        "extended": true,
+        "reasons": [
+          "9 consecutive bars beyond EMA50"
+        ],
+        "atr_dist": 0.72
+      },
+      "regime": "Risk-On",
+      "regime_confidence": "Medium",
+      "adx": 35.7,
+      "atr_ok": true,
+      "conflict": false,
+      "structure": {
+        "direction": "neutral",
+        "event": "none",
+        "strength": 0.0,
+        "multiplier": 1.0
+      },
+      "timestamp": "2026-04-22T06:16:40.880023"
+    },
+    {
+      "pair": "AUD/JPY",
+      "direction": "bull",
+      "h1_label": "Neutral",
+      "h4_label": "Buy",
+      "d1_label": "Strong Buy",
+      "blurb": [
+        "FXStreet",
+        "AUD/JPY Forecast: Drifts higher above 114.00, bullish momentum persists above 100-day EMA"
+      ],
+      "levels": {},
+      "extended": {
+        "extended": true,
+        "reasons": [
+          "Price 8.5x ATR from EMA200",
+          "RSI overbought (76)",
+          "10 consecutive bars beyond EMA50"
+        ],
+        "atr_dist": 8.51
+      },
+      "regime": "Risk-On",
+      "regime_confidence": "Medium",
+      "adx": 40.0,
+      "atr_ok": true,
+      "conflict": true,
+      "structure": {
+        "direction": "bear",
+        "event": "CHoCH",
+        "strength": 0.26,
+        "multiplier": 1.0
+      },
+      "timestamp": "2026-04-22T06:16:41.121831"
     }
   ]
 }
