@@ -977,7 +977,8 @@ function computeQAI(pair){
 function computeRateDiff(pair){
   if(!D.rates)return null;
   const[base,quote]=pair.split('/');
-  const br=D.rates[base],qr=D.rates[quote];
+  const _rm=getRatesMap();
+  const br=_rm[base],qr=_rm[quote];
   if(!br||!qr)return null;
   const diff=(br.rate-qr.rate)*100; // in bps
   const direction=D.rates._prev?
@@ -1152,9 +1153,10 @@ function generateBrief(){
   // Rates summary for brief
   let ratesText='';
   if(D.rates){
+    const _rmap=getRatesMap();
     const keyPairs=[['USD','JPY'],['EUR','USD'],['GBP','USD'],['CAD','JPY'],['AUD','USD']];
     const rateLines=keyPairs.map(([b,q])=>{
-      const br=D.rates[b],qr=D.rates[q];
+      const br=_rmap[b],qr=_rmap[q];
       if(!br||!qr)return null;
       const bps=Math.round((br.rate-qr.rate)*100);
       return b+q+': '+(bps>0?'+':'')+bps+'bps ('+br.bank+' '+br.rate+'% vs '+qr.bank+' '+qr.rate+'%)';
@@ -2262,7 +2264,7 @@ function buildPrompt(){
   if(D.rates){
     t+="RATE DIFFERENTIALS:\n";
     [['USD','JPY'],['EUR','USD'],['GBP','USD'],['CAD','JPY'],['AUD','USD'],['USD','CHF'],['NZD','USD'],['USD','CAD']].forEach(([b,q])=>{
-      const br=D.rates[b],qr=D.rates[q];
+      const _rm2=getRatesMap(),br=_rm2[b],qr=_rm2[q];
       if(br&&qr){const bps=Math.round((br.rate-qr.rate)*100);t+=b+q+": "+(bps>0?'+':'')+bps+"bps  ";}
     });
     t+="\n\n";
@@ -2369,9 +2371,21 @@ const CCYS=['USD','EUR','GBP','JPY','CHF','AUD','CAD','NZD'];
 // Local working copy of rates (editable)
 let ratesLocal={};
 
+function getRatesMap(){
+  // rates.json may be {rates:[{currency,rate,bank},...]} or {USD:{rate,bank},...}
+  if(!D.rates)return{};
+  if(Array.isArray(D.rates.rates)){
+    const map={};
+    D.rates.rates.forEach(r=>{if(r.currency)map[r.currency]={rate:r.rate,bank:r.bank};});
+    return map;
+  }
+  // flat object keyed by currency
+  return D.rates;
+}
+
 function renderRatesTab(){
   // Always re-seed from D.rates so fields show current values
-  const src=D.rates||{};
+  const src=getRatesMap();
   CCYS.forEach(c=>{
     ratesLocal[c]=src[c]!==undefined&&src[c].rate!==undefined?src[c].rate:ratesLocal[c]||0;
   });
@@ -2423,7 +2437,7 @@ function renderRatesTableGrid(){
   const el=document.getElementById('rates-table-grid');
   const upEl=document.getElementById('rates-updated');
   if(!el)return;
-  const src=D.rates||{};
+  const src=getRatesMap();
   el.innerHTML=CCYS.map(c=>{
     const r=src[c];
     if(!r)return`<div style="display:flex;padding:6px 14px;border-bottom:1px solid #21262d;gap:8px;">
@@ -2481,7 +2495,7 @@ async function saveRates(){
       setRatesStatus('✓ Pushed. Rates scan will deploy shortly.','var(--buy)');
       // Update local D.rates immediately so dashboard reflects new rates
       D.rates=D.rates||{};
-      CCYS.forEach(c=>{D.rates[c]={rate:ratesLocal[c],bank:BANKS[c]};});
+      const _rm3=getRatesMap();CCYS.forEach(c=>{_rm3[c]={rate:ratesLocal[c],bank:BANKS[c]};});
       D.rates.updated=payload.updated;
       renderRatesTableGrid();
       renderRatesDiffGrid();
