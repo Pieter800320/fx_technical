@@ -163,6 +163,7 @@ tr:last-child td{border-bottom:none;}
   <div class="tab" onclick="go('charts')">Charts</div>
   <div class="tab" onclick="go('correlation')">Correlation</div>
   <div class="tab" onclick="go('signals')">Technical</div>
+  <div class="tab" onclick="go('rates')">Rates</div>
   <div class="tab" onclick="go('journal')">Journal</div>
   <div class="tab" onclick="go('log')">Log</div>
 </div>
@@ -356,6 +357,48 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+<div id="tab-rates" class="tab-panel">
+
+  <!-- Differentials summary -->
+  <div class="module" style="padding:0;overflow:hidden;">
+    <div style="padding:10px 14px 8px;border-bottom:1px solid var(--border);">
+      <div class="mod-hdr" style="margin:0;">Rate Differentials</div>
+    </div>
+    <div id="rates-diff-grid" style="padding:4px 0;"><div class="loading">Loading...</div></div>
+  </div>
+
+  <!-- Edit rates form -->
+  <div class="module" style="padding:14px;">
+    <div class="mod-hdr" style="margin-bottom:14px;">Update Rates</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;" id="rates-form-grid"></div>
+    <div style="font-size:var(--f-th);color:var(--muted);margin-bottom:10px;">
+      Edit a rate after a central bank meeting. Changes push to GitHub and trigger the Telegram alert automatically.
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button class="btn btn-green" onclick="saveRates()" style="padding:6px 16px;">Save &amp; Push</button>
+      <span id="rates-save-status" style="font-size:var(--f-info);color:var(--muted);"></span>
+    </div>
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
+      <div style="font-size:var(--f-th);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">GitHub PAT required for push</div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="rates-pat-input" type="password" placeholder="ghp_xxxxxxxxxxxx" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:var(--f-input);flex:1;"/>
+        <button class="btn" onclick="saveRatesPAT()" style="padding:5px 12px;white-space:nowrap;">Save PAT</button>
+      </div>
+      <div style="font-size:var(--f-th);color:var(--muted);margin-top:4px;">PAT stored in browser only. Needs repo write permission.</div>
+    </div>
+  </div>
+
+  <!-- Current rates table -->
+  <div class="module" style="padding:0;overflow:hidden;">
+    <div style="padding:10px 14px 8px;border-bottom:1px solid var(--border);">
+      <div class="mod-hdr" style="margin:0;">Current Policy Rates</div>
+    </div>
+    <div id="rates-table-grid" style="padding:4px 0;"><div class="loading">Loading...</div></div>
+    <div id="rates-updated" style="padding:6px 14px 10px;font-size:var(--f-th);color:var(--muted);"></div>
+  </div>
+
+</div>
+
 <div id="tab-journal" class="tab-panel">
   <div id="j-form">
   <div style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px;">New Trade Entry</div>
@@ -447,11 +490,12 @@ function go(name){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+name).classList.add('active');
-  const idx={dashboard:0,charts:1,correlation:2,signals:3,journal:4,log:5}[name]||0;
+  const idx={dashboard:0,charts:1,correlation:2,signals:3,rates:4,journal:5,log:6}[name]||0;
   document.querySelectorAll('.tab')[idx].classList.add('active');
   if(name==='correlation'){renderCorr(D.corr);renderCorrWarning();}
   if(name==='charts'){renderChartPills();syncIndButtons();if(!chartTabPair&&PAIRS.length)selectChartPair(PAIRS[0]);}
   if(name==='journal') updateSnap();
+  if(name==='rates') renderRatesTab();
 }
 
 function closed(){const n=new Date(),d=n.getUTCDay(),h=n.getUTCHours();return d===6||(d===0&&h<22)||(d===5&&h>=22);}
@@ -892,19 +936,32 @@ function computeQAI(pair){
   const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
   const adxScore=adxV===null?5:adxV>=25?10:adxV>=20?7:adxV>=15?4:1;
 
-  // 7. Extension penalty (5%)
+  // 7. Extension penalty (3%)
   const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
   const extScore=ext?0:10;
 
-  // Weighted sum → 0-100
+  // 8. Rate differential (5%) — carry supports direction
+  const rd=computeRateDiff(pair);
+  let rateScore=5; // neutral default when no data
+  if(rd){
+    const diffInDir=isBull?rd.diff:-rd.diff; // positive = carry supports trade
+    if(diffInDir>=200&&rd.direction!=='narrowing')     rateScore=10;
+    else if(diffInDir>=50)                             rateScore=7;
+    else if(diffInDir>=-50)                            rateScore=5;
+    else if(diffInDir<-200&&rd.direction!=='widening') rateScore=1;
+    else                                               rateScore=3;
+  }
+
+  // Weighted sum → 0-100 (weights sum to 1.00)
   const raw=Math.round(
     d1Score   * 0.25 +
     h4Score   * 0.20 +
-    regScore  * 0.20 +
+    regScore  * 0.18 +
     convScore * 0.15 +
     h1Score   * 0.10 +
-    adxScore  * 0.05 +
-    extScore  * 0.05
+    rateScore * 0.05 +
+    adxScore  * 0.04 +
+    extScore  * 0.03
   ) * 10;
 
   // Hard cap: extended AND low conviction → max 40
@@ -1092,7 +1149,19 @@ function generateBrief(){
     if(highConv)convText+='\nHigh conviction (≥40): '+highConv+'.';
     if(lowConv)convText+='\nLow conviction (≤-20): '+lowConv+'.';
   }
-  return["Regime: "+r+"  "+conf+(regime.data_source?" ["+regime.data_source+"]":""),"",usdText+" "+shText,dispText,"","Strongest currencies: "+strongest+".","Weakest currencies:   "+weakest+".",""  ,signalText,"",extText,adxText,convText,"","Note: correlation based on last "+(D.corr&&D.corr.lookback?D.corr.lookback:50)+" bars - may be less reliable if regime recently changed."].join("\n");
+  // Rates summary for brief
+  let ratesText='';
+  if(D.rates){
+    const keyPairs=[['USD','JPY'],['EUR','USD'],['GBP','USD'],['CAD','JPY'],['AUD','USD']];
+    const rateLines=keyPairs.map(([b,q])=>{
+      const br=D.rates[b],qr=D.rates[q];
+      if(!br||!qr)return null;
+      const bps=Math.round((br.rate-qr.rate)*100);
+      return b+q+': '+(bps>0?'+':'')+bps+'bps ('+br.bank+' '+br.rate+'% vs '+qr.bank+' '+qr.rate+'%)';
+    }).filter(Boolean);
+    if(rateLines.length)ratesText='\nRate differentials:\n'+rateLines.join('\n');
+  }
+  return["Regime: "+r+"  "+conf+(regime.data_source?" ["+regime.data_source+"]":""),"",usdText+" "+shText,dispText,"","Strongest currencies: "+strongest+".","Weakest currencies:   "+weakest+".",""  ,signalText,"",extText,adxText,convText,ratesText,"","Note: correlation based on last "+(D.corr&&D.corr.lookback?D.corr.lookback:50)+" bars - may be less reliable if regime recently changed."].join("\n");
 }
 
 // ── Pair Drum Wheel ───────────────────────────────────────────────────────────
@@ -1919,8 +1988,10 @@ function copyChartPrompt(){
   const convPairs=(D.conviction&&D.conviction.pairs)||{};
   const convScore=convPairs[pair];
   const convStr=convScore!==undefined?`Conviction: ${convScore>0?'+':''}${convScore}/100\n`:'';
+  const rdPair=computeRateDiff(pair);
+  const rdStr=rdPair?`Rate diff: ${rdPair.diff>0?'+':''}${rdPair.diff}bps (${rdPair.baseBank} ${rdPair.baseRate}% vs ${rdPair.quoteBank} ${rdPair.quoteRate}%)\n`:'';
   const prompt=`You are an institutional FX trader with web search access.
-Pair: ${pair.replace('/','')}\nD1: ${d1d?d1d.label:'N/A'} | H4: ${h4d?h4d.label:'N/A'} | H1: ${h1d?h1d.label:'N/A'}\n${convStr}ADX: ${adxV!==null?adxV.toFixed(1):'N/A'} | ATR: ${atrOk===null?'N/A':atrOk?'Normal':'Contracted'} | Extended: ${ext?'Yes':'No'}\nStructure: ${structStr}\nRegime (proxy): ${reg} (${regConf})\nNews: "${headline||'None'}"\nTime: ${new Date().toLocaleString()}\n\nSearch current VIX, DXY, and ${pair.replace('/','').substring(3)} macro context.\nAssess: (1) which direction does price support? (2) is price fresh or extended?\n\nOutput strictly:\nRegime / Edge or Flaw / Verdict\nMax 40 words. Be decisive.`;
+Pair: ${pair.replace('/','')}\nD1: ${d1d?d1d.label:'N/A'} | H4: ${h4d?h4d.label:'N/A'} | H1: ${h1d?h1d.label:'N/A'}\n${convStr}${rdStr}ADX: ${adxV!==null?adxV.toFixed(1):'N/A'} | ATR: ${atrOk===null?'N/A':atrOk?'Normal':'Contracted'} | Extended: ${ext?'Yes':'No'}\nStructure: ${structStr}\nRegime (proxy): ${reg} (${regConf})\nNews: "${headline||'None'}"\nTime: ${new Date().toLocaleString()}\n\nSearch current VIX, DXY, and ${pair.replace('/','').substring(3)} macro context.\nAssess: (1) which direction does price support? (2) is price fresh or extended?\n\nOutput strictly:\nRegime / Edge or Flaw / Verdict\nMax 40 words. Be decisive.`;
   navigator.clipboard.writeText(prompt).then(()=>{
     const b=document.getElementById('chart-cp-btn');
     b.textContent='✓ Copied!';b.classList.add('ok');
@@ -2187,6 +2258,15 @@ function buildPrompt(){
     cfPairs.forEach(p=>{const st=(D.h4[p].structure)||{};t+=p.replace("/","")+" — "+st.direction+" structure, "+st.event+" event, strength "+Math.round((st.strength||0)*100)+"%\n";});
     t+="\n";
   }
+  // Rate differentials
+  if(D.rates){
+    t+="RATE DIFFERENTIALS:\n";
+    [['USD','JPY'],['EUR','USD'],['GBP','USD'],['CAD','JPY'],['AUD','USD'],['USD','CHF'],['NZD','USD'],['USD','CAD']].forEach(([b,q])=>{
+      const br=D.rates[b],qr=D.rates[q];
+      if(br&&qr){const bps=Math.round((br.rate-qr.rate)*100);t+=b+q+": "+(bps>0?'+':'')+bps+"bps  ";}
+    });
+    t+="\n\n";
+  }
   t+="You are a macro FX strategist with web search access.\n";
   t+="Search current: VIX, DXY, SPX, WTI, Copper, BTC, US10Y.\n\n";
   t+="Output strictly:\n1. Regime (3 words)\n2. Key driver (1 sentence)\n3. Pair bias: EURUSD/GBPUSD/USDJPY/USDCHF/AUDUSD/USDCAD/NZDUSD/EURJPY/GBPJPY\n   -> Strong Sell|Sell|Neutral|Buy|Strong Buy\n4. One caution\n5. Confirm or adjust the shortlist. If you adjust, state why.\nMax 100 words. No fluff.";
@@ -2279,6 +2359,138 @@ async function init(){
   if(document.getElementById("tab-correlation").classList.contains("active"))renderCorr(corr);
 }
 init();setInterval(init,5*60*1000);
+
+// ── Rates Tab ─────────────────────────────────────────────────────────────────
+const RATES_PAT_KEY='fx1212_rates_pat';
+const RATES_PATH='data/rates_manual.json';
+const BANKS={USD:'Fed',EUR:'ECB',GBP:'BOE',JPY:'BOJ',CHF:'SNB',AUD:'RBA',CAD:'BOC',NZD:'RBNZ'};
+const CCYS=['USD','EUR','GBP','JPY','CHF','AUD','CAD','NZD'];
+
+// Local working copy of rates (editable)
+let ratesLocal={};
+
+function renderRatesTab(){
+  // Seed from loaded D.rates or defaults
+  const src=D.rates||{};
+  CCYS.forEach(c=>{
+    if(!ratesLocal[c])ratesLocal[c]=src[c]?src[c].rate:0;
+  });
+  renderRatesDiffGrid();
+  renderRatesFormGrid();
+  renderRatesTableGrid();
+  // Restore PAT field placeholder
+  const pat=localStorage.getItem(RATES_PAT_KEY)||'';
+  const inp=document.getElementById('rates-pat-input');
+  if(inp)inp.placeholder=pat?'PAT saved ✓':'ghp_xxxxxxxxxxxx';
+}
+
+function renderRatesDiffGrid(){
+  const el=document.getElementById('rates-diff-grid');
+  if(!el)return;
+  const pairs=[['AUD','USD'],['EUR','USD'],['GBP','USD'],['USD','JPY'],
+               ['USD','CHF'],['USD','CAD'],['NZD','USD'],['CAD','JPY'],
+               ['AUD','JPY'],['GBP','JPY']];
+  el.innerHTML=pairs.map(([b,q])=>{
+    const br=ratesLocal[b]||0,qr=ratesLocal[q]||0;
+    const diff=(br-qr).toFixed(2);
+    const bps=Math.round((br-qr)*100);
+    const col=bps>0?'var(--buy)':bps<0?'var(--sell)':'var(--muted)';
+    return`<div style="display:flex;align-items:center;padding:6px 14px;border-bottom:1px solid #21262d;gap:8px;">
+      <span style="font-weight:700;font-size:var(--f-primary);color:var(--text);width:58px;">${b+q}</span>
+      <span style="flex:1;font-size:var(--f-info);color:var(--muted);">${BANKS[b]} ${br}% vs ${BANKS[q]} ${qr}%</span>
+      <span style="font-size:var(--f-primary);font-weight:700;color:${col};">${bps>0?'+':''}${bps}bps</span>
+    </div>`;
+  }).join('');
+}
+
+function renderRatesFormGrid(){
+  const el=document.getElementById('rates-form-grid');
+  if(!el)return;
+  el.innerHTML=CCYS.map(c=>`
+    <div class="fg" style="margin:0;">
+      <label style="font-size:var(--f-th);color:var(--muted);font-weight:600;text-transform:uppercase;">${BANKS[c]} (${c})</label>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <input id="rate-inp-${c}" type="number" step="0.01" min="0" max="25"
+          value="${ratesLocal[c]||0}"
+          onchange="ratesLocal['${c}']=parseFloat(this.value)||0;renderRatesDiffGrid();"
+          style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:var(--f-input);width:100%;"/>
+        <span style="font-size:var(--f-info);color:var(--muted);flex-shrink:0;">%</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderRatesTableGrid(){
+  const el=document.getElementById('rates-table-grid');
+  const upEl=document.getElementById('rates-updated');
+  if(!el)return;
+  const src=D.rates||{};
+  el.innerHTML=CCYS.map(c=>{
+    const r=src[c];
+    if(!r)return`<div style="display:flex;padding:6px 14px;border-bottom:1px solid #21262d;gap:8px;">
+      <span style="width:40px;font-weight:700;font-size:var(--f-info);">${c}</span>
+      <span style="color:var(--muted);font-size:var(--f-info);">No data</span></div>`;
+    return`<div style="display:flex;align-items:center;padding:6px 14px;border-bottom:1px solid #21262d;gap:8px;">
+      <span style="width:40px;font-weight:700;font-size:var(--f-primary);color:var(--text);">${c}</span>
+      <span style="flex:1;font-size:var(--f-info);color:var(--muted);">${r.bank}</span>
+      <span style="font-size:var(--f-primary);font-weight:700;color:var(--text);">${r.rate}%</span>
+    </div>`;
+  }).join('');
+  if(upEl&&src.updated)upEl.textContent='Last updated: '+new Date(src.updated).toLocaleString();
+}
+
+function saveRatesPAT(){
+  const inp=document.getElementById('rates-pat-input');
+  if(!inp||!inp.value)return;
+  localStorage.setItem(RATES_PAT_KEY,inp.value.trim());
+  inp.value='';inp.placeholder='PAT saved ✓';
+  setRatesStatus('PAT saved.','var(--buy)');
+}
+
+function setRatesStatus(msg,col){
+  const el=document.getElementById('rates-save-status');
+  if(el){el.textContent=msg;el.style.color=col||'var(--muted)';}
+}
+
+async function saveRates(){
+  const pat=localStorage.getItem(RATES_PAT_KEY);
+  if(!pat){setRatesStatus('No PAT stored. Add your GitHub token below.','var(--sell)');return;}
+  // Read current inputs
+  CCYS.forEach(c=>{
+    const inp=document.getElementById('rate-inp-'+c);
+    if(inp)ratesLocal[c]=parseFloat(inp.value)||0;
+  });
+  // Build rates_manual.json content
+  const payload={};
+  CCYS.forEach(c=>{payload[c]={rate:ratesLocal[c],bank:BANKS[c]};});
+  payload.updated=new Date().toISOString();
+  const content=btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));
+  const apiUrl=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/${RATES_PATH}`;
+  setRatesStatus('Pushing to GitHub…','#e3b341');
+  try{
+    // Get current SHA
+    let sha=null;
+    const get=await fetch(apiUrl,{headers:{Authorization:`token ${pat}`,Accept:'application/vnd.github.v3+json'}});
+    if(get.ok){const d=await get.json();sha=d.sha;}
+    // PUT new content
+    const body={message:`rates: manual update ${new Date().toISOString().slice(0,10)}`,content};
+    if(sha)body.sha=sha;
+    const put=await fetch(apiUrl,{method:'PUT',
+      headers:{Authorization:`token ${pat}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},
+      body:JSON.stringify(body)});
+    if(put.ok){
+      setRatesStatus('✓ Pushed. Rates scan will deploy shortly.','var(--buy)');
+      // Update local D.rates immediately so dashboard reflects new rates
+      D.rates=D.rates||{};
+      CCYS.forEach(c=>{D.rates[c]={rate:ratesLocal[c],bank:BANKS[c]};});
+      D.rates.updated=payload.updated;
+      renderRatesTableGrid();
+      renderRatesDiffGrid();
+    } else {
+      const err=await put.json();
+      setRatesStatus('Push failed: '+err.message,'var(--sell)');
+    }
+  }catch(e){setRatesStatus('Error: '+e.message,'var(--sell)');}
+}
 
 const JK="fx1212_j_v2",TK="fx1212_trash_v1";
 const jLoad=()=>{try{return JSON.parse(localStorage.getItem(JK)||"[]");}catch{return[];}};
