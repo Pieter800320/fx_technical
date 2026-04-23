@@ -11,6 +11,7 @@ Changes from audit:
   - log_alert retained: feeds alerts.json which powers dashboard headlines.
 """
 import json, os, sys, datetime
+import numpy as np
 import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -21,6 +22,52 @@ from scanner.correlate import compute_correlation
 from scanner.cooldown import is_on_cooldown, record_alert
 from alerts.news import get_alert_context
 from alerts.log import log_alert
+
+def compute_reset_score(ohlcv_closes, period=20):
+    """
+    Port of Pine Script mean reversion oscillator.
+    Returns integer 0-100. Lower = more coiled/settled.
+    """
+    if len(ohlcv_closes) < period + 14:
+        return None
+    closes = np.array(ohlcv_closes, dtype=float)
+
+    def zscore(arr, n):
+        mean = np.mean(arr[-n:])
+        std  = np.std(arr[-n:])
+        return 0.0 if std == 0 else (arr[-1] - mean) / std
+
+    deltas   = np.diff(closes)
+    gains    = np.where(deltas > 0, deltas, 0)
+    losses   = np.where(deltas < 0, -deltas, 0)
+    avg_gain = np.mean(gains[-14:])
+    avg_loss = np.mean(losses[-14:])
+    rs       = avg_gain / avg_loss if avg_loss != 0 else 100
+    rsi      = 100 - (100 / (1 + rs))
+    pos_proxy = np.tanh((rsi - 50.0) / 10.0)
+
+    sma20   = np.mean(closes[-period:])
+    stretch = np.tanh((closes[-1] - sma20) / sma20) if sma20 != 0 else 0.0
+
+    vol_z = np.tanh(zscore(np.array([np.std(closes[i - period:i])
+                                     for i in range(period, len(closes) + 1)]), period))
+
+    roc5  = (closes[-1] - closes[-6])  / closes[-6]  if closes[-6]  != 0 else 0
+    roc10 = (closes[-1] - closes[-11]) / closes[-11] if closes[-11] != 0 else 0
+    momentum = np.tanh(roc5 * 0.6 + roc10 * 0.4)
+
+    mom_series = np.array([np.tanh(
+        ((closes[i] - closes[i - 5])  / closes[i - 5]  if closes[i - 5]  != 0 else 0) * 0.6 +
+        ((closes[i] - closes[i - 10]) / closes[i - 10] if closes[i - 10] != 0 else 0) * 0.4
+    ) for i in range(10, len(closes))])
+    momentum_slow = np.mean(mom_series[-period:]) if len(mom_series) >= period else momentum
+
+    mean_rev = (0.40 * abs(pos_proxy) +
+                0.30 * abs(stretch) +
+                0.20 * (abs(momentum - momentum_slow) / 2) +
+                0.10 * abs(vol_z))
+    return int(round(100 * mean_rev))
+
 
 DATA_DIR    = os.path.join(os.path.dirname(__file__), "..", "data")
 H4_OUTPUT   = os.path.join(DATA_DIR, "h4_scores.json")
@@ -80,6 +127,8 @@ def main():
         display   = pair_display(pair)
         ext_data  = is_extended(df, direction)
 
+        reset_score = compute_reset_score(df["close"].tolist())
+
         h4_results[pair] = {
             "score":      result["score"],
             "label":      label,
@@ -90,8 +139,9 @@ def main():
             "extended":   ext_data,
             "conflict":   result.get("conflict", False),
             "structure":  result.get("structure", {}),
-            "adx_weight": result.get("adx_weight", 1.0),
-            "updated":    now.isoformat(),
+            "adx_weight":  result.get("adx_weight", 1.0),
+            "reset_score": reset_score,
+            "updated":     now.isoformat(),
         }
         print(f"  {display}: {result['score']:+d} → {label}")
 
