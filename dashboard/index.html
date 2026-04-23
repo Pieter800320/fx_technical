@@ -212,7 +212,7 @@ tr:last-child td{border-bottom:none;}
   <!-- Trade Qualification Checklist (TQC) -->
   <div class="module" style="padding:0;overflow:hidden;">
     <div onclick="toggleTQC()" id="tqc-header" style="cursor:pointer;text-align:center;padding:10px 14px;border-bottom:1px solid transparent;">
-      <span style="font-weight:600;font-size:var(--f-info);color:#58a6ff;">Trade Checklist</span>
+      <span style="font-weight:600;font-size:var(--f-info);color:#58a6ff;">Pair Summary</span>
     </div>
     <div id="tqc-body" style="display:none;background:#0d1117;border-top:1px solid var(--border);">
       <!-- Pair selector inside drawer — same style as Charts tab -->
@@ -1292,54 +1292,16 @@ function renderTQC(){
   const isBull=d1d&&d1d.direction==='bull';
   const isBear=d1d&&d1d.direction==='bear';
 
-  // Criteria evaluation
-  function criterion(label, pass, warn, detail){
-    // pass: true=green, false=red, null=amber
-    const col=pass===true?'var(--buy)':pass===false?'var(--sell)':'#e3b341';
-    const icon=pass===true?'✓':pass===false?'✗':'~';
-    return`<div style="display:flex;align-items:baseline;padding:6px 14px;border-bottom:1px solid #21262d;gap:10px;">
-      <span style="color:${col};font-weight:700;font-size:var(--f-primary);flex-shrink:0;width:16px;">${icon}</span>
-      <span style="flex:1;font-size:var(--f-info);color:var(--text);">${label}</span>
-      <span style="font-size:var(--f-info);color:${col};font-weight:600;">${detail}</span>
-    </div>`;
-  }
-
-  const d1pass=d1d&&(d1d.direction==='bull'||d1d.direction==='bear');
+  // ── Data extraction ────────────────────────────────────────────────────────
   const d1detail=d1d?d1d.label:'No data';
-
-  const h4match=h4d&&d1d&&h4d.direction===d1d.direction;
-  const h4pass=h4match?true:(h4d&&h4d.direction==='neutral'?null:false);
   const h4detail=h4d?h4d.label:'No data';
-
-  const h1match=h1d&&d1d&&h1d.direction===d1d.direction;
-  const h1pass=h1match?true:(h1d&&h1d.direction==='neutral'?null:false);
   const h1detail=h1d?h1d.label:'No data';
-
-  const regAligned=regime==='Risk-On'&&isBull||regime==='Risk-Off'&&isBear;
-  const regNeutral=regime==='Mixed'||regime==='Ranging';
-  const regPass=regAligned?true:regNeutral?null:d1pass?false:null;
   const regDetail=regime;
-
   const convDir=conv!==undefined&&conv!==null?(isBull?conv:-conv):null;
-  const convPass=convDir===null?null:convDir>=30?true:convDir>=0?null:false;
   const convDetail=conv!==undefined&&conv!==null?(conv>0?'+':'')+conv:'—';
-
   const adx=h4d&&h4d.raw?h4d.raw.adx:null;
-  const adxPass=adx===null?null:adx>=25?true:adx>=20?null:false;
   const adxDetail=adx?adx.toFixed(0):'—';
-
-  const atrOk=h4d?h4d.filter_ok!==false:null;
-  const atrPass=atrOk===null?null:atrOk?true:false;
-  const atrDetail=atrOk===null?'—':atrOk?'Normal':'Contracted';
-
-  // ATR percentile — from D1 data
   const atrPct=d1d&&d1d.atr_percentile!==undefined?d1d.atr_percentile:null;
-  const atrPctPass=atrPct===null?null:atrPct>=70?null:atrPct<=30?null:true;
-  // ≤30 = compression (good for breakout watch, amber), ≥70 = high vol (amber caution), 30-70 = normal (green)
-  const atrPctDetail=atrPct===null?'—':atrPct+'  '+(atrPct>=70?'High vol — caution':atrPct<=30?'Compression — watch for breakout':'Normal range');
-  const atrPctPassFinal=atrPct===null?null:atrPct>30&&atrPct<70?true:null;
-
-  // Event warning — high-impact FF events within 48h for base or quote currency
   const calEvents=(D.calendar&&D.calendar.events)||[];
   const now48=Date.now()+48*60*60*1000;
   const nowMs=Date.now();
@@ -1348,62 +1310,22 @@ function renderTQC(){
     const evMs=new Date(ev.datetime+'Z').getTime();
     return evMs>=nowMs&&evMs<=now48;
   });
-  const eventPass=pairEvents.length===0?true:false;
-  const eventDetail=pairEvents.length===0?'Clear (48h)'
-    :pairEvents.slice(0,2).map(ev=>{
-      const evDate=new Date(ev.datetime+'Z');
-      const hrsAway=Math.round((evDate-new Date())/3600000);
-      return ev.currency+' '+ev.event.substring(0,20)+(hrsAway>0?' in '+hrsAway+'h':'');
-    }).join(' | ');
-
-  const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);
-  const extPass=ext?false:true;
-  const extDetail=ext?'⚠ Extended':'Clean';
-
-  const csmBase=csm[base]||0,csmQuote=csm[quote]||0;
-  const csmDiv=isBull?csmBase-csmQuote:csmQuote-csmBase;
-  const csmPass=csmDiv>=20?true:csmDiv>=0?null:false;
-  const csmDetail=(csmBase.toFixed(0))+' vs '+(csmQuote.toFixed(0));
-
-  // QAI summary
-  const qaiPass=qai.score>=70?true:qai.score>=40?null:qai.score>0?false:null;
   const qaiDetail=qai.score>0?qai.score+'%':'—';
-
-  // ── Alignment indicator (replaces verdict) ─────────────────────────────────
-  // Shows D1/H4/H1 directional state — context-aware, not a binary pass/fail
-  const d1dir=d1d?d1d.direction:'neutral';
-  const h4dir=h4d?h4d.direction:'neutral';
-  const h1dir=h1d?h1d.direction:'neutral';
-
-  function dirPill(dir, tf){
-    // Intrinsic colour: bull=green, bear=red, neutral=muted
-    // (independent of D1 direction — shows actual state, not relative alignment)
-    const col=dir==='bull'?'var(--buy)':dir==='bear'?'var(--sell)':'var(--muted)';
-    // CSS border triangles — geometrically identical size for ▲ and ▼
-    const arrow=dir==='bull'
-      ?`<span style="display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:8px solid ${col};vertical-align:middle;"></span>`
-      :dir==='bear'
-      ?`<span style="display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-top:8px solid ${col};vertical-align:middle;"></span>`
-      :`<span style="color:${col};font-size:11px;vertical-align:middle;">–</span>`;
-    return`<span style="display:inline-flex;flex-direction:column;align-items:center;gap:3px;margin:0 8px;">
-      ${arrow}
-      <span style="font-size:9px;color:var(--muted);letter-spacing:.04em;">${tf}</span>
-    </span>`;
-  }
-
-  // ── Compact criterion row ──────────────────────────────────────────────────
-  // Two-column: [icon + label] [value] — tight, single line, mobile-friendly
-  function crow(label, pass, value){
-    const col=pass===true?'var(--buy)':pass===false?'var(--sell)':'#e3b341';
-    const icon=pass===true?'✓':pass===false?'✗':'~';
+  function irow(label, value, col){
+    const vc=col||'var(--text)';
     return`<div style="display:flex;align-items:center;padding:5px 12px;border-bottom:1px solid #21262d;gap:6px;">
-      <span style="color:${col};font-weight:700;font-size:12px;width:12px;flex-shrink:0;">${icon}</span>
       <span style="flex:1;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">${label}</span>
-      <span style="font-size:11px;color:${col};font-weight:600;text-align:right;max-width:120px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${value}</span>
+      <span style="font-size:11px;color:${vc};font-weight:600;text-align:right;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${value}</span>
     </div>`;
   }
 
-  // ── Event rows with search link ────────────────────────────────────────────
+  function secHdr(label){
+    return`<div style="padding:5px 12px 3px;background:#161b22;border-bottom:1px solid #21262d;">
+      <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);">${label}</span>
+    </div>`;
+  }
+
+  // ── Event rows ────────────────────────────────────────────────────────────
   function eventRow(ev){
     const evDate=new Date(ev.datetime+'Z');
     const hrsAway=Math.round((evDate-new Date())/3600000);
@@ -1416,48 +1338,65 @@ function renderTQC(){
     </div>`;
   }
 
-  // ── Build output ───────────────────────────────────────────────────────────
+  // ── Colour helpers ────────────────────────────────────────────────────────
+  function dirCol(dir){return dir==='bull'?'var(--buy)':dir==='bear'?'var(--sell)':'var(--muted)';}
+  function scoreCol(label){
+    const l=(label||'').toLowerCase();
+    if(l.includes('strong buy')||l.includes('strong sell'))return l.includes('buy')?'var(--buy)':'var(--sell)';
+    if(l.includes('buy')||l.includes('sell'))return l.includes('buy')?'var(--buy)':'var(--sell)';
+    return'var(--muted)';
+  }
+  function convCol(v){return v>=40?'var(--buy)':v<=-20?'var(--sell)':v>=20?'#e3b341':'var(--muted)';}
+
+  // Reset Score from h4 data
+  const resetScore=h4d&&h4d.mean_rev_score!==undefined?h4d.mean_rev_score:null;
+  const resetCol=resetScore===null?'var(--muted)':resetScore<=20?'var(--buy)':resetScore<=35?'#e3b341':'var(--muted)';
+  const resetVal=resetScore===null?'—':resetScore+(resetScore<=20?' · Coiled':resetScore<=35?' · Settling':'');
+
+  // ATR percentile
   const atrPctShort=atrPct===null?'—':atrPct+(atrPct>=70?' Hi':atrPct<=30?' Lo':' Mid');
+  const atrPctCol=atrPct===null?'var(--muted)':atrPct>=70?'var(--sell)':atrPct<=30?'var(--buy)':'var(--muted)';
+
+  // Rate diff
+  const rd=computeRateDiff(pair);
+  const rdVal=rd?(rd.diff>0?'+':'')+rd.diff+'bps '+(rd.direction==='widening'?'↑':rd.direction==='narrowing'?'↓':'→'):'—';
+  const rdCol=rd?(rd.diff>0?'var(--buy)':rd.diff<0?'var(--sell)':'var(--muted)'):'var(--muted)';
+
+  // CSM values
+  const csmBase=csm[base]||0,csmQuote=csm[quote]||0;
+  const csmVal=base+' '+csmBase.toFixed(0)+' · '+quote+' '+csmQuote.toFixed(0);
+  const csmDivAbs=Math.abs(csmBase-csmQuote);
+  const csmDivCol=csmDivAbs>=20?'var(--buy)':csmDivAbs>=10?'#e3b341':'var(--muted)';
 
   body.innerHTML=
-    // Header: QAI score + alignment pills
+    // Header: pair name + QAI only
     `<div style="padding:10px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);background:#0d1117;">
-      <div style="display:flex;align-items:center;">
-        ${dirPill(d1dir,'D1')}${dirPill(h4dir,'H4')}${dirPill(h1dir,'H1')}
-      </div>
+      <span style="font-weight:700;font-size:var(--f-primary);color:var(--text);">${pair.replace('/','')}</span>
       <div style="display:flex;flex-direction:column;align-items:flex-end;">
         <span style="font-size:var(--f-primary);font-weight:700;color:${qai.col||'var(--muted)'};">${qaiDetail}</span>
         <span style="font-size:9px;color:var(--muted);letter-spacing:.06em;">QAI</span>
       </div>
     </div>`+
-    // Criteria grid
-    crow('D1 Signal',   d1pass,  d1detail)+
-    crow('H4 Signal',   h4pass,  h4detail)+
-    crow('H1 Signal',   h1pass,  h1detail)+
-    crow('Regime',      regPass, regDetail)+
-    crow('Conviction',  convPass, convDetail)+
-    crow('CSM Divg',    csmPass, csmDetail)+
-    crow('ADX',         adxPass, adxDetail||'—')+
-    crow('ATR',         atrPass, atrDetail)+
-    crow('ATR %ile',    atrPctPassFinal, atrPctShort)+
-    crow('Extension',   extPass, extDetail)+
-    // Rate differential criterion
-    (()=>{
-      const rd=computeRateDiff(pair);
-      if(!rd)return '';
-      const tradeDir=isBull?1:-1;
-      const diffInDir=rd.diff*tradeDir;
-      const rdPass=diffInDir>=100&&rd.direction!=='narrowing'?true:
-                   diffInDir<=-100?false:null;
-      const dirStr=rd.direction==='widening'?'↑':rd.direction==='narrowing'?'↓':'→';
-      const rdDetail=(rd.diff>0?'+':'')+rd.diff+'bps '+dirStr;
-      return crow('Rate diff', rdPass, rdDetail);
-    })()+
-    // Events section
+    // ── TECHNICAL ──────────────────────────────────────────────────────────
+    secHdr('Technical')+
+    irow('D1',  d1detail, scoreCol(d1detail))+
+    irow('H4',  h4detail, scoreCol(h4detail))+
+    irow('H1',  h1detail, scoreCol(h1detail))+
+    irow('ADX', adxDetail||'—', adx===null?'var(--muted)':adx>=25?'var(--buy)':adx>=20?'#e3b341':'var(--sell)')+
+    irow('ATR %ile', atrPctShort, atrPctCol)+
+    irow('Reset Score', resetVal, resetCol)+
+    // ── FUNDAMENTAL ────────────────────────────────────────────────────────
+    secHdr('Fundamental')+
+    irow('Regime', regDetail, regDetail==='Risk-On'?'var(--buy)':regDetail==='Risk-Off'?'var(--sell)':'#e3b341')+
+    irow('Rate diff', rdVal, rdCol)+
     (pairEvents.length===0
-      ? crow('Events 48h', true, 'Clear')
+      ? irow('Events 48h','Clear','var(--buy)')
       : pairEvents.map(eventRow).join('')
-    );
+    )+
+    // ── SENTIMENT ──────────────────────────────────────────────────────────
+    secHdr('Sentiment')+
+    irow('Conviction', convDetail, convCol(convDir||0))+
+    irow('CSM', csmVal, csmDivCol);
 }
 
 function initTQCPairs(){
