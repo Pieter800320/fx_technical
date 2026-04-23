@@ -2370,10 +2370,10 @@ const CCYS=['USD','EUR','GBP','JPY','CHF','AUD','CAD','NZD'];
 let ratesLocal={};
 
 function renderRatesTab(){
-  // Seed from loaded D.rates or defaults
+  // Always re-seed from D.rates so fields show current values
   const src=D.rates||{};
   CCYS.forEach(c=>{
-    if(!ratesLocal[c])ratesLocal[c]=src[c]?src[c].rate:0;
+    ratesLocal[c]=src[c]!==undefined&&src[c].rate!==undefined?src[c].rate:ratesLocal[c]||0;
   });
   renderRatesDiffGrid();
   renderRatesFormGrid();
