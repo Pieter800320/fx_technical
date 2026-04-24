@@ -961,10 +961,25 @@ function computeQAI(pair){
     rateScore * 0.04
   ) * 100);
 
-  // Hard cap: regime opposing D1
-  const regimeOpposes=(regime==='Risk-Off'&&isBull)||(regime==='Risk-On'&&isBear);
-  const capped=Math.min(regimeOpposes?Math.min(raw,50):raw,100);
-  const col=capped>=70?'var(--buy)':capped>=40?'#e3b341':'var(--sell)';
+  // ── Pair-specific regime cap ───────────────────────────────────────────────
+  // Risk pairs (AUD/NZD/CAD as base) get hard cap in opposing regime
+  // Safe-haven/carry pairs (USD/CHF/JPY involved) are less penalised
+  const riskBases=['AUD','NZD','CAD'];
+  const safeHavens=['CHF','JPY'];
+  const isRiskPair=riskBases.includes(base)||(riskBases.includes(quote)&&!safeHavens.includes(base));
+  const isSafeHavenPair=safeHavens.includes(base)||safeHavens.includes(quote);
+
+  let capped=raw;
+  if(regime==='Risk-Off'&&isBull){
+    capped=isRiskPair?Math.min(raw,45):isSafeHavenPair?Math.min(raw,75):Math.min(raw,55);
+  } else if(regime==='Risk-On'&&isBear){
+    capped=isSafeHavenPair?Math.min(raw,45):isRiskPair?Math.min(raw,75):Math.min(raw,55);
+  }
+  capped=Math.min(capped,100);
+
+  // ── Colour: three zones for better resolution ──────────────────────────────
+  // ≥70 green, 55-69 amber (acceptable), 40-54 orange-red (weak), <40 red
+  const col=capped>=70?'var(--buy)':capped>=55?'#e3b341':capped>=40?'rgba(248,140,0,.9)':'var(--sell)';
   return{score:capped,dir:d1dir,col,label:capped+'%'};
 }
 // ── Rate Differential ────────────────────────────────────────────────────────
@@ -1210,7 +1225,7 @@ function buildDrumRows(){
     // QAI — Quality Alignment Index (replaces conviction in drum)
     const qai=computeQAI(pair);
     const qaiStr=qai.score>0?qai.score+'%':'—';
-    const qaiOpacity=qai.score>=70?1:qai.score>=40?0.75:0.45;
+    const qaiOpacity=qai.score>=70?1:qai.score>=55?0.85:qai.score>=40?0.65:0.45;
     const convSpan=`<span style="opacity:${qaiOpacity};min-width:36px;text-align:right;">${qaiStr}</span>`;
 
     rows.push({pair,dir,html:`${pairSpan}${catTag}${arrSpan}${scoresSpan}${convSpan}`});
@@ -2620,7 +2635,7 @@ function renderJournal(){
       const convDisp=cp!==null&&cp!==undefined?(cp>0?'+':'')+cp+(!t.conv_cot_ok?'*':''):'-';
       const convTitle=cp!==null?`${t.pair.split('/')[0]}: ${t.conv_base!=null?(t.conv_base>0?'+':'')+t.conv_base:'?'} / ${t.pair.split('/')[1]}: ${t.conv_quote!=null?(t.conv_quote>0?'+':'')+t.conv_quote:'?'}${!t.conv_cot_ok?' (no COT)':''}`:'' ;
       const qs=t.qai_score;
-      const qaiCol=qs>=70?'var(--buy)':qs>=40?'#e3b341':qs>0?'var(--sell)':'var(--muted)';
+      const qaiCol=qs>=70?'var(--buy)':qs>=55?'#e3b341':qs>=40?'rgba(248,140,0,.9)':qs>0?'var(--sell)':'var(--muted)';
       const qaiDisp=qs>0?qs+'%':'-';
       return`<tr>
         <td style="font-size:var(--f-th)">${t.date}</td>
