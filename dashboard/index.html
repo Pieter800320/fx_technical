@@ -542,19 +542,22 @@ function renderSessions(){
       const[,e]=SESS[n];const t=minsUntil(e);
       return n+(t?' · closes '+t:'');
     });
-    // Stack multiple sessions vertically; single session stays on one line
     if(parts.length>1){
-      label.innerHTML=parts.map(p=>`<div>${p}</div>`).join('')+(sessExpanded?'<div style="font-size:10px;opacity:.6;">▴</div>':'<div style="font-size:10px;opacity:.6;">▾</div>');
+      label.innerHTML=parts.map(p=>`<div>${p}</div>`).join('');
     } else {
-      label.textContent=parts[0]+(sessExpanded?' ▴':' ▾');
+      label.textContent=parts[0];
     }
   } else {
-    // No active session — show next upcoming
+    // No active session — show the soonest upcoming by actual minutes
     const upcoming=Object.entries(SESS).map(([n,[s]])=>{
-      const t=minsUntil(s);return{n,t,mins:t?parseInt(t):9999};
+      // minsUntil returns string like "1h 4m" or "4m" — parse to total minutes
+      const raw=minsUntil(s)||'';
+      const hMatch=raw.match(/(\d+)h/),mMatch=raw.match(/(\d+)m/);
+      const totalMins=(hMatch?parseInt(hMatch[1])*60:0)+(mMatch?parseInt(mMatch[1]):0);
+      return{n,t:raw,mins:raw?totalMins:9999};
     }).sort((a,b)=>a.mins-b.mins)[0];
     label.style.color='var(--muted)';
-    label.textContent=(upcoming?upcoming.n+' · opens '+upcoming.t:'No session')+(sessExpanded?' ▴':' ▾');
+    label.textContent=upcoming&&upcoming.t?upcoming.n+' · opens '+upcoming.t:'No session';
   }
 
   // ── Shelf rows ────────────────────────────────
@@ -640,7 +643,7 @@ function renderRegime(r){
     {lbl:'Disp',val:dispV?dispV.toFixed(0):'—',col:dispV>60?'var(--buy)':dispV>30?'#e3b341':'var(--muted)'},
   ];
   const indStrip=items.map((x,i)=>`${i>0?'<span style="color:var(--border);padding:0 2px;user-select:none;">│</span>':''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--f-pill);font-weight:700;color:${x.col};">${x.val}</span><span style="font-size:var(--f-th);color:var(--muted);margin-top:2px;">${x.lbl}</span></div>`).join('');
-  stripEl.innerHTML=`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${c.b};border-radius:8px;padding:8px 6px;cursor:pointer;" onclick="toggleRegimeDrawer()">${indStrip}<span style="color:var(--muted);font-size:var(--f-th);margin-left:4px;">▾</span></div>`;
+  stripEl.innerHTML=`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${c.b};border-radius:8px;padding:8px 6px;cursor:pointer;" onclick="toggleRegimeDrawer()">${indStrip}</div>`;
   const drawer=document.getElementById("regime-drawer");
   if(!drawer)return;
   const rows=[
