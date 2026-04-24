@@ -194,6 +194,26 @@ tr:last-child td{border-bottom:none;}
   <span id="s-newyork" style="display:none"></span>
   <span id="mkt-closed" style="display:none"></span>
 
+  <!-- Pair Summary -->
+  <div class="module" style="padding:0;overflow:hidden;">
+    <div onclick="toggleTQC()" id="tqc-header" style="cursor:pointer;text-align:center;padding:10px 14px;border-bottom:1px solid transparent;">
+      <span style="font-weight:600;font-size:var(--f-info);color:#58a6ff;">Pair Summary</span>
+    </div>
+    <div id="tqc-body" style="display:none;background:#0d1117;border-top:1px solid var(--border);">
+      <div style="display:flex;align-items:center;border-bottom:1px solid var(--border);">
+        <div class="fg" style="flex:1;margin:0;padding:10px 14px;">
+          <select id="tqc-pair" onchange="renderTQC()" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-size:var(--f-input);width:100%;font-weight:600;">
+            <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
+            <option>USD/CHF</option><option>AUD/USD</option><option>USD/CAD</option>
+            <option>NZD/USD</option><option>EUR/JPY</option><option>GBP/JPY</option>
+            <option>AUD/JPY</option><option>NZD/JPY</option><option>CAD/JPY</option>
+          </select>
+        </div>
+      </div>
+      <div id="tqc-content"></div>
+    </div>
+  </div>
+
   <!-- Market Brief / Live -->
   <div class="module" style="padding:0;overflow:hidden;">
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);">
@@ -206,27 +226,6 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div id="live-drawer" style="display:none;background:#0d1117;overflow:hidden;">
       <div id="live-content"><div class="loading">Loading...</div></div>
-    </div>
-  </div>
-
-  <!-- Trade Qualification Checklist (TQC) -->
-  <div class="module" style="padding:0;overflow:hidden;">
-    <div onclick="toggleTQC()" id="tqc-header" style="cursor:pointer;text-align:center;padding:10px 14px;border-bottom:1px solid transparent;">
-      <span style="font-weight:600;font-size:var(--f-info);color:#58a6ff;">Pair Summary</span>
-    </div>
-    <div id="tqc-body" style="display:none;background:#0d1117;border-top:1px solid var(--border);">
-      <!-- Pair selector inside drawer — same style as Charts tab -->
-      <div style="display:flex;align-items:center;border-bottom:1px solid var(--border);">
-        <div class="fg" style="flex:1;margin:0;padding:10px 14px;">
-          <select id="tqc-pair" onchange="renderTQC()" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:7px 10px;font-size:var(--f-input);width:100%;font-weight:600;">
-            <option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option>
-            <option>USD/CHF</option><option>AUD/USD</option><option>USD/CAD</option>
-            <option>NZD/USD</option><option>EUR/JPY</option><option>GBP/JPY</option>
-            <option>AUD/JPY</option><option>NZD/JPY</option><option>CAD/JPY</option>
-          </select>
-        </div>
-      </div>
-      <div id="tqc-content"></div>
     </div>
   </div>
 
@@ -820,7 +819,7 @@ function renderCSM(csm, conviction){
       <span class="csm-lbl">${ccy}</span>
       <div class="csm-track"><div class="csm-fill" style="width:${val}%"></div></div>
       <span class="csm-val">${val.toFixed(1)}</span>
-      ${ccy==='USD'?'':_convBadge(convScore)}
+      ${ccy==='USD'?`<span style="min-width:36px;display:inline-block;"></span>`:_convBadge(convScore)}
     </div>
     <div class="drop" id="cd-${ccy}">
       <div class="drop-hd">${ccy} — Pair Breakdown</div>
@@ -891,8 +890,6 @@ function computeQAI(pair){
 
   // D1 — must exist and be directional
   const d1dir=d1d?d1d.direction:'neutral';
-  if(d1dir==='neutral')return{score:0,dir:'neutral',label:'—'};
-
   const isBull=d1dir==='bull';
 
   // Helper: label → 0-10 score in direction
@@ -978,7 +975,6 @@ function computeQAI(pair){
   const convNum=convRaw!==undefined&&convRaw!==null?(isBull?convRaw:-convRaw):0;
   const capped=(ext&&convNum<20)?Math.min(raw,40):raw;
 
-  // Colour thresholds
   const col=capped>=70?'var(--buy)':capped>=40?'#e3b341':'var(--sell)';
   return{score:capped,dir:d1dir,col,label:capped+'%'};
 }
@@ -1380,8 +1376,7 @@ function renderTQC(){
 
   body.innerHTML=
     // Header: pair name + QAI only
-    `<div style="padding:10px 12px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);background:#0d1117;">
-      <span style="font-weight:700;font-size:var(--f-primary);color:var(--text);">${pair.replace('/','')}</span>
+    `<div style="padding:10px 12px;display:flex;justify-content:flex-end;align-items:center;border-bottom:1px solid var(--border);background:#0d1117;">
       <div style="display:flex;flex-direction:column;align-items:flex-end;">
         <span style="font-size:var(--f-primary);font-weight:700;color:${qai.col||'var(--muted)'};">${qaiDetail}</span>
         <span style="font-size:9px;color:var(--muted);letter-spacing:.06em;">QAI</span>
