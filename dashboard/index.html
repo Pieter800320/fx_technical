@@ -948,7 +948,7 @@ function computeQAI(pair){
   }
 
   // Weighted sum (100%)
-  const raw=Math.round(
+  const raw=Math.round((
     d1Score   * 0.20 +
     h4Score   * 0.15 +
     h1Score   * 0.08 +
@@ -959,7 +959,7 @@ function computeQAI(pair){
     convScore * 0.12 +
     regScore  * 0.08 +
     rateScore * 0.04
-  ) * 10;
+  ) * 100);
 
   // Hard cap: regime opposing D1
   const regimeOpposes=(regime==='Risk-Off'&&isBull)||(regime==='Risk-On'&&isBear);
