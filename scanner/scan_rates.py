@@ -53,6 +53,7 @@ def main():
     new_rates  = []
 
     for ccy, src in manual.items():
+        if not isinstance(src, dict): continue
         rate = float(src["rate"])
         entry = {
             "currency": ccy,
