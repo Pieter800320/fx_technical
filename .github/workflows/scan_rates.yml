@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "30 6 * * *"   # Daily at 06:30 UTC
   workflow_dispatch:
+  push:
+    paths:
+      - 'data/rates_manual.json'
 
 permissions:
   contents: write
