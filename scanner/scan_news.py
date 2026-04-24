@@ -134,7 +134,13 @@ def call_claude(prompt: str) -> dict:
     )
     raw = response.content[0].text
     print(f"  [Claude] Raw response preview: {raw[:200]}")
-    return json.loads(raw.strip())
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    raw = raw.strip()
+    return json.loads(raw)
 
 
 def main():
