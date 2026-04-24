@@ -220,7 +220,7 @@ tr:last-child td{border-bottom:none;}
     </div>
     <!-- Live — separate grey bar -->
     <div style="border-top:1px solid var(--border);background:#161b22;">
-      <button class="btn" onclick="toggleLive()" style="width:100%;border-radius:0;border:none;padding:8px;background:transparent;font-size:var(--f-info);color:var(--muted);">Live</button>
+      <button class="btn" onclick="toggleLive()" style="width:100%;border-radius:0;border:none;padding:8px;background:transparent;font-size:var(--f-info);">Live</button>
     </div>
     <div id="live-drawer" style="display:none;background:#0d1117;overflow:hidden;">
       <div id="live-content"><div class="loading">Loading...</div></div>
@@ -817,7 +817,7 @@ function renderCSM(csm, conviction){
       <span class="csm-lbl">${ccy}</span>
       <div class="csm-track"><div class="csm-fill" style="width:${val}%"></div></div>
       <span class="csm-val">${val.toFixed(1)}</span>
-      ${ccy==='USD'?`<span style="min-width:36px;display:inline-block;"></span>`:_convBadge(convScore)}
+      ${ccy==='USD'?`<span style="min-width:36px;width:36px;display:inline-block;flex-shrink:0;"></span>`:_convBadge(convScore)}
     </div>
     <div class="drop" id="cd-${ccy}">
       <div class="drop-hd">${ccy} — Pair Breakdown</div>
