@@ -47,10 +47,12 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     now = datetime.datetime.utcnow()
 
-    manual     = load_json(RATES_SRC)
-    prev_rates = {e["currency"]: e for e in load_json(RATES_OUT).get("rates", [])}
-    state      = load_state()
-    new_rates  = []
+    manual         = load_json(RATES_SRC)
+    existing       = load_json(RATES_OUT)
+    prev_rates_list = existing.get("rates", [])
+    prev_rates     = {e["currency"]: e for e in prev_rates_list}
+    state          = load_state()
+    new_rates      = []
 
     for ccy, src in manual.items():
         if not isinstance(src, dict): continue
@@ -83,7 +85,7 @@ def main():
         if send_telegram(msg):
             state["rates"][ccy] = {"last_move": move}
 
-    output = {"rates": new_rates, "updated": now.isoformat()}
+    output = {"rates": new_rates, "_prev": prev_rates_list, "updated": now.isoformat()}
     with open(RATES_OUT, "w") as f:
         json.dump(output, f, indent=2)
 
