@@ -204,9 +204,14 @@ tr:last-child td{border-bottom:none;}
       <button class="btn" onclick="toggleBrief()" style="flex:1;border-radius:0;border:none;border-right:1px solid var(--border);padding:10px;background:transparent;font-size:var(--f-info);text-align:center;justify-content:center;">Market Brief</button>
       <button class="btn" onclick="toggleTQC()" style="flex:1;border-radius:0;border:none;padding:10px;background:transparent;font-size:var(--f-info);color:#58a6ff;text-align:center;justify-content:center;">Pair Summary</button>
     </div>
-    <div id="brief-text" style="display:none;padding:12px 14px;">
-      <button class="btn" id="dash-copy-btn" onclick="copyBriefPrompt()" style="margin-bottom:10px;">Copy Prompt</button>
-      <div id="brief-content" style="font-size:var(--f-body);line-height:1.9;color:var(--text);white-space:pre-wrap;"></div>
+    <div id="brief-text" style="display:none;padding:0 14px 12px;">
+      <!-- AI News Brief -->
+      <div id="news-brief-content"></div>
+      <!-- Technical Brief -->
+      <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+        <button class="btn" id="dash-copy-btn" onclick="copyBriefPrompt()" style="margin-bottom:10px;">Copy Technical Prompt</button>
+        <div id="brief-content" style="font-size:var(--f-body);line-height:1.9;color:var(--text);white-space:pre-wrap;"></div>
+      </div>
     </div>
     <!-- Pair Summary drawer inline -->
     <div id="tqc-body" style="display:none;background:#0d1117;border-top:1px solid var(--border);">
@@ -2110,6 +2115,55 @@ function renderCharts(){
   if(wrap)wrap.style.display='none';
 }
 
+function renderNewsBrief(){
+  const el=document.getElementById('news-brief-content');
+  if(!el)return;
+  const nb=D.newsBrief;
+  if(!nb||nb.status==='unavailable'||!nb.themes){
+    el.innerHTML='<div style="color:var(--muted);font-size:var(--f-info);padding:10px 0;">No news brief available yet.</div>';
+    return;
+  }
+  const updStr=nb.updated?new Date(nb.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'—';
+  const dirCol=d=>d==='bearish'?'var(--sell)':d==='bullish'?'var(--buy)':'#e3b341';
+  const confCol=c=>c==='high'?'var(--buy)':c==='medium'?'#e3b341':'var(--muted)';
+  const usdCol=dirCol(nb.usd_bias);
+  const riskCol=nb.risk_sentiment==='risk-on'?'var(--buy)':nb.risk_sentiment==='risk-off'?'var(--sell)':'#e3b341';
+
+  el.innerHTML=`
+    <div style="padding:10px 0 8px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);">AI News Brief</span>
+        <span style="font-size:var(--f-th);color:var(--muted);">${updStr} UTC · ${nb.headline_count||0} headlines</span>
+      </div>
+      <!-- Bias strip -->
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <div style="flex:1;background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:6px 10px;text-align:center;">
+          <div style="font-size:var(--f-th);color:var(--muted);margin-bottom:2px;">USD BIAS</div>
+          <div style="font-size:var(--f-info);font-weight:700;color:${usdCol};text-transform:uppercase;">${nb.usd_bias||'—'}</div>
+        </div>
+        <div style="flex:1;background:#0d1117;border:1px solid var(--border);border-radius:6px;padding:6px 10px;text-align:center;">
+          <div style="font-size:var(--f-th);color:var(--muted);margin-bottom:2px;">RISK</div>
+          <div style="font-size:var(--f-info);font-weight:700;color:${riskCol};text-transform:uppercase;">${(nb.risk_sentiment||'—').replace('-',' ')}</div>
+        </div>
+      </div>
+      <!-- Themes -->
+      ${(nb.themes||[]).map(t=>`
+        <div style="padding:6px 0;border-bottom:1px solid #21262d;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <span style="font-size:var(--f-info);color:var(--text);flex:1;line-height:1.5;">${t.theme}</span>
+            <span style="font-size:var(--f-th);font-weight:600;color:${dirCol(t.direction)};flex-shrink:0;text-transform:uppercase;">${t.direction}</span>
+          </div>
+          <div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap;">
+            ${(t.currencies||[]).map(c=>`<span style="font-size:var(--f-th);color:var(--muted);background:#21262d;border-radius:4px;padding:1px 6px;">${c}</span>`).join('')}
+            <span style="font-size:var(--f-th);color:${confCol(t.confidence)};">${t.confidence||''}</span>
+          </div>
+        </div>`).join('')}
+      <!-- Key observation -->
+      ${nb.key_observation?`<div style="margin-top:8px;padding:8px 10px;background:rgba(56,139,253,.06);border-left:2px solid #58a6ff;border-radius:0 4px 4px 0;font-size:var(--f-info);color:var(--text);line-height:1.6;">💡 ${nb.key_observation}</div>`:''}
+      ${nb.watch?`<div style="margin-top:6px;font-size:var(--f-th);color:var(--muted);">👁 Watch: ${nb.watch}</div>`:''}
+    </div>`;
+}
+
 function toggleBrief(){
   const el=document.getElementById("brief-text");if(!el)return;
   const live=document.getElementById("live-drawer");
@@ -2118,6 +2172,7 @@ function toggleBrief(){
     const text=generateBrief();
     if(text){
       document.getElementById("brief-content").textContent=text;
+      renderNewsBrief();
       el.style.display="block";
       if(live)live.style.display="none";
       if(tqc){tqc.style.display="none";tqcOpen=false;}
@@ -2336,16 +2391,16 @@ async function load(file,api=false){
 }
 async function init(){
   renderSessions();
-  const[h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates]=await Promise.all([
+  const[h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief]=await Promise.all([
     load("h1_scores.json",true),load("h4_scores.json",true),
     load("d1_scores.json"),load("csm.json"),load("alerts.json"),
     load("regime.json"),load("correlation.json"),load("conviction.json"),
-    load("calendar.json"),load("rates.json"),
+    load("calendar.json"),load("rates.json"),load("news_brief.json"),
   ]);
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v.updated):[]).filter(Boolean).sort();
   const parseTS=s=>{if(!s)return new Date(s);const c=s.endsWith('Z')||s.includes('+')?s:s+'Z';return new Date(c);};
   if(ts.length)document.getElementById("last-updated").textContent="Updated: "+parseTS(ts[ts.length-1]).toLocaleString();
-  D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates};
+  D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief};
   renderRegime(regime);renderCSM(csm,conviction);renderTable(h1,h4,d1);renderSignals(alerts);renderLive();
   if(document.getElementById('tab-charts').classList.contains('active')){renderChartPills();if(chartTabPair)renderCurrentChart();else if(PAIRS.length)selectChartPair(PAIRS[0]);}
   checkLevelAlerts();
