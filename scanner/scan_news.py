@@ -134,13 +134,20 @@ def call_claude(prompt: str) -> dict:
     )
     raw = response.content[0].text
     print(f"  [Claude] Raw response preview: {raw[:200]}")
-    raw = raw.strip()
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
-    raw = raw.strip()
-    return json.loads(raw)
+    # Strip markdown code fences if present
+    text = raw.strip()
+    if '```' in text:
+        parts = text.split('```')
+        for part in parts:
+            part = part.strip()
+            if part.startswith('json'):
+                part = part[4:].strip()
+            if part.startswith('{'):
+                text = part
+                break
+
+    data = json.loads(text)
+    return data
 
 
 def main():
