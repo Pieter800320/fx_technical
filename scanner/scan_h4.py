@@ -128,6 +128,7 @@ def main():
         ext_data  = is_extended(df, direction)
 
         reset_score = compute_reset_score(df["close"].tolist())
+        print(f"    reset_score {pair}: {reset_score}")
 
         h4_results[pair] = {
             "score":      result["score"],
