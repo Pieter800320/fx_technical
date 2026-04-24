@@ -1,10 +1,8 @@
 # scanner/fetch.py
 #
 # Change from audit:
-#   - H4 outputsize reduced from 5000 → 300.
-#     score_pair() needs 210 bars minimum. Structure detection uses ~30 bars.
-#     300 provides a safe margin without fetching 3.5 years of unused data.
-#     Meaningfully faster scan times on GitHub Actions.
+#   - H4 outputsize increased to 500 (~83 days) for reset_score momentum
+#     series which benefits from a longer lookback window.
 
 import os
 import time
@@ -19,7 +17,7 @@ TF_MAP = {"H1": "1h", "H4": "4h", "D1": "1day"}
 
 BARS_NEEDED = {
     "H1": 250,   # 250 hourly bars (~10 days)
-    "H4": 300,   # 300 × 4h bars (~50 days) — reduced from 5000 (was 833 days, wasteful)
+    "H4": 500,   # 500 × 4h bars (~83 days)
     "D1": 500,   # 500 daily bars (~2 years, needed for EMA200 + embed_d1_ohlcv 200-bar chart)
 }
 
