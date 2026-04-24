@@ -201,8 +201,8 @@ tr:last-child td{border-bottom:none;}
   <!-- Market Brief / Pair Summary / Live -->
   <div class="module" style="padding:0;overflow:hidden;">
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);">
-      <button class="btn" onclick="toggleBrief()" style="flex:1;border-radius:0;border:none;border-right:1px solid var(--border);padding:10px;background:transparent;font-size:var(--f-info);">Market Brief</button>
-      <button class="btn" onclick="toggleTQC()" style="flex:1;border-radius:0;border:none;padding:10px;background:transparent;font-size:var(--f-info);color:#58a6ff;">Pair Summary</button>
+      <button class="btn" onclick="toggleBrief()" style="flex:1;border-radius:0;border:none;border-right:1px solid var(--border);padding:10px;background:transparent;font-size:var(--f-info);text-align:center;justify-content:center;">Market Brief</button>
+      <button class="btn" onclick="toggleTQC()" style="flex:1;border-radius:0;border:none;padding:10px;background:transparent;font-size:var(--f-info);color:#58a6ff;text-align:center;justify-content:center;">Pair Summary</button>
     </div>
     <div id="brief-text" style="display:none;padding:12px 14px;">
       <button class="btn" id="dash-copy-btn" onclick="copyBriefPrompt()" style="margin-bottom:10px;">Copy Prompt</button>
@@ -224,7 +224,7 @@ tr:last-child td{border-bottom:none;}
     </div>
     <!-- Live — separate grey bar -->
     <div style="border-top:1px solid var(--border);background:#161b22;">
-      <button class="btn" onclick="toggleLive()" style="width:100%;border-radius:0;border:none;padding:8px;background:transparent;font-size:var(--f-info);">Live</button>
+      <button class="btn" onclick="toggleLive()" style="width:100%;border-radius:0;border:none;padding:8px;background:transparent;font-size:var(--f-info);text-align:center;justify-content:center;">Live</button>
     </div>
     <div id="live-drawer" style="display:none;background:#0d1117;overflow:hidden;">
       <div id="live-content"><div class="loading">Loading...</div></div>
@@ -1348,7 +1348,7 @@ function renderTQC(){
   function convCol(v){return v>=40?'var(--buy)':v<=-20?'var(--sell)':v>=20?'#e3b341':'var(--muted)';}
 
   // Reset Score from h4 data
-  const resetScore=h4d&&h4d.mean_rev_score!==undefined?h4d.mean_rev_score:null;
+  const resetScore=h4d&&h4d.reset_score!==undefined?h4d.reset_score:null;
   const resetCol=resetScore===null?'var(--muted)':resetScore<=20?'var(--buy)':resetScore<=35?'#e3b341':'var(--muted)';
   const resetVal=resetScore===null?'—':resetScore+(resetScore<=20?' · Coiled':resetScore<=35?' · Settling':'');
 
