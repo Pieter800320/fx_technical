@@ -1348,7 +1348,7 @@ function renderTQC(){
   function convCol(v){return v>=40?'var(--buy)':v<=-20?'var(--sell)':v>=20?'#e3b341':'var(--muted)';}
 
   // Reset Score from h4 data
-  const resetScore=h4d&&h4d.mean_rev_score!==undefined?h4d.mean_rev_score:null;
+  const resetScore=h4d&&h4d.reset_score!==undefined?h4d.reset_score:null;
   const resetCol=resetScore===null?'var(--muted)':resetScore<=20?'var(--buy)':resetScore<=35?'#e3b341':'var(--muted)';
   const resetVal=resetScore===null?'—':resetScore+(resetScore<=20?' · Coiled':resetScore<=35?' · Settling':'');
 
