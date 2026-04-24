@@ -127,6 +127,7 @@ def main():
         display   = pair_display(pair)
         ext_data  = is_extended(df, direction)
 
+        print(f"    closes sample {pair}: len={len(df['close'].tolist())} last3={df['close'].tolist()[-3:]}")
         reset_score = compute_reset_score(df["close"].tolist())
         print(f"    reset_score {pair}: {reset_score}")
 
