@@ -23,10 +23,13 @@ from scanner.cooldown import is_on_cooldown, record_alert
 from alerts.news import get_alert_context
 from alerts.log import log_alert
 
-def compute_reset_score(ohlcv_closes, period=20):
+def compute_reset_score(ohlcv_closes, period=20, direction='neutral'):
     """
-    Port of Pine Script mean reversion oscillator.
-    Returns integer 0-100. Lower = more coiled/settled.
+    Mean reversion oscillator. Returns integer 0-100.
+    Directionally aware: low score = price reset toward equilibrium (good entry).
+    direction='bull'    : oversold/below-mean = low score (reset, good for longs)
+    direction='bear'    : overbought/above-mean = low score (reset, good for shorts)
+    direction='neutral' : abs() of all components (original behaviour)
     """
     if len(ohlcv_closes) < period + 14:
         return None
@@ -62,8 +65,18 @@ def compute_reset_score(ohlcv_closes, period=20):
     ) for i in range(10, len(closes))])
     momentum_slow = np.mean(mom_series[-period:]) if len(mom_series) >= period else momentum
 
-    mean_rev = (0.40 * abs(pos_proxy) +
-                0.30 * abs(stretch) +
+    if direction == 'bullish':
+        pos_component     = (pos_proxy + 1) / 2
+        stretch_component = (stretch + 1) / 2
+    elif direction == 'bearish':
+        pos_component     = (-pos_proxy + 1) / 2
+        stretch_component = (-stretch + 1) / 2
+    else:
+        pos_component     = abs(pos_proxy)
+        stretch_component = abs(stretch)
+
+    mean_rev = (0.40 * pos_component +
+                0.30 * stretch_component +
                 0.20 * (abs(momentum - momentum_slow) / 2) +
                 0.10 * abs(vol_z))
     return int(round(100 * mean_rev))
@@ -128,7 +141,7 @@ def main():
         ext_data  = is_extended(df, direction)
 
         print(f"    closes sample {pair}: len={len(df['close'].tolist())} last3={df['close'].tolist()[-3:]}")
-        reset_score = compute_reset_score(df["close"].tolist())
+        reset_score = compute_reset_score(df["close"].tolist(), direction=result["direction"])
         print(f"    reset_score {pair}: {reset_score}")
 
         h4_results[pair] = {
