@@ -33,16 +33,24 @@ header h1{font-size:18px;font-weight:600;}
 .pill-SS{background:rgba(248,81,73,.2);border:1px solid rgba(248,81,73,.45);color:var(--sell);}
 .pill-CF{background:rgba(227,179,65,.15);border:1px solid rgba(227,179,65,.4);color:#e3b341;}
 .pill-wrap{position:relative;display:inline-block;}
-.btn{font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;cursor:pointer;border:none;transition:opacity .15s;background:rgba(56,139,253,.12);border:1px solid rgba(56,139,253,.4);color:#58a6ff;}
-.btn:hover{opacity:.8;}
-.btn-red{background:rgba(248,81,73,.12);border:1px solid rgba(248,81,73,.4);color:var(--sell);}
-.btn-green{background:rgba(35,134,54,.12);border:1px solid rgba(35,134,54,.4);color:var(--buy);}
-.bdir{font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;cursor:pointer;user-select:none;}
-.bdir.bull{background:rgba(35,134,54,.15);border:1px solid rgba(35,134,54,.35);color:var(--buy);}
-.bdir.bear{background:rgba(248,81,73,.15);border:1px solid rgba(248,81,73,.35);color:var(--sell);}
-.cpbtn{margin-top:8px;display:inline-flex;align-items:center;gap:5px;font-size:var(--f-pill);font-weight:600;padding:3px 12px;border-radius:12px;background:rgba(56,139,253,.12);border:1px solid rgba(56,139,253,.4);color:#58a6ff;cursor:pointer;transition:opacity .15s;}
-.cpbtn:hover{opacity:.8;}
-.cpbtn.ok{color:var(--buy);border-color:rgba(35,134,54,.5);background:rgba(35,134,54,.1);}
+.btn,.tf-btn,.cpbtn,.ind-btn{
+  font-size:var(--f-th);font-weight:600;padding:4px 10px;
+  border-radius:6px;cursor:pointer;border:1px solid rgba(56,139,253,.35);
+  background:rgba(56,139,253,.10);color:#58a6ff;
+  letter-spacing:.04em;transition:all .15s;
+  line-height:1.4;box-sizing:border-box;white-space:nowrap;
+  display:inline-flex;align-items:center;gap:4px;
+}
+.btn:hover,.tf-btn:hover,.cpbtn:hover,.ind-btn:hover{opacity:.8;}
+.btn-red{background:rgba(248,81,73,.10);border-color:rgba(248,81,73,.35);color:var(--sell);}
+.btn-green{background:rgba(35,134,54,.10);border-color:rgba(35,134,54,.35);color:var(--buy);}
+.bdir{font-size:var(--f-th);font-weight:600;padding:4px 10px;border-radius:6px;cursor:pointer;user-select:none;line-height:1.4;}
+.bdir.bull{background:rgba(35,134,54,.10);border:1px solid rgba(35,134,54,.35);color:var(--buy);}
+.bdir.bear{background:rgba(248,81,73,.10);border:1px solid rgba(248,81,73,.35);color:var(--sell);}
+.cpbtn{margin-top:4px;}
+.cpbtn.ok{color:var(--buy);border-color:rgba(35,134,54,.5);background:rgba(35,134,54,.10);}
+.ind-btn{background:#0d1117;border-color:var(--border);color:var(--muted);}
+.ind-btn.ind-on,.tf-btn.active{background:rgba(56,139,253,.15);border-color:rgba(56,139,253,.5);color:#58a6ff;}
 .drop{display:none;position:fixed;z-index:1000;background:#1c2128;border:1px solid var(--border);border-radius:8px;padding:10px 12px;min-width:190px;max-width:240px;font-size:var(--f-info);white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.6);}
 .drop.open{display:block;}
 .drop-hd{font-size:var(--f-info);font-weight:700;color:var(--text);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
@@ -64,10 +72,11 @@ tr:last-child td{border-bottom:none;}
 #csm-grid{display:flex;flex-direction:column;gap:6px;position:relative;}
 .csm-row{display:flex;align-items:center;gap:10px;cursor:pointer;border-radius:4px;padding:2px 4px;margin:0 -4px;}
 .csm-row:hover{background:#21262d;}
-.csm-lbl{width:36px;font-weight:600;font-size:var(--f-primary);}
+.csm-lbl{width:36px;font-weight:600;font-size:var(--f-primary);flex-shrink:0;}
 .csm-track{flex:1;height:8px;background:var(--border);border-radius:4px;overflow:hidden;}
 .csm-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:0 4px 4px 0;}
 .csm-val{width:38px;text-align:right;font-size:var(--f-info);color:var(--muted);flex-shrink:0;}
+.csm-badge{width:36px;text-align:right;flex-shrink:0;font-size:var(--f-th);font-weight:400;}
 .bcard{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:10px 12px;}
 .bcard-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
 .bcard-pair{font-weight:700;font-size:var(--f-primary);}
@@ -111,10 +120,7 @@ tr:last-child td{border-bottom:none;}
 }
 /* ── Chart Tab ─────────────────────────────────── */
 
-.ind-btn{font-size:var(--f-th);font-weight:600;padding:3px 10px;border-radius:6px;cursor:pointer;border:1px solid var(--border);background:#0d1117;color:var(--muted);letter-spacing:.04em;transition:all .15s;}
-.ind-btn.ind-on{background:rgba(56,139,253,.15);border-color:rgba(56,139,253,.5);color:#58a6ff;}
-.tf-btn{font-size:var(--f-pill);font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
-.tf-btn.active{background:rgba(56,139,253,.2);border-color:#58a6ff;color:#58a6ff;}
+.tf-btn{background:#0d1117;border-color:var(--border);color:var(--muted);}
 .stat-chip{display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:7px 2px;width:100%;}
 .stat-chip .sv2{font-size:var(--f-primary);font-weight:700;}
 .stat-chip .sl2{font-size:var(--f-info);color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.04em;}
@@ -128,8 +134,6 @@ tr:last-child td{border-bottom:none;}
 .mod-hdr{font-size:var(--f-sec);font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:8px;}
 #chart-fullscreen{display:none;position:fixed;inset:0;background:#0d1117;z-index:3000;flex-direction:column;}
 #chart-fullscreen.open{display:flex;}
-.tf-btn{font-size:var(--f-pill);font-weight:600;padding:2px 9px;border-radius:10px;cursor:pointer;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s;}
-.tf-btn.active{background:rgba(56,139,253,.2);border-color:#58a6ff;color:#58a6ff;}
 
 @media(orientation:landscape) and (max-width:900px){
   #chart-auto-fs-hint{display:block;}
@@ -257,8 +261,7 @@ tr:last-child td{border-bottom:none;}
         </select>
       </div>
       <div style="padding:10px 14px 10px 0;display:flex;align-items:center;gap:8px;flex-shrink:0;">
-        <button id="chart-wl-star" onclick="toggleWatchlistCurrent()" title="Add to watchlist" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:18px;padding:5px 10px;cursor:pointer;line-height:1;transition:all .15s;">☆</button>
-        <button id="wl-filter-btn" class="btn" onclick="toggleWatchlistFilter()" style="padding:5px 10px;white-space:nowrap;">All</button>
+        <button id="chart-wl-star" onclick="toggleWatchlistCurrent()" title="Add to watchlist" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:18px;padding:3px 10px;cursor:pointer;line-height:1;transition:all .15s;">☆</button>
       </div>
     </div>
     <!-- Watchlist quick-select row — only visible when pairs are watchlisted -->
@@ -281,14 +284,14 @@ tr:last-child td{border-bottom:none;}
       </div>
     </div>
     <div id="chart-main-canvas" style="width:calc(100% - 44px);margin:0 22px;height:240px;background:#0d1117;"></div>
-    <!-- Indicator toggle row -->
-    <div style="display:flex;gap:4px;padding:6px 10px;background:#0d1117;border-top:1px solid #21262d;flex-wrap:wrap;">
-      <button id="ind-ema200" onclick="toggleIndicator('ema200')" class="ind-btn ind-on">EMA200</button>
-      <button id="ind-ema50"  onclick="toggleIndicator('ema50')"  class="ind-btn">EMA50</button>
-      <button id="ind-bb"     onclick="toggleIndicator('bb')"     class="ind-btn">BB</button>
-    </div>
-    <div style="padding:4px 10px 2px;background:#0d1117;">
+    <!-- Indicator toggles + MACD label on same row, indicators right-aligned -->
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:4px 10px 2px;background:#0d1117;border-top:1px solid #21262d;">
       <span class="mod-hdr" style="margin-bottom:0;">MACD (12/26/9)</span>
+      <div style="display:flex;gap:4px;">
+        <button id="ind-ema200" onclick="toggleIndicator('ema200')" class="ind-btn ind-on">EMA200</button>
+        <button id="ind-ema50"  onclick="toggleIndicator('ema50')"  class="ind-btn">EMA50</button>
+        <button id="ind-bb"     onclick="toggleIndicator('bb')"     class="ind-btn">BB</button>
+      </div>
     </div>
     <div id="chart-macd-canvas" style="width:calc(100% - 44px);margin:0 22px;height:135px;background:#0d1117;"></div>
   </div>
@@ -338,8 +341,7 @@ tr:last-child td{border-bottom:none;}
         </select>
       </div>
       <div style="padding:10px 14px 10px 0;display:flex;align-items:center;gap:8px;flex-shrink:0;">
-        <button id="corr-wl-star" onclick="toggleWatchlistCorr()" title="Add to watchlist" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:18px;padding:5px 10px;cursor:pointer;line-height:1;transition:all .15s;">☆</button>
-        <button id="corr-wl-filter-btn" class="btn" onclick="toggleCorrWatchlistFilter()" style="padding:5px 10px;white-space:nowrap;">All</button>
+        <button id="corr-wl-star" onclick="toggleWatchlistCorr()" title="Add to watchlist" style="background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:18px;padding:3px 10px;cursor:pointer;line-height:1;transition:all .15s;">☆</button>
       </div>
     </div>
     <!-- Watchlist quick-select row -->
@@ -380,15 +382,12 @@ tr:last-child td{border-bottom:none;}
   <div class="module" style="padding:14px;">
     <div class="mod-hdr" style="margin-bottom:14px;">Update Rates</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;" id="rates-form-grid"></div>
-    <div style="font-size:var(--f-th);color:var(--muted);margin-bottom:10px;">
-      Edit a rate after a central bank meeting. Changes push to GitHub and trigger the Telegram alert automatically.
-    </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
-      <button class="btn btn-green" onclick="saveRates()" style="padding:6px 16px;">Save &amp; Push</button>
+      <button class="btn" onclick="saveRates()" style="padding:4px 16px;">Save &amp; Push</button>
       <span id="rates-save-status" style="font-size:var(--f-info);color:var(--muted);"></span>
     </div>
     <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--border);">
-      <div style="font-size:var(--f-th);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">GitHub PAT required for push</div>
+      <div style="font-size:var(--f-th);color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px;">GitHub PAT</div>
       <div style="display:flex;gap:8px;align-items:center;">
         <input id="rates-pat-input" type="password" placeholder="ghp_xxxxxxxxxxxx" style="background:#0d1117;border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px 10px;font-size:var(--f-input);flex:1;"/>
         <button class="btn" onclick="saveRatesPAT()" style="padding:5px 12px;white-space:nowrap;">Save PAT</button>
@@ -755,12 +754,12 @@ function tfCell(data,uid,pos){
 }
 
 function _convBadge(score){
-  if(score===null||score===undefined)return'';
-  if(score===0)return`<span style="font-size:var(--f-th);font-weight:400;color:var(--muted);white-space:nowrap;margin-left:6px;min-width:36px;text-align:right;">0</span>`;
+  if(score===null||score===undefined)return`<span class="csm-badge"></span>`;
+  if(score===0)return`<span class="csm-badge" style="color:var(--muted);">0</span>`;
   const abs=Math.abs(score);
   const col=score>0?(abs>=60?'var(--buy)':abs>=30?'#e3b341':'var(--muted)')
                    :(abs>=60?'var(--sell)':abs>=30?'#e3b341':'var(--muted)');
-  return`<span style="font-size:var(--f-th);font-weight:400;color:${col};white-space:nowrap;margin-left:6px;min-width:36px;text-align:right;">${score>0?'+':''}${score}</span>`;
+  return`<span class="csm-badge" style="color:${col};">${score>0?'+':''}${score}</span>`;
 }
 
 function renderCSM(csm, conviction){
@@ -817,7 +816,7 @@ function renderCSM(csm, conviction){
       <span class="csm-lbl">${ccy}</span>
       <div class="csm-track"><div class="csm-fill" style="width:${val}%"></div></div>
       <span class="csm-val">${val.toFixed(1)}</span>
-      ${ccy==='USD'?`<span style="min-width:36px;width:36px;display:inline-block;flex-shrink:0;"></span>`:_convBadge(convScore)}
+      ${ccy==='USD'?`<span class="csm-badge"></span>`:_convBadge(convScore)}
     </div>
     <div class="drop" id="cd-${ccy}">
       <div class="drop-hd">${ccy} — Pair Breakdown</div>
