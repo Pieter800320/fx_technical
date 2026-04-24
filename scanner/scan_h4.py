@@ -142,6 +142,7 @@ def main():
 
         print(f"    closes sample {pair}: len={len(df['close'].tolist())} last3={df['close'].tolist()[-3:]}")
         d1_direction = d1_data.get(pair, {}).get("direction", "neutral")
+        print(f"    d1_dir for {pair}: {d1_direction}")
         reset_score = compute_reset_score(df["close"].tolist(), direction=d1_direction)
         print(f"    reset_score {pair}: {reset_score}")
 
