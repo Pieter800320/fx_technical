@@ -1,18 +1,18 @@
 {
   "EUR/USD": {
-    "score": 5,
-    "label": "Strong Buy",
+    "score": 3,
+    "label": "Buy",
     "direction": "bull",
     "raw": {
-      "close": 1.17543,
-      "ema200": 1.17315,
-      "ema50": 1.17241,
-      "rsi": 76.1,
-      "macd_line": 0.000807,
-      "macd_signal": 0.0005,
-      "dmi_plus": 40.6,
-      "dmi_minus": 10.0,
-      "adx": 28.2
+      "close": 1.1736,
+      "ema200": 1.17309,
+      "ema50": 1.17253,
+      "rsi": 58.4,
+      "macd_line": 0.000595,
+      "macd_signal": 0.000561,
+      "dmi_plus": 26.1,
+      "dmi_minus": 14.6,
+      "adx": 30.6
     },
     "signals": {
       "EMA200": 1,
@@ -20,35 +20,33 @@
       "RSI": 1,
       "EMA50": 1,
       "DMI": 1,
-      "MACD": 1,
+      "MACD": -1,
       "Structure": 0
     },
     "filter_ok": true,
     "extended": {
       "extended": true,
       "reasons": [
-        "Price 2.4x ATR from EMA200",
-        "RSI overbought (76)",
         "10 consecutive bars beyond EMA50"
       ],
-      "atr_dist": 2.45
+      "atr_dist": 0.51
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "GBP/USD": {
-    "score": 5,
-    "label": "Strong Buy",
+    "score": 4,
+    "label": "Buy",
     "direction": "bull",
     "raw": {
-      "close": 1.35745,
-      "ema200": 1.35193,
-      "ema50": 1.35315,
-      "rsi": 81.3,
-      "macd_line": 0.001029,
-      "macd_signal": 0.000604,
-      "dmi_plus": 47.8,
-      "dmi_minus": 9.8,
-      "adx": 28.6
+      "close": 1.35544,
+      "ema200": 1.35184,
+      "ema50": 1.3533,
+      "rsi": 62.0,
+      "macd_line": 0.000803,
+      "macd_signal": 0.000682,
+      "dmi_plus": 35.0,
+      "dmi_minus": 16.4,
+      "adx": 34.8
     },
     "signals": {
       "EMA200": 1,
@@ -56,93 +54,98 @@
       "RSI": 1,
       "EMA50": 1,
       "DMI": 1,
-      "MACD": 1,
+      "MACD": -1,
       "Structure": 0
     },
     "filter_ok": true,
     "extended": {
       "extended": true,
       "reasons": [
-        "Price 5.2x ATR from EMA200",
-        "RSI overbought (81)",
+        "Price 3.1x ATR from EMA200",
         "10 consecutive bars beyond EMA50"
       ],
-      "atr_dist": 5.15
+      "atr_dist": 3.06
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "USD/JPY": {
-    "score": 0,
-    "label": "Filtered",
+    "score": -1,
+    "label": "Neutral",
     "direction": "neutral",
     "raw": {
-      "close": 159.13569,
-      "ema200": 159.30019,
-      "ema50": 159.31915,
-      "rsi": 30.0,
-      "macd_line": -0.0446,
-      "macd_signal": -0.022511,
-      "dmi_plus": 15.2,
-      "dmi_minus": 29.0,
-      "adx": 19.5
+      "close": 159.2461,
+      "ema200": 159.29922,
+      "ema50": 159.31402,
+      "rsi": 45.6,
+      "macd_line": -0.030862,
+      "macd_signal": -0.026542,
+      "dmi_plus": 18.7,
+      "dmi_minus": 18.1,
+      "adx": 21.6
     },
-    "signals": {},
-    "filter_ok": false,
+    "signals": {
+      "EMA200": -1,
+      "Momentum": 1,
+      "RSI": -1,
+      "EMA50": -1,
+      "DMI": 1,
+      "MACD": 1,
+      "Structure": 0
+    },
+    "filter_ok": true,
     "extended": {
       "extended": false,
       "reasons": [],
       "atr_dist": 0.0
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "USD/CHF": {
-    "score": -4,
-    "label": "Strong Sell",
-    "direction": "bear",
+    "score": 0,
+    "label": "Neutral",
+    "direction": "neutral",
     "raw": {
-      "close": 0.78379,
-      "ema200": 0.78417,
-      "ema50": 0.78519,
-      "rsi": 31.2,
-      "macd_line": -0.000392,
-      "macd_signal": -0.000248,
-      "dmi_plus": 17.1,
-      "dmi_minus": 36.9,
-      "adx": 43.8
+      "close": 0.7843,
+      "ema200": 0.78424,
+      "ema50": 0.78513,
+      "rsi": 42.6,
+      "macd_line": -0.000334,
+      "macd_signal": -0.000282,
+      "dmi_plus": 14.5,
+      "dmi_minus": 29.6,
+      "adx": 45.3
     },
     "signals": {
-      "EMA200": -1,
+      "EMA200": 1,
       "Momentum": -1,
       "RSI": -1,
       "EMA50": -1,
       "DMI": -1,
-      "MACD": -1,
+      "MACD": 1,
       "Structure": 0
     },
     "filter_ok": true,
     "extended": {
-      "extended": true,
-      "reasons": [
-        "10 consecutive bars beyond EMA50"
-      ],
-      "atr_dist": 0.53
+      "extended": false,
+      "reasons": [],
+      "atr_dist": 0.0
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "AUD/USD": {
-    "score": 5,
-    "label": "Strong Buy",
+    "score": 4,
+    "label": "Buy",
     "direction": "bull",
     "raw": {
-      "close": 0.71948,
-      "ema200": 0.71564,
-      "ema50": 0.71605,
-      "rsi": 79.7,
-      "macd_line": 0.001009,
-      "macd_signal": 0.000703,
-      "dmi_plus": 51.8,
-      "dmi_minus": 12.8,
-      "adx": 27.0
+      "close": 0.71921,
+      "ema200": 0.7157,
+      "ema50": 0.71638,
+      "rsi": 71.3,
+      "macd_line": 0.001037,
+      "macd_signal": 0.000851,
+      "dmi_plus": 38.2,
+      "dmi_minus": 14.7,
+      "adx": 32.0
     },
     "signals": {
       "EMA200": 1,
@@ -150,42 +153,6 @@
       "RSI": 1,
       "EMA50": 1,
       "DMI": 1,
-      "MACD": 1,
-      "Structure": 0
-    },
-    "filter_ok": true,
-    "extended": {
-      "extended": true,
-      "reasons": [
-        "Price 4.5x ATR from EMA200",
-        "RSI overbought (80)",
-        "10 consecutive bars beyond EMA50"
-      ],
-      "atr_dist": 4.48
-    },
-    "updated": "2026-04-27T12:19:35.968528"
-  },
-  "USD/CAD": {
-    "score": -5,
-    "label": "Strong Sell",
-    "direction": "bear",
-    "raw": {
-      "close": 1.35999,
-      "ema200": 1.36745,
-      "ema50": 1.36597,
-      "rsi": 5.6,
-      "macd_line": -0.001729,
-      "macd_signal": -0.001041,
-      "dmi_plus": 5.4,
-      "dmi_minus": 58.8,
-      "adx": 45.0
-    },
-    "signals": {
-      "EMA200": -1,
-      "Momentum": -1,
-      "RSI": -1,
-      "EMA50": -1,
-      "DMI": -1,
       "MACD": -1,
       "Structure": 0
     },
@@ -193,35 +160,34 @@
     "extended": {
       "extended": true,
       "reasons": [
-        "Price 7.8x ATR from EMA200",
-        "RSI oversold (6)",
+        "Price 4.3x ATR from EMA200",
         "10 consecutive bars beyond EMA50"
       ],
-      "atr_dist": 7.82
+      "atr_dist": 4.28
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
-  "NZD/USD": {
-    "score": 5,
-    "label": "Strong Buy",
-    "direction": "bull",
+  "USD/CAD": {
+    "score": -4,
+    "label": "Sell",
+    "direction": "bear",
     "raw": {
-      "close": 0.59212,
-      "ema200": 0.5884,
-      "ema50": 0.58866,
-      "rsi": 82.3,
-      "macd_line": 0.000951,
-      "macd_signal": 0.000584,
-      "dmi_plus": 56.0,
-      "dmi_minus": 11.9,
-      "adx": 28.4
+      "close": 1.36163,
+      "ema200": 1.36722,
+      "ema50": 1.36546,
+      "rsi": 21.2,
+      "macd_line": -0.001685,
+      "macd_signal": -0.00137,
+      "dmi_plus": 10.7,
+      "dmi_minus": 45.8,
+      "adx": 56.2
     },
     "signals": {
-      "EMA200": 1,
-      "Momentum": 1,
-      "RSI": 1,
-      "EMA50": 1,
-      "DMI": 1,
+      "EMA200": -1,
+      "Momentum": -1,
+      "RSI": -1,
+      "EMA50": -1,
+      "DMI": -1,
       "MACD": 1,
       "Structure": 0
     },
@@ -229,28 +195,63 @@
     "extended": {
       "extended": true,
       "reasons": [
-        "Price 5.1x ATR from EMA200",
-        "RSI overbought (82)",
+        "Price 5.5x ATR from EMA200",
+        "RSI oversold (21)",
         "10 consecutive bars beyond EMA50"
       ],
-      "atr_dist": 5.06
+      "atr_dist": 5.53
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
+  },
+  "NZD/USD": {
+    "score": 4,
+    "label": "Buy",
+    "direction": "bull",
+    "raw": {
+      "close": 0.59156,
+      "ema200": 0.58846,
+      "ema50": 0.58897,
+      "rsi": 71.7,
+      "macd_line": 0.000988,
+      "macd_signal": 0.000769,
+      "dmi_plus": 39.3,
+      "dmi_minus": 13.7,
+      "adx": 34.7
+    },
+    "signals": {
+      "EMA200": 1,
+      "Momentum": 1,
+      "RSI": 1,
+      "EMA50": 1,
+      "DMI": 1,
+      "MACD": -1,
+      "Structure": 0
+    },
+    "filter_ok": true,
+    "extended": {
+      "extended": true,
+      "reasons": [
+        "Price 4.1x ATR from EMA200",
+        "10 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 4.14
+    },
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "EUR/JPY": {
     "score": 0,
     "label": "Filtered",
     "direction": "neutral",
     "raw": {
-      "close": 187.03555,
-      "ema200": 186.88164,
-      "ema50": 186.78616,
-      "rsi": 63.8,
-      "macd_line": 0.075436,
-      "macd_signal": 0.054044,
-      "dmi_plus": 25.0,
-      "dmi_minus": 6.8,
-      "adx": 46.3
+      "close": 186.86995,
+      "ema200": 186.87047,
+      "ema50": 186.79756,
+      "rsi": 54.3,
+      "macd_line": 0.056265,
+      "macd_signal": 0.058068,
+      "dmi_plus": 20.6,
+      "dmi_minus": 13.5,
+      "adx": 50.6
     },
     "signals": {},
     "filter_ok": false,
@@ -259,22 +260,22 @@
       "reasons": [],
       "atr_dist": 0.0
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "GBP/JPY": {
     "score": 0,
     "label": "Filtered",
     "direction": "neutral",
     "raw": {
-      "close": 216.01569,
-      "ema200": 215.36095,
-      "ema50": 215.58099,
-      "rsi": 70.3,
-      "macd_line": 0.103375,
-      "macd_signal": 0.065943,
-      "dmi_plus": 28.6,
-      "dmi_minus": 9.5,
-      "adx": 35.5
+      "close": 215.81642,
+      "ema200": 215.34522,
+      "ema50": 215.59681,
+      "rsi": 59.9,
+      "macd_line": 0.083207,
+      "macd_signal": 0.072036,
+      "dmi_plus": 23.9,
+      "dmi_minus": 15.1,
+      "adx": 36.7
     },
     "signals": {},
     "filter_ok": false,
@@ -283,22 +284,22 @@
       "reasons": [],
       "atr_dist": 0.0
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "AUD/JPY": {
     "score": 0,
     "label": "Filtered",
     "direction": "neutral",
     "raw": {
-      "close": 114.49005,
-      "ema200": 113.99993,
-      "ema50": 114.07999,
-      "rsi": 74.0,
-      "macd_line": 0.128636,
-      "macd_signal": 0.095946,
-      "dmi_plus": 38.1,
-      "dmi_minus": 12.0,
-      "adx": 23.5
+      "close": 114.48263,
+      "ema200": 114.00916,
+      "ema50": 114.12612,
+      "rsi": 66.6,
+      "macd_line": 0.139176,
+      "macd_signal": 0.11577,
+      "dmi_plus": 28.0,
+      "dmi_minus": 12.3,
+      "adx": 31.1
     },
     "signals": {},
     "filter_ok": false,
@@ -307,22 +308,22 @@
       "reasons": [],
       "atr_dist": 0.0
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "NZD/JPY": {
     "score": 0,
     "label": "Filtered",
     "direction": "neutral",
     "raw": {
-      "close": 94.2178,
-      "ema200": 93.73201,
-      "ema50": 93.78389,
-      "rsi": 79.7,
-      "macd_line": 0.124879,
-      "macd_signal": 0.08005,
-      "dmi_plus": 45.7,
-      "dmi_minus": 9.0,
-      "adx": 33.3
+      "close": 94.2017,
+      "ema200": 93.74096,
+      "ema50": 93.83,
+      "rsi": 73.8,
+      "macd_line": 0.139177,
+      "macd_signal": 0.107167,
+      "dmi_plus": 35.3,
+      "dmi_minus": 8.8,
+      "adx": 44.6
     },
     "signals": {},
     "filter_ok": false,
@@ -331,55 +332,45 @@
       "reasons": [],
       "atr_dist": 0.0
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "CAD/JPY": {
-    "score": 0,
-    "label": "Filtered",
-    "direction": "neutral",
+    "score": 4,
+    "label": "Buy",
+    "direction": "bull",
     "raw": {
-      "close": 117.01604,
-      "ema200": 116.49529,
-      "ema50": 116.63594,
-      "rsi": 71.1,
-      "macd_line": 0.115534,
-      "macd_signal": 0.07268,
-      "dmi_plus": 38.5,
-      "dmi_minus": 12.4,
-      "adx": 36.3
+      "close": 116.94316,
+      "ema200": 116.51466,
+      "ema50": 116.6751,
+      "rsi": 68.6,
+      "macd_line": 0.1207,
+      "macd_signal": 0.097603,
+      "dmi_plus": 37.4,
+      "dmi_minus": 14.7,
+      "adx": 43.5
     },
-    "signals": {},
-    "filter_ok": false,
+    "signals": {
+      "EMA200": 1,
+      "Momentum": 1,
+      "RSI": 1,
+      "EMA50": 1,
+      "DMI": 1,
+      "MACD": -1,
+      "Structure": 0
+    },
+    "filter_ok": true,
     "extended": {
-      "extended": false,
-      "reasons": [],
-      "atr_dist": 0.0
+      "extended": true,
+      "reasons": [
+        "Price 4.0x ATR from EMA200",
+        "10 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 3.97
     },
-    "updated": "2026-04-27T12:19:35.968528"
+    "updated": "2026-04-27T15:03:36.144892"
   },
   "_ohlcv": {
     "EUR/USD": [
-      {
-        "time": 1776970800,
-        "open": 1.1702,
-        "high": 1.17024,
-        "low": 1.16903,
-        "close": 1.16937
-      },
-      {
-        "time": 1776974400,
-        "open": 1.16937,
-        "high": 1.16953,
-        "low": 1.16809,
-        "close": 1.1683
-      },
-      {
-        "time": 1776978000,
-        "open": 1.16828,
-        "high": 1.16971,
-        "low": 1.16795,
-        "close": 1.16916
-      },
       {
         "time": 1776981600,
         "open": 1.16914,
@@ -1055,33 +1046,33 @@
       {
         "time": 1777327200,
         "open": 1.17409,
-        "high": 1.17549,
+        "high": 1.1755,
         "low": 1.17409,
-        "close": 1.17543
+        "close": 1.17453
+      },
+      {
+        "time": 1777330800,
+        "open": 1.17451,
+        "high": 1.17547,
+        "low": 1.17365,
+        "close": 1.17386
+      },
+      {
+        "time": 1777334400,
+        "open": 1.17383,
+        "high": 1.1748,
+        "low": 1.17336,
+        "close": 1.17365
+      },
+      {
+        "time": 1777338000,
+        "open": 1.17362,
+        "high": 1.17367,
+        "low": 1.1736,
+        "close": 1.1736
       }
     ],
     "GBP/USD": [
-      {
-        "time": 1776970800,
-        "open": 1.35056,
-        "high": 1.35069,
-        "low": 1.34921,
-        "close": 1.35008
-      },
-      {
-        "time": 1776974400,
-        "open": 1.35008,
-        "high": 1.35029,
-        "low": 1.34853,
-        "close": 1.34858
-      },
-      {
-        "time": 1776978000,
-        "open": 1.34856,
-        "high": 1.35123,
-        "low": 1.34847,
-        "close": 1.35075
-      },
       {
         "time": 1776981600,
         "open": 1.35072,
@@ -1758,32 +1749,32 @@
         "time": 1777327200,
         "open": 1.35581,
         "high": 1.35762,
-        "low": 1.3558,
-        "close": 1.35745
+        "low": 1.35538,
+        "close": 1.35538
+      },
+      {
+        "time": 1777330800,
+        "open": 1.35538,
+        "high": 1.35591,
+        "low": 1.35416,
+        "close": 1.35438
+      },
+      {
+        "time": 1777334400,
+        "open": 1.35434,
+        "high": 1.35636,
+        "low": 1.35434,
+        "close": 1.35553
+      },
+      {
+        "time": 1777338000,
+        "open": 1.3555,
+        "high": 1.35556,
+        "low": 1.35543,
+        "close": 1.35544
       }
     ],
     "USD/JPY": [
-      {
-        "time": 1776970800,
-        "open": 159.6952,
-        "high": 159.74428,
-        "low": 159.68052,
-        "close": 159.73555
-      },
-      {
-        "time": 1776974400,
-        "open": 159.73677,
-        "high": 159.78465,
-        "low": 159.68205,
-        "close": 159.71144
-      },
-      {
-        "time": 1776978000,
-        "open": 159.71229,
-        "high": 159.75275,
-        "low": 159.49526,
-        "close": 159.54886
-      },
       {
         "time": 1776981600,
         "open": 159.54987,
@@ -2459,33 +2450,33 @@
       {
         "time": 1777327200,
         "open": 159.20135,
-        "high": 159.21998,
-        "low": 159.13569,
-        "close": 159.13569
+        "high": 159.22108,
+        "low": 159.10392,
+        "close": 159.22108
+      },
+      {
+        "time": 1777330800,
+        "open": 159.22008,
+        "high": 159.28224,
+        "low": 159.15202,
+        "close": 159.27235
+      },
+      {
+        "time": 1777334400,
+        "open": 159.27077,
+        "high": 159.29007,
+        "low": 159.12649,
+        "close": 159.22537
+      },
+      {
+        "time": 1777338000,
+        "open": 159.22301,
+        "high": 159.24683,
+        "low": 159.20483,
+        "close": 159.2461
       }
     ],
     "USD/CHF": [
-      {
-        "time": 1776970800,
-        "open": 0.78416,
-        "high": 0.78519,
-        "low": 0.78416,
-        "close": 0.78515
-      },
-      {
-        "time": 1776974400,
-        "open": 0.78515,
-        "high": 0.78588,
-        "low": 0.78502,
-        "close": 0.78555
-      },
-      {
-        "time": 1776978000,
-        "open": 0.78554,
-        "high": 0.78567,
-        "low": 0.78433,
-        "close": 0.78447
-      },
       {
         "time": 1776981600,
         "open": 0.78445,
@@ -3163,31 +3154,31 @@
         "open": 0.78483,
         "high": 0.78488,
         "low": 0.78356,
-        "close": 0.78379
+        "close": 0.78447
+      },
+      {
+        "time": 1777330800,
+        "open": 0.78444,
+        "high": 0.78477,
+        "low": 0.78377,
+        "close": 0.78467
+      },
+      {
+        "time": 1777334400,
+        "open": 0.78467,
+        "high": 0.78472,
+        "low": 0.78308,
+        "close": 0.7843
+      },
+      {
+        "time": 1777338000,
+        "open": 0.78428,
+        "high": 0.78434,
+        "low": 0.78426,
+        "close": 0.7843
       }
     ],
     "AUD/USD": [
-      {
-        "time": 1776970800,
-        "open": 0.71546,
-        "high": 0.71551,
-        "low": 0.71464,
-        "close": 0.71476
-      },
-      {
-        "time": 1776974400,
-        "open": 0.71475,
-        "high": 0.71485,
-        "low": 0.71339,
-        "close": 0.71371
-      },
-      {
-        "time": 1776978000,
-        "open": 0.7137,
-        "high": 0.71543,
-        "low": 0.71344,
-        "close": 0.71514
-      },
       {
         "time": 1776981600,
         "open": 0.71513,
@@ -3865,31 +3856,31 @@
         "open": 0.7185,
         "high": 0.71957,
         "low": 0.7185,
-        "close": 0.71948
+        "close": 0.71884
+      },
+      {
+        "time": 1777330800,
+        "open": 0.71882,
+        "high": 0.71943,
+        "low": 0.71835,
+        "close": 0.7188
+      },
+      {
+        "time": 1777334400,
+        "open": 0.71878,
+        "high": 0.71997,
+        "low": 0.71871,
+        "close": 0.71932
+      },
+      {
+        "time": 1777338000,
+        "open": 0.71931,
+        "high": 0.71934,
+        "low": 0.71913,
+        "close": 0.71921
       }
     ],
     "USD/CAD": [
-      {
-        "time": 1776970800,
-        "open": 1.36629,
-        "high": 1.36709,
-        "low": 1.36619,
-        "close": 1.36674
-      },
-      {
-        "time": 1776974400,
-        "open": 1.36674,
-        "high": 1.36798,
-        "low": 1.36669,
-        "close": 1.36781
-      },
-      {
-        "time": 1776978000,
-        "open": 1.3678,
-        "high": 1.368,
-        "low": 1.36626,
-        "close": 1.36665
-      },
       {
         "time": 1776981600,
         "open": 1.36664,
@@ -4566,32 +4557,32 @@
         "time": 1777327200,
         "open": 1.361,
         "high": 1.36103,
-        "low": 1.35989,
-        "close": 1.35999
+        "low": 1.35983,
+        "close": 1.36024
+      },
+      {
+        "time": 1777330800,
+        "open": 1.36021,
+        "high": 1.36108,
+        "low": 1.35993,
+        "close": 1.36102
+      },
+      {
+        "time": 1777334400,
+        "open": 1.36099,
+        "high": 1.36182,
+        "low": 1.3602,
+        "close": 1.36152
+      },
+      {
+        "time": 1777338000,
+        "open": 1.36149,
+        "high": 1.36163,
+        "low": 1.36149,
+        "close": 1.36163
       }
     ],
     "NZD/USD": [
-      {
-        "time": 1776970800,
-        "open": 0.58876,
-        "high": 0.58885,
-        "low": 0.58773,
-        "close": 0.58792
-      },
-      {
-        "time": 1776974400,
-        "open": 0.58791,
-        "high": 0.58794,
-        "low": 0.58728,
-        "close": 0.58748
-      },
-      {
-        "time": 1776978000,
-        "open": 0.58747,
-        "high": 0.58895,
-        "low": 0.58729,
-        "close": 0.58869
-      },
       {
         "time": 1776981600,
         "open": 0.58868,
@@ -5267,33 +5258,33 @@
       {
         "time": 1777327200,
         "open": 0.59123,
-        "high": 0.59214,
+        "high": 0.59217,
         "low": 0.59123,
-        "close": 0.59212
+        "close": 0.59168
+      },
+      {
+        "time": 1777330800,
+        "open": 0.59168,
+        "high": 0.59215,
+        "low": 0.59101,
+        "close": 0.59124
+      },
+      {
+        "time": 1777334400,
+        "open": 0.59123,
+        "high": 0.59234,
+        "low": 0.59116,
+        "close": 0.59172
+      },
+      {
+        "time": 1777338000,
+        "open": 0.5917,
+        "high": 0.59176,
+        "low": 0.59156,
+        "close": 0.59156
       }
     ],
     "EUR/JPY": [
-      {
-        "time": 1776970800,
-        "open": 186.87361,
-        "high": 186.88157,
-        "low": 186.73756,
-        "close": 186.7935
-      },
-      {
-        "time": 1776974400,
-        "open": 186.78993,
-        "high": 186.83159,
-        "low": 186.57269,
-        "close": 186.59073
-      },
-      {
-        "time": 1776978000,
-        "open": 186.59016,
-        "high": 186.65164,
-        "low": 186.48155,
-        "close": 186.53679
-      },
       {
         "time": 1776981600,
         "open": 186.53655,
@@ -5971,31 +5962,31 @@
         "open": 186.9188,
         "high": 187.09027,
         "low": 186.90719,
-        "close": 187.03555
+        "close": 187.00512
+      },
+      {
+        "time": 1777330800,
+        "open": 187.00509,
+        "high": 187.09985,
+        "low": 186.94084,
+        "close": 186.95625
+      },
+      {
+        "time": 1777334400,
+        "open": 186.95703,
+        "high": 186.99339,
+        "low": 186.81679,
+        "close": 186.86623
+      },
+      {
+        "time": 1777338000,
+        "open": 186.86897,
+        "high": 186.90447,
+        "low": 186.84712,
+        "close": 186.86995
       }
     ],
     "GBP/JPY": [
-      {
-        "time": 1776970800,
-        "open": 215.67858,
-        "high": 215.72875,
-        "low": 215.50931,
-        "close": 215.65554
-      },
-      {
-        "time": 1776974400,
-        "open": 215.65696,
-        "high": 215.69273,
-        "low": 215.37006,
-        "close": 215.38307
-      },
-      {
-        "time": 1776978000,
-        "open": 215.38215,
-        "high": 215.60506,
-        "low": 215.36991,
-        "close": 215.50952
-      },
       {
         "time": 1776981600,
         "open": 215.50496,
@@ -6672,32 +6663,32 @@
         "time": 1777327200,
         "open": 215.84907,
         "high": 216.07725,
-        "low": 215.83714,
-        "close": 216.01569
+        "low": 215.78039,
+        "close": 215.80054
+      },
+      {
+        "time": 1777330800,
+        "open": 215.78827,
+        "high": 215.89419,
+        "low": 215.59624,
+        "close": 215.7107
+      },
+      {
+        "time": 1777334400,
+        "open": 215.70849,
+        "high": 215.8979,
+        "low": 215.68942,
+        "close": 215.83016
+      },
+      {
+        "time": 1777338000,
+        "open": 215.82738,
+        "high": 215.86649,
+        "low": 215.79461,
+        "close": 215.81642
       }
     ],
     "AUD/JPY": [
-      {
-        "time": 1776970800,
-        "open": 114.25429,
-        "high": 114.27016,
-        "low": 114.14599,
-        "close": 114.17225
-      },
-      {
-        "time": 1776974400,
-        "open": 114.17184,
-        "high": 114.18941,
-        "low": 113.93685,
-        "close": 113.98857
-      },
-      {
-        "time": 1776978000,
-        "open": 113.98681,
-        "high": 114.12136,
-        "low": 113.95842,
-        "close": 114.10025
-      },
       {
         "time": 1776981600,
         "open": 114.0984,
@@ -7375,31 +7366,31 @@
         "open": 114.38795,
         "high": 114.52092,
         "low": 114.38236,
-        "close": 114.49005
+        "close": 114.45266
+      },
+      {
+        "time": 1777330800,
+        "open": 114.45041,
+        "high": 114.52913,
+        "low": 114.40084,
+        "close": 114.48272
+      },
+      {
+        "time": 1777334400,
+        "open": 114.48056,
+        "high": 114.57214,
+        "low": 114.46123,
+        "close": 114.53297
+      },
+      {
+        "time": 1777338000,
+        "open": 114.52949,
+        "high": 114.55097,
+        "low": 114.48263,
+        "close": 114.48263
       }
     ],
     "NZD/JPY": [
-      {
-        "time": 1776970800,
-        "open": 94.02424,
-        "high": 94.05208,
-        "low": 93.86809,
-        "close": 93.91307
-      },
-      {
-        "time": 1776974400,
-        "open": 93.91106,
-        "high": 93.91786,
-        "low": 93.8035,
-        "close": 93.82845
-      },
-      {
-        "time": 1776978000,
-        "open": 93.82737,
-        "high": 93.93393,
-        "low": 93.80221,
-        "close": 93.92591
-      },
       {
         "time": 1776981600,
         "open": 93.9247,
@@ -8075,33 +8066,33 @@
       {
         "time": 1777327200,
         "open": 94.12622,
-        "high": 94.23773,
+        "high": 94.24225,
         "low": 94.12017,
-        "close": 94.2178
+        "close": 94.2072
+      },
+      {
+        "time": 1777330800,
+        "open": 94.20618,
+        "high": 94.27589,
+        "low": 94.11743,
+        "close": 94.1666
+      },
+      {
+        "time": 1777334400,
+        "open": 94.16475,
+        "high": 94.25981,
+        "low": 94.15271,
+        "close": 94.21498
+      },
+      {
+        "time": 1777338000,
+        "open": 94.21183,
+        "high": 94.23693,
+        "low": 94.19491,
+        "close": 94.2017
       }
     ],
     "CAD/JPY": [
-      {
-        "time": 1776970800,
-        "open": 116.88298,
-        "high": 116.88667,
-        "low": 116.82554,
-        "close": 116.87459
-      },
-      {
-        "time": 1776974400,
-        "open": 116.87453,
-        "high": 116.87765,
-        "low": 116.76482,
-        "close": 116.76589
-      },
-      {
-        "time": 1776978000,
-        "open": 116.76622,
-        "high": 116.83541,
-        "low": 116.71214,
-        "close": 116.74568
-      },
       {
         "time": 1776981600,
         "open": 116.74603,
@@ -8778,8 +8769,29 @@
         "time": 1777327200,
         "open": 116.97377,
         "high": 117.06009,
-        "low": 116.96668,
-        "close": 117.01604
+        "low": 116.96153,
+        "close": 117.0544
+      },
+      {
+        "time": 1777330800,
+        "open": 117.0544,
+        "high": 117.06561,
+        "low": 116.98809,
+        "close": 117.02444
+      },
+      {
+        "time": 1777334400,
+        "open": 117.02581,
+        "high": 117.07696,
+        "low": 116.88527,
+        "close": 116.94682
+      },
+      {
+        "time": 1777338000,
+        "open": 116.94874,
+        "high": 116.962,
+        "low": 116.92828,
+        "close": 116.94316
       }
     ]
   }
