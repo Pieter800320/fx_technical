@@ -2,7 +2,7 @@ name: News Brief
 
 on:
   schedule:
-    - cron: "0 6,10,14,18 * * 1-5"  # weekdays only, 4x daily
+    - cron: "0 6,10,14,18 * * *"  # every day, 4x daily
   workflow_dispatch:
 
 permissions:
