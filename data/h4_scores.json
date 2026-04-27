@@ -1,23 +1,23 @@
 {
   "EUR/USD": {
-    "score": 0,
+    "score": 1,
     "label": "Neutral",
     "direction": "neutral",
     "raw": {
-      "close": 1.17081,
-      "ema200": 1.16696,
-      "ema50": 1.17316,
-      "rsi": 34.3,
-      "macd_line": -0.001681,
-      "macd_signal": -0.001771,
-      "dmi_plus": 13.8,
-      "dmi_minus": 25.6,
-      "adx": 56.2
+      "close": 1.17209,
+      "ema200": 1.16862,
+      "ema50": 1.17256,
+      "rsi": 52.6,
+      "macd_line": -0.000183,
+      "macd_signal": -0.000378,
+      "dmi_plus": 17.8,
+      "dmi_minus": 19.8,
+      "adx": 39.9
     },
     "signals": {
       "EMA200": 1,
       "Momentum": -1,
-      "RSI": -1,
+      "RSI": 1,
       "EMA50": -1,
       "DMI": -1,
       "MACD": 1,
@@ -33,36 +33,36 @@
     "structure": {
       "direction": "bear",
       "event": "none",
-      "strength": 1.0,
+      "strength": 0.24,
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 39,
-    "updated": "2026-04-24T14:54:40.531541"
+    "reset_score": 18,
+    "updated": "2026-04-27T06:42:57.193689"
   },
   "GBP/USD": {
     "score": 0,
     "label": "Neutral",
     "direction": "neutral",
     "raw": {
-      "close": 1.34988,
-      "ema200": 1.34223,
-      "ema50": 1.34991,
-      "rsi": 41.5,
-      "macd_line": -0.000812,
-      "macd_signal": -0.000848,
-      "dmi_plus": 13.6,
-      "dmi_minus": 18.2,
-      "adx": 30.5
+      "close": 1.35302,
+      "ema200": 1.34472,
+      "ema50": 1.35134,
+      "rsi": 48.5,
+      "macd_line": 0.000538,
+      "macd_signal": 0.0005,
+      "dmi_plus": 18.0,
+      "dmi_minus": 24.7,
+      "adx": 26.4
     },
     "signals": {
       "EMA200": 1,
       "Momentum": -1,
       "RSI": -1,
-      "EMA50": -1,
+      "EMA50": 1,
       "DMI": -1,
-      "MACD": 1,
-      "Structure": -1
+      "MACD": -1,
+      "Structure": 0
     },
     "filter_ok": true,
     "extended": {
@@ -72,32 +72,73 @@
     },
     "conflict": false,
     "structure": {
-      "direction": "bear",
+      "direction": "neutral",
       "event": "none",
-      "strength": 0.37,
+      "strength": 0.0,
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 37,
-    "updated": "2026-04-24T14:54:40.531541"
+    "reset_score": 13,
+    "updated": "2026-04-27T06:42:57.193689"
   },
   "USD/JPY": {
-    "score": 3,
-    "label": "Buy",
-    "direction": "bull",
+    "score": 2,
+    "label": "Neutral",
+    "direction": "neutral",
     "raw": {
-      "close": 159.50292,
-      "ema200": 159.12237,
-      "ema50": 159.25382,
-      "rsi": 54.6,
-      "macd_line": 0.16381,
-      "macd_signal": 0.178191,
-      "dmi_plus": 18.4,
-      "dmi_minus": 16.4,
-      "adx": 34.8
+      "close": 159.38564,
+      "ema200": 159.05506,
+      "ema50": 159.28781,
+      "rsi": 51.3,
+      "macd_line": -0.003109,
+      "macd_signal": 0.009149,
+      "dmi_plus": 14.9,
+      "dmi_minus": 25.2,
+      "adx": 21.9
     },
     "signals": {
       "EMA200": 1,
+      "Momentum": 1,
+      "RSI": 1,
+      "EMA50": 1,
+      "DMI": -1,
+      "MACD": 1,
+      "Structure": 1
+    },
+    "filter_ok": true,
+    "extended": {
+      "extended": false,
+      "reasons": [],
+      "atr_dist": 0.0
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "bull",
+      "event": "none",
+      "strength": 0.3,
+      "multiplier": 1.0
+    },
+    "adx_weight": 0.75,
+    "reset_score": 5,
+    "updated": "2026-04-27T06:42:57.193689"
+  },
+  "USD/CHF": {
+    "score": 0,
+    "label": "Neutral",
+    "direction": "neutral",
+    "raw": {
+      "close": 0.7855,
+      "ema200": 0.78658,
+      "ema50": 0.78453,
+      "rsi": 51.8,
+      "macd_line": 0.000515,
+      "macd_signal": 0.000658,
+      "dmi_plus": 16.7,
+      "dmi_minus": 12.7,
+      "adx": 19.9
+    },
+    "signals": {
+      "EMA200": -1,
       "Momentum": 1,
       "RSI": 1,
       "EMA50": 1,
@@ -107,11 +148,9 @@
     },
     "filter_ok": true,
     "extended": {
-      "extended": true,
-      "reasons": [
-        "10 consecutive bars beyond EMA50"
-      ],
-      "atr_dist": 1.42
+      "extended": false,
+      "reasons": [],
+      "atr_dist": 0.0
     },
     "conflict": false,
     "structure": {
@@ -120,77 +159,80 @@
       "strength": 1.0,
       "multiplier": 1.0
     },
-    "adx_weight": 1.0,
-    "reset_score": 27,
-    "updated": "2026-04-24T14:54:40.531541"
-  },
-  "USD/CHF": {
-    "score": 1,
-    "label": "Neutral",
-    "direction": "neutral",
-    "raw": {
-      "close": 0.78566,
-      "ema200": 0.78726,
-      "ema50": 0.78366,
-      "rsi": 70.4,
-      "macd_line": 0.001307,
-      "macd_signal": 0.001098,
-      "dmi_plus": 29.8,
-      "dmi_minus": 6.3,
-      "adx": 47.2
-    },
-    "signals": {
-      "EMA200": -1,
-      "Momentum": 1,
-      "RSI": 1,
-      "EMA50": 1,
-      "DMI": 1,
-      "MACD": -1,
-      "Structure": 0
-    },
-    "filter_ok": true,
-    "extended": {
-      "extended": false,
-      "reasons": [],
-      "atr_dist": 0.0
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "neutral",
-      "event": "none",
-      "strength": 0.0,
-      "multiplier": 1.0
-    },
-    "adx_weight": 1.0,
-    "reset_score": 46,
-    "updated": "2026-04-24T14:54:40.531541"
+    "adx_weight": 0.5,
+    "reset_score": 14,
+    "updated": "2026-04-27T06:42:57.193689"
   },
   "AUD/USD": {
-    "score": 0,
-    "label": "Neutral",
-    "direction": "neutral",
+    "score": 3,
+    "label": "Buy",
+    "direction": "bull",
     "raw": {
-      "close": 0.71409,
-      "ema200": 0.70666,
-      "ema50": 0.71436,
-      "rsi": 40.0,
-      "macd_line": -0.000655,
-      "macd_signal": -0.000469,
-      "dmi_plus": 9.1,
-      "dmi_minus": 25.7,
-      "adx": 36.5
+      "close": 0.71615,
+      "ema200": 0.70825,
+      "ema50": 0.71485,
+      "rsi": 57.8,
+      "macd_line": 0.000189,
+      "macd_signal": 1.1e-05,
+      "dmi_plus": 12.9,
+      "dmi_minus": 15.2,
+      "adx": 31.2
     },
     "signals": {
       "EMA200": 1,
-      "Momentum": -1,
-      "RSI": -1,
-      "EMA50": -1,
+      "Momentum": 1,
+      "RSI": 1,
+      "EMA50": 1,
       "DMI": -1,
       "MACD": 1,
       "Structure": 0
     },
     "filter_ok": true,
     "extended": {
+      "extended": true,
+      "reasons": [
+        "Price 6.6x ATR from EMA200",
+        "9 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 6.64
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "neutral",
+      "event": "none",
+      "strength": 0.0,
+      "multiplier": 1.0
+    },
+    "adx_weight": 1.0,
+    "reset_score": 34,
+    "updated": "2026-04-27T06:42:57.193689"
+  },
+  "USD/CAD": {
+    "score": -2,
+    "label": "Neutral",
+    "direction": "neutral",
+    "raw": {
+      "close": 1.36636,
+      "ema200": 1.37465,
+      "ema50": 1.3686,
+      "rsi": 43.2,
+      "macd_line": -0.000315,
+      "macd_signal": -0.000231,
+      "dmi_plus": 11.7,
+      "dmi_minus": 14.7,
+      "adx": 18.4
+    },
+    "signals": {
+      "EMA200": -1,
+      "Momentum": -1,
+      "RSI": -1,
+      "EMA50": -1,
+      "DMI": -1,
+      "MACD": -1,
+      "Structure": 0
+    },
+    "filter_ok": false,
+    "extended": {
       "extended": false,
       "reasons": [],
       "atr_dist": 0.0
@@ -202,199 +244,35 @@
       "strength": 0.0,
       "multiplier": 1.0
     },
-    "adx_weight": 1.0,
-    "reset_score": 37,
-    "updated": "2026-04-24T14:54:40.531541"
-  },
-  "USD/CAD": {
-    "score": -1,
-    "label": "Neutral",
-    "direction": "neutral",
-    "raw": {
-      "close": 1.36844,
-      "ema200": 1.37612,
-      "ema50": 1.36991,
-      "rsi": 63.4,
-      "macd_line": 0.000145,
-      "macd_signal": -0.000241,
-      "dmi_plus": 24.5,
-      "dmi_minus": 8.4,
-      "adx": 34.9
-    },
-    "signals": {
-      "EMA200": -1,
-      "Momentum": -1,
-      "RSI": 1,
-      "EMA50": -1,
-      "DMI": 1,
-      "MACD": -1,
-      "Structure": -1
-    },
-    "filter_ok": true,
-    "extended": {
-      "extended": false,
-      "reasons": [],
-      "atr_dist": 0.0
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "bear",
-      "event": "CHoCH",
-      "strength": 0.22,
-      "multiplier": 0.912
-    },
-    "adx_weight": 1.0,
-    "reset_score": 41,
-    "updated": "2026-04-24T14:54:40.531541"
+    "adx_weight": 0.5,
+    "reset_score": 33,
+    "updated": "2026-04-27T06:42:57.193689"
   },
   "NZD/USD": {
     "score": 1,
     "label": "Neutral",
     "direction": "neutral",
     "raw": {
-      "close": 0.58715,
-      "ema200": 0.58424,
-      "ema50": 0.58796,
-      "rsi": 28.9,
-      "macd_line": -0.000783,
-      "macd_signal": -0.000467,
-      "dmi_plus": 7.2,
-      "dmi_minus": 31.1,
-      "adx": 40.3
+      "close": 0.58822,
+      "ema200": 0.58525,
+      "ema50": 0.58798,
+      "rsi": 54.3,
+      "macd_line": -4e-05,
+      "macd_signal": -0.000166,
+      "dmi_plus": 14.9,
+      "dmi_minus": 30.8,
+      "adx": 44.1
     },
     "signals": {
       "EMA200": 1,
       "Momentum": -1,
-      "RSI": -1,
-      "EMA50": -1,
-      "DMI": -1,
-      "MACD": 1,
-      "Structure": 1
-    },
-    "filter_ok": true,
-    "extended": {
-      "extended": false,
-      "reasons": [],
-      "atr_dist": 0.0
-    },
-    "conflict": true,
-    "structure": {
-      "direction": "bull",
-      "event": "none",
-      "strength": 0.01,
-      "multiplier": 1.0
-    },
-    "adx_weight": 1.0,
-    "reset_score": 48,
-    "updated": "2026-04-24T14:54:40.531541"
-  },
-  "EUR/JPY": {
-    "score": 0,
-    "label": "Neutral",
-    "direction": "neutral",
-    "raw": {
-      "close": 186.75871,
-      "ema200": 185.68691,
-      "ema50": 186.828,
-      "rsi": 35.5,
-      "macd_line": -0.074397,
-      "macd_signal": -0.07258,
-      "dmi_plus": 11.1,
-      "dmi_minus": 21.4,
-      "adx": 24.2
-    },
-    "signals": {
-      "EMA200": 1,
-      "Momentum": -1,
-      "RSI": -1,
-      "EMA50": -1,
-      "DMI": -1,
-      "MACD": 1,
-      "Structure": -1
-    },
-    "filter_ok": true,
-    "extended": {
-      "extended": false,
-      "reasons": [],
-      "atr_dist": 0.0
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "bear",
-      "event": "none",
-      "strength": 1.0,
-      "multiplier": 1.0
-    },
-    "adx_weight": 0.75,
-    "reset_score": 43,
-    "updated": "2026-04-24T14:54:40.531541"
-  },
-  "GBP/JPY": {
-    "score": 2,
-    "label": "Neutral",
-    "direction": "neutral",
-    "raw": {
-      "close": 215.32076,
-      "ema200": 213.57524,
-      "ema50": 214.97693,
-      "rsi": 44.8,
-      "macd_line": 0.092955,
-      "macd_signal": 0.105754,
-      "dmi_plus": 15.2,
-      "dmi_minus": 14.5,
-      "adx": 17.4
-    },
-    "signals": {
-      "EMA200": 1,
-      "Momentum": 1,
-      "RSI": -1,
-      "EMA50": 1,
-      "DMI": 1,
-      "MACD": 1,
-      "Structure": 1
-    },
-    "filter_ok": true,
-    "extended": {
-      "extended": false,
-      "reasons": [],
-      "atr_dist": 0.0
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "bull",
-      "event": "none",
-      "strength": 0.53,
-      "multiplier": 1.0
-    },
-    "adx_weight": 0.5,
-    "reset_score": 29,
-    "updated": "2026-04-24T14:54:40.531541"
-  },
-  "AUD/JPY": {
-    "score": 2,
-    "label": "Neutral",
-    "direction": "neutral",
-    "raw": {
-      "close": 113.90596,
-      "ema200": 112.44365,
-      "ema50": 113.76412,
-      "rsi": 42.7,
-      "macd_line": 0.013485,
-      "macd_signal": 0.052878,
-      "dmi_plus": 4.9,
-      "dmi_minus": 24.2,
-      "adx": 29.8
-    },
-    "signals": {
-      "EMA200": 1,
-      "Momentum": 1,
-      "RSI": -1,
+      "RSI": 1,
       "EMA50": 1,
       "DMI": -1,
-      "MACD": 1,
+      "MACD": -1,
       "Structure": 0
     },
-    "filter_ok": true,
+    "filter_ok": false,
     "extended": {
       "extended": false,
       "reasons": [],
@@ -408,28 +286,71 @@
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 33,
-    "updated": "2026-04-24T14:54:40.531541"
+    "reset_score": 25,
+    "updated": "2026-04-27T06:42:57.193689"
   },
-  "NZD/JPY": {
-    "score": 2,
-    "label": "Neutral",
-    "direction": "neutral",
+  "EUR/JPY": {
+    "score": 3,
+    "label": "Buy",
+    "direction": "bull",
     "raw": {
-      "close": 93.64278,
-      "ema200": 92.96263,
-      "ema50": 93.63359,
-      "rsi": 30.4,
-      "macd_line": -0.029088,
-      "macd_signal": 0.030251,
-      "dmi_plus": 3.3,
-      "dmi_minus": 32.1,
-      "adx": 47.3
+      "close": 186.80895,
+      "ema200": 185.86958,
+      "ema50": 186.77214,
+      "rsi": 53.0,
+      "macd_line": -0.03251,
+      "macd_signal": -0.04922,
+      "dmi_plus": 4.5,
+      "dmi_minus": 18.8,
+      "adx": 30.5
     },
     "signals": {
       "EMA200": 1,
       "Momentum": 1,
-      "RSI": -1,
+      "RSI": 1,
+      "EMA50": 1,
+      "DMI": -1,
+      "MACD": 1,
+      "Structure": 0
+    },
+    "filter_ok": true,
+    "extended": {
+      "extended": true,
+      "reasons": [
+        "Price 3.9x ATR from EMA200"
+      ],
+      "atr_dist": 3.93
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "neutral",
+      "event": "none",
+      "strength": 0.0,
+      "multiplier": 1.0
+    },
+    "adx_weight": 1.0,
+    "reset_score": 14,
+    "updated": "2026-04-27T06:42:57.193689"
+  },
+  "GBP/JPY": {
+    "score": 3,
+    "label": "Buy",
+    "direction": "bull",
+    "raw": {
+      "close": 215.64685,
+      "ema200": 213.87836,
+      "ema50": 215.24989,
+      "rsi": 50.4,
+      "macd_line": 0.08156,
+      "macd_signal": 0.092139,
+      "dmi_plus": 9.6,
+      "dmi_minus": 26.3,
+      "adx": 34.0
+    },
+    "signals": {
+      "EMA200": 1,
+      "Momentum": 1,
+      "RSI": 1,
       "EMA50": 1,
       "DMI": -1,
       "MACD": 1,
@@ -437,9 +358,12 @@
     },
     "filter_ok": true,
     "extended": {
-      "extended": false,
-      "reasons": [],
-      "atr_dist": 0.0
+      "extended": true,
+      "reasons": [
+        "Price 5.3x ATR from EMA200",
+        "9 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 5.31
     },
     "conflict": false,
     "structure": {
@@ -449,164 +373,143 @@
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 45,
-    "updated": "2026-04-24T14:54:40.531541"
+    "reset_score": 10,
+    "updated": "2026-04-27T06:42:57.193689"
   },
-  "CAD/JPY": {
-    "score": 2,
-    "label": "Neutral",
-    "direction": "neutral",
+  "AUD/JPY": {
+    "score": 3,
+    "label": "Buy",
+    "direction": "bull",
     "raw": {
-      "close": 116.58087,
-      "ema200": 115.63669,
-      "ema50": 116.25478,
-      "rsi": 44.6,
-      "macd_line": 0.108667,
-      "macd_signal": 0.150607,
-      "dmi_plus": 7.0,
-      "dmi_minus": 14.4,
-      "adx": 35.0
+      "close": 114.13235,
+      "ema200": 112.64809,
+      "ema50": 113.8655,
+      "rsi": 58.7,
+      "macd_line": 0.027091,
+      "macd_signal": 0.008193,
+      "dmi_plus": 12.0,
+      "dmi_minus": 15.8,
+      "adx": 41.7
     },
     "signals": {
       "EMA200": 1,
-      "Momentum": -1,
-      "RSI": -1,
+      "Momentum": 1,
+      "RSI": 1,
       "EMA50": 1,
       "DMI": -1,
-      "MACD": -1,
-      "Structure": 1
+      "MACD": 1,
+      "Structure": 0
     },
     "filter_ok": true,
     "extended": {
-      "extended": false,
-      "reasons": [],
-      "atr_dist": 0.0
+      "extended": true,
+      "reasons": [
+        "Price 5.6x ATR from EMA200",
+        "9 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 5.64
     },
-    "conflict": true,
+    "conflict": false,
     "structure": {
-      "direction": "bull",
+      "direction": "neutral",
       "event": "none",
-      "strength": 0.19,
+      "strength": 0.0,
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 28,
-    "updated": "2026-04-24T14:54:40.531541"
+    "reset_score": 30,
+    "updated": "2026-04-27T06:42:57.193689"
+  },
+  "NZD/JPY": {
+    "score": 3,
+    "label": "Buy",
+    "direction": "bull",
+    "raw": {
+      "close": 93.75406,
+      "ema200": 93.08343,
+      "ema50": 93.6567,
+      "rsi": 54.8,
+      "macd_line": -0.008062,
+      "macd_signal": -0.020956,
+      "dmi_plus": 10.1,
+      "dmi_minus": 20.6,
+      "adx": 40.2
+    },
+    "signals": {
+      "EMA200": 1,
+      "Momentum": 1,
+      "RSI": 1,
+      "EMA50": 1,
+      "DMI": -1,
+      "MACD": 1,
+      "Structure": 0
+    },
+    "filter_ok": true,
+    "extended": {
+      "extended": true,
+      "reasons": [
+        "Price 5.2x ATR from EMA200",
+        "8 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 5.23
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "neutral",
+      "event": "none",
+      "strength": 0.0,
+      "multiplier": 1.0
+    },
+    "adx_weight": 1.0,
+    "reset_score": 27,
+    "updated": "2026-04-27T06:42:57.193689"
+  },
+  "CAD/JPY": {
+    "score": 3,
+    "label": "Buy",
+    "direction": "bull",
+    "raw": {
+      "close": 116.65086,
+      "ema200": 115.71135,
+      "ema50": 116.38963,
+      "rsi": 53.8,
+      "macd_line": 0.024468,
+      "macd_signal": 0.026171,
+      "dmi_plus": 12.5,
+      "dmi_minus": 22.1,
+      "adx": 26.6
+    },
+    "signals": {
+      "EMA200": 1,
+      "Momentum": 1,
+      "RSI": 1,
+      "EMA50": 1,
+      "DMI": -1,
+      "MACD": 1,
+      "Structure": 0
+    },
+    "filter_ok": true,
+    "extended": {
+      "extended": true,
+      "reasons": [
+        "Price 5.2x ATR from EMA200",
+        "9 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 5.25
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "neutral",
+      "event": "none",
+      "strength": 0.0,
+      "multiplier": 1.0
+    },
+    "adx_weight": 1.0,
+    "reset_score": 19,
+    "updated": "2026-04-27T06:42:57.193689"
   },
   "_ohlcv": {
     "EUR/USD": [
-      {
-        "time": 1775646000,
-        "open": 1.16716,
-        "high": 1.16883,
-        "low": 1.16667,
-        "close": 1.16757
-      },
-      {
-        "time": 1775660400,
-        "open": 1.16757,
-        "high": 1.17074,
-        "low": 1.16726,
-        "close": 1.16811
-      },
-      {
-        "time": 1775674800,
-        "open": 1.16813,
-        "high": 1.17177,
-        "low": 1.16788,
-        "close": 1.17147
-      },
-      {
-        "time": 1775689200,
-        "open": 1.17148,
-        "high": 1.17208,
-        "low": 1.16775,
-        "close": 1.16819
-      },
-      {
-        "time": 1775703600,
-        "open": 1.16817,
-        "high": 1.16852,
-        "low": 1.16458,
-        "close": 1.16627
-      },
-      {
-        "time": 1775718000,
-        "open": 1.16625,
-        "high": 1.16674,
-        "low": 1.16538,
-        "close": 1.16583
-      },
-      {
-        "time": 1775732400,
-        "open": 1.16581,
-        "high": 1.16712,
-        "low": 1.16511,
-        "close": 1.16672
-      },
-      {
-        "time": 1775746800,
-        "open": 1.16672,
-        "high": 1.16746,
-        "low": 1.16551,
-        "close": 1.16721
-      },
-      {
-        "time": 1775761200,
-        "open": 1.16721,
-        "high": 1.16892,
-        "low": 1.16696,
-        "close": 1.16859
-      },
-      {
-        "time": 1775775600,
-        "open": 1.16859,
-        "high": 1.1714,
-        "low": 1.1675,
-        "close": 1.17112
-      },
-      {
-        "time": 1775790000,
-        "open": 1.1711,
-        "high": 1.17231,
-        "low": 1.16954,
-        "close": 1.16993
-      },
-      {
-        "time": 1775804400,
-        "open": 1.16989,
-        "high": 1.17027,
-        "low": 1.16861,
-        "close": 1.16872
-      },
-      {
-        "time": 1775818800,
-        "open": 1.16869,
-        "high": 1.1697,
-        "low": 1.16866,
-        "close": 1.1692
-      },
-      {
-        "time": 1775833200,
-        "open": 1.1692,
-        "high": 1.16927,
-        "low": 1.1678,
-        "close": 1.1686
-      },
-      {
-        "time": 1775847600,
-        "open": 1.16862,
-        "high": 1.17244,
-        "low": 1.16845,
-        "close": 1.17204
-      },
-      {
-        "time": 1775862000,
-        "open": 1.17203,
-        "high": 1.17393,
-        "low": 1.17143,
-        "close": 1.17212
-      },
       {
         "time": 1775876400,
         "open": 1.1721,
@@ -1191,124 +1094,124 @@
       {
         "time": 1777071600,
         "open": 1.17089,
-        "high": 1.1716,
+        "high": 1.17205,
         "low": 1.16996,
-        "close": 1.17081
+        "close": 1.17196
+      },
+      {
+        "time": 1777086000,
+        "open": 1.17192,
+        "high": 1.1723,
+        "low": 1.17116,
+        "close": 1.17191
+      },
+      {
+        "time": 1777100400,
+        "open": 1.17187,
+        "high": 1.1726,
+        "low": 1.17169,
+        "close": 1.17172
+      },
+      {
+        "time": 1777114800,
+        "open": 1.17173,
+        "high": 1.17198,
+        "low": 1.17169,
+        "close": 1.1717
+      },
+      {
+        "time": 1777129200,
+        "open": 1.17171,
+        "high": 1.17217,
+        "low": 1.17167,
+        "close": 1.17173
+      },
+      {
+        "time": 1777143600,
+        "open": 1.17173,
+        "high": 1.17216,
+        "low": 1.1717,
+        "close": 1.17211
+      },
+      {
+        "time": 1777158000,
+        "open": 1.17209,
+        "high": 1.17217,
+        "low": 1.17168,
+        "close": 1.17193
+      },
+      {
+        "time": 1777172400,
+        "open": 1.1719,
+        "high": 1.17226,
+        "low": 1.17177,
+        "close": 1.17222
+      },
+      {
+        "time": 1777186800,
+        "open": 1.17221,
+        "high": 1.17229,
+        "low": 1.17176,
+        "close": 1.17215
+      },
+      {
+        "time": 1777201200,
+        "open": 1.17216,
+        "high": 1.17232,
+        "low": 1.17184,
+        "close": 1.17218
+      },
+      {
+        "time": 1777215600,
+        "open": 1.17219,
+        "high": 1.17231,
+        "low": 1.17179,
+        "close": 1.17227
+      },
+      {
+        "time": 1777230000,
+        "open": 1.17226,
+        "high": 1.17233,
+        "low": 1.17176,
+        "close": 1.17185
+      },
+      {
+        "time": 1777244400,
+        "open": 1.17183,
+        "high": 1.17296,
+        "low": 1.17146,
+        "close": 1.17161
+      },
+      {
+        "time": 1777258800,
+        "open": 1.17158,
+        "high": 1.17209,
+        "low": 1.16867,
+        "close": 1.16981
+      },
+      {
+        "time": 1777273200,
+        "open": 1.16986,
+        "high": 1.17159,
+        "low": 1.16901,
+        "close": 1.17159
+      },
+      {
+        "time": 1777287600,
+        "open": 1.17162,
+        "high": 1.17322,
+        "low": 1.1716,
+        "close": 1.17269
+      },
+      {
+        "time": 1777302000,
+        "open": 1.17269,
+        "high": 1.17284,
+        "low": 1.17169,
+        "close": 1.17209
       }
     ],
     "GBP/USD": [
-      {
-        "time": 1775646000,
-        "open": 1.33888,
-        "high": 1.34171,
-        "low": 1.33882,
-        "close": 1.34161
-      },
-      {
-        "time": 1775660400,
-        "open": 1.3416,
-        "high": 1.3445,
-        "low": 1.34121,
-        "close": 1.34268
-      },
-      {
-        "time": 1775674800,
-        "open": 1.34271,
-        "high": 1.34844,
-        "low": 1.34225,
-        "close": 1.34757
-      },
-      {
-        "time": 1775689200,
-        "open": 1.34754,
-        "high": 1.34811,
-        "low": 1.34199,
-        "close": 1.34247
-      },
-      {
-        "time": 1775703600,
-        "open": 1.34246,
-        "high": 1.3428,
-        "low": 1.33835,
-        "close": 1.33956
-      },
-      {
-        "time": 1775718000,
-        "open": 1.33952,
-        "high": 1.34037,
-        "low": 1.33866,
-        "close": 1.3392
-      },
-      {
-        "time": 1775732400,
-        "open": 1.33917,
-        "high": 1.34063,
-        "low": 1.33817,
-        "close": 1.34003
-      },
-      {
-        "time": 1775746800,
-        "open": 1.34003,
-        "high": 1.34073,
-        "low": 1.3383,
-        "close": 1.34052
-      },
-      {
-        "time": 1775761200,
-        "open": 1.34049,
-        "high": 1.34301,
-        "low": 1.33978,
-        "close": 1.34166
-      },
-      {
-        "time": 1775775600,
-        "open": 1.34166,
-        "high": 1.34553,
-        "low": 1.34036,
-        "close": 1.34448
-      },
-      {
-        "time": 1775790000,
-        "open": 1.34447,
-        "high": 1.3458,
-        "low": 1.34301,
-        "close": 1.34369
-      },
-      {
-        "time": 1775804400,
-        "open": 1.34367,
-        "high": 1.34379,
-        "low": 1.34216,
-        "close": 1.34246
-      },
-      {
-        "time": 1775818800,
-        "open": 1.34244,
-        "high": 1.34318,
-        "low": 1.34205,
-        "close": 1.34219
-      },
-      {
-        "time": 1775833200,
-        "open": 1.34219,
-        "high": 1.34289,
-        "low": 1.34097,
-        "close": 1.34205
-      },
-      {
-        "time": 1775847600,
-        "open": 1.34208,
-        "high": 1.34616,
-        "low": 1.34185,
-        "close": 1.34581
-      },
-      {
-        "time": 1775862000,
-        "open": 1.3458,
-        "high": 1.34802,
-        "low": 1.34485,
-        "close": 1.34567
-      },
       {
         "time": 1775876400,
         "open": 1.34565,
@@ -1893,124 +1796,124 @@
       {
         "time": 1777071600,
         "open": 1.35015,
-        "high": 1.35133,
+        "high": 1.35222,
         "low": 1.34872,
-        "close": 1.34988
+        "close": 1.35216
+      },
+      {
+        "time": 1777086000,
+        "open": 1.35213,
+        "high": 1.3538,
+        "low": 1.35169,
+        "close": 1.35313
+      },
+      {
+        "time": 1777100400,
+        "open": 1.35318,
+        "high": 1.35397,
+        "low": 1.35153,
+        "close": 1.35323
+      },
+      {
+        "time": 1777114800,
+        "open": 1.35324,
+        "high": 1.35333,
+        "low": 1.3532,
+        "close": 1.35323
+      },
+      {
+        "time": 1777129200,
+        "open": 1.35324,
+        "high": 1.35334,
+        "low": 1.35314,
+        "close": 1.35328
+      },
+      {
+        "time": 1777143600,
+        "open": 1.35326,
+        "high": 1.35333,
+        "low": 1.35301,
+        "close": 1.35323
+      },
+      {
+        "time": 1777158000,
+        "open": 1.35321,
+        "high": 1.35328,
+        "low": 1.35298,
+        "close": 1.35323
+      },
+      {
+        "time": 1777172400,
+        "open": 1.3532,
+        "high": 1.35331,
+        "low": 1.35189,
+        "close": 1.35296
+      },
+      {
+        "time": 1777186800,
+        "open": 1.35294,
+        "high": 1.35328,
+        "low": 1.35237,
+        "close": 1.35321
+      },
+      {
+        "time": 1777201200,
+        "open": 1.35322,
+        "high": 1.35328,
+        "low": 1.35304,
+        "close": 1.35318
+      },
+      {
+        "time": 1777215600,
+        "open": 1.35319,
+        "high": 1.35331,
+        "low": 1.35306,
+        "close": 1.35322
+      },
+      {
+        "time": 1777230000,
+        "open": 1.35322,
+        "high": 1.35332,
+        "low": 1.35208,
+        "close": 1.35259
+      },
+      {
+        "time": 1777244400,
+        "open": 1.35256,
+        "high": 1.35305,
+        "low": 1.3495,
+        "close": 1.35103
+      },
+      {
+        "time": 1777258800,
+        "open": 1.35103,
+        "high": 1.35401,
+        "low": 1.34887,
+        "close": 1.35128
+      },
+      {
+        "time": 1777273200,
+        "open": 1.3513,
+        "high": 1.35227,
+        "low": 1.35062,
+        "close": 1.35212
+      },
+      {
+        "time": 1777287600,
+        "open": 1.35214,
+        "high": 1.35482,
+        "low": 1.35212,
+        "close": 1.35409
+      },
+      {
+        "time": 1777302000,
+        "open": 1.3541,
+        "high": 1.35416,
+        "low": 1.3525,
+        "close": 1.35302
       }
     ],
     "USD/JPY": [
-      {
-        "time": 1775646000,
-        "open": 158.66626,
-        "high": 158.69362,
-        "low": 158.31614,
-        "close": 158.36696
-      },
-      {
-        "time": 1775660400,
-        "open": 158.36707,
-        "high": 158.47681,
-        "low": 158.05846,
-        "close": 158.37147
-      },
-      {
-        "time": 1775674800,
-        "open": 158.37333,
-        "high": 158.52975,
-        "low": 157.98166,
-        "close": 158.00326
-      },
-      {
-        "time": 1775689200,
-        "open": 158.00385,
-        "high": 158.49457,
-        "low": 157.87451,
-        "close": 158.43228
-      },
-      {
-        "time": 1775703600,
-        "open": 158.42977,
-        "high": 158.7816,
-        "low": 158.38033,
-        "close": 158.58407
-      },
-      {
-        "time": 1775718000,
-        "open": 158.58094,
-        "high": 158.86001,
-        "low": 158.49751,
-        "close": 158.85578
-      },
-      {
-        "time": 1775732400,
-        "open": 158.85423,
-        "high": 158.95465,
-        "low": 158.64827,
-        "close": 158.73854
-      },
-      {
-        "time": 1775746800,
-        "open": 158.73758,
-        "high": 159.10617,
-        "low": 158.73343,
-        "close": 158.99692
-      },
-      {
-        "time": 1775761200,
-        "open": 158.99852,
-        "high": 159.10446,
-        "low": 158.83743,
-        "close": 159.014
-      },
-      {
-        "time": 1775775600,
-        "open": 159.01371,
-        "high": 159.28977,
-        "low": 158.64552,
-        "close": 158.76043
-      },
-      {
-        "time": 1775790000,
-        "open": 158.75926,
-        "high": 159.12887,
-        "low": 158.68784,
-        "close": 159.00167
-      },
-      {
-        "time": 1775804400,
-        "open": 158.99896,
-        "high": 159.23891,
-        "low": 158.95141,
-        "close": 159.19596
-      },
-      {
-        "time": 1775818800,
-        "open": 159.18999,
-        "high": 159.23157,
-        "low": 159.02496,
-        "close": 159.1908
-      },
-      {
-        "time": 1775833200,
-        "open": 159.18834,
-        "high": 159.36528,
-        "low": 159.18705,
-        "close": 159.321
-      },
-      {
-        "time": 1775847600,
-        "open": 159.32121,
-        "high": 159.34418,
-        "low": 158.97622,
-        "close": 159.16632
-      },
-      {
-        "time": 1775862000,
-        "open": 159.16874,
-        "high": 159.34861,
-        "low": 159.05049,
-        "close": 159.27434
-      },
       {
         "time": 1775876400,
         "open": 159.27427,
@@ -2596,123 +2499,123 @@
         "time": 1777071600,
         "open": 159.54533,
         "high": 159.66312,
-        "low": 159.40073,
-        "close": 159.50292
+        "low": 159.32904,
+        "close": 159.35306
+      },
+      {
+        "time": 1777086000,
+        "open": 159.35024,
+        "high": 159.48166,
+        "low": 159.33891,
+        "close": 159.3729
+      },
+      {
+        "time": 1777100400,
+        "open": 159.36632,
+        "high": 159.56306,
+        "low": 159.25889,
+        "close": 159.34344
+      },
+      {
+        "time": 1777114800,
+        "open": 159.33368,
+        "high": 159.47427,
+        "low": 159.33158,
+        "close": 159.34992
+      },
+      {
+        "time": 1777129200,
+        "open": 159.35147,
+        "high": 159.42761,
+        "low": 159.34423,
+        "close": 159.34891
+      },
+      {
+        "time": 1777143600,
+        "open": 159.35057,
+        "high": 159.36395,
+        "low": 159.34787,
+        "close": 159.35918
+      },
+      {
+        "time": 1777158000,
+        "open": 159.3586,
+        "high": 159.38405,
+        "low": 159.35498,
+        "close": 159.36172
+      },
+      {
+        "time": 1777172400,
+        "open": 159.35881,
+        "high": 159.41779,
+        "low": 159.3529,
+        "close": 159.37383
+      },
+      {
+        "time": 1777186800,
+        "open": 159.37033,
+        "high": 159.42144,
+        "low": 159.35658,
+        "close": 159.36938
+      },
+      {
+        "time": 1777201200,
+        "open": 159.36765,
+        "high": 159.37421,
+        "low": 159.34264,
+        "close": 159.35657
+      },
+      {
+        "time": 1777215600,
+        "open": 159.35716,
+        "high": 159.37091,
+        "low": 159.34254,
+        "close": 159.36027
+      },
+      {
+        "time": 1777230000,
+        "open": 159.36134,
+        "high": 159.40648,
+        "low": 158.95503,
+        "close": 159.16784
+      },
+      {
+        "time": 1777244400,
+        "open": 159.16662,
+        "high": 159.35424,
+        "low": 158.89383,
+        "close": 158.89949
+      },
+      {
+        "time": 1777258800,
+        "open": 158.88246,
+        "high": 159.72755,
+        "low": 158.88246,
+        "close": 159.57647
+      },
+      {
+        "time": 1777273200,
+        "open": 159.56689,
+        "high": 159.6184,
+        "low": 159.45211,
+        "close": 159.47752
+      },
+      {
+        "time": 1777287600,
+        "open": 159.47788,
+        "high": 159.49051,
+        "low": 159.16525,
+        "close": 159.24547
+      },
+      {
+        "time": 1777302000,
+        "open": 159.24621,
+        "high": 159.50205,
+        "low": 159.23956,
+        "close": 159.38564
       }
     ],
     "USD/CHF": [
-      {
-        "time": 1775646000,
-        "open": 0.79124,
-        "high": 0.79127,
-        "low": 0.78941,
-        "close": 0.78962
-      },
-      {
-        "time": 1775660400,
-        "open": 0.78962,
-        "high": 0.78988,
-        "low": 0.7873,
-        "close": 0.78883
-      },
-      {
-        "time": 1775674800,
-        "open": 0.78883,
-        "high": 0.78938,
-        "low": 0.78719,
-        "close": 0.78746
-      },
-      {
-        "time": 1775689200,
-        "open": 0.78746,
-        "high": 0.79046,
-        "low": 0.78686,
-        "close": 0.79009
-      },
-      {
-        "time": 1775703600,
-        "open": 0.79008,
-        "high": 0.79258,
-        "low": 0.78986,
-        "close": 0.79137
-      },
-      {
-        "time": 1775718000,
-        "open": 0.79136,
-        "high": 0.79201,
-        "low": 0.79089,
-        "close": 0.7918
-      },
-      {
-        "time": 1775732400,
-        "open": 0.79179,
-        "high": 0.7922,
-        "low": 0.7906,
-        "close": 0.79109
-      },
-      {
-        "time": 1775746800,
-        "open": 0.7911,
-        "high": 0.79219,
-        "low": 0.79068,
-        "close": 0.79101
-      },
-      {
-        "time": 1775761200,
-        "open": 0.79104,
-        "high": 0.79175,
-        "low": 0.79014,
-        "close": 0.79062
-      },
-      {
-        "time": 1775775600,
-        "open": 0.7906,
-        "high": 0.79114,
-        "low": 0.78809,
-        "close": 0.78852
-      },
-      {
-        "time": 1775790000,
-        "open": 0.78851,
-        "high": 0.7907,
-        "low": 0.788,
-        "close": 0.79051
-      },
-      {
-        "time": 1775804400,
-        "open": 0.7905,
-        "high": 0.79143,
-        "low": 0.78971,
-        "close": 0.79129
-      },
-      {
-        "time": 1775818800,
-        "open": 0.79128,
-        "high": 0.79135,
-        "low": 0.79018,
-        "close": 0.79036
-      },
-      {
-        "time": 1775833200,
-        "open": 0.79036,
-        "high": 0.79069,
-        "low": 0.78955,
-        "close": 0.79018
-      },
-      {
-        "time": 1775847600,
-        "open": 0.79019,
-        "high": 0.79057,
-        "low": 0.78795,
-        "close": 0.78836
-      },
-      {
-        "time": 1775862000,
-        "open": 0.78835,
-        "high": 0.79003,
-        "low": 0.78555,
-        "close": 0.7895
-      },
       {
         "time": 1775876400,
         "open": 0.78949,
@@ -3298,123 +3201,123 @@
         "time": 1777071600,
         "open": 0.78625,
         "high": 0.78743,
-        "low": 0.78549,
-        "close": 0.78566
+        "low": 0.78467,
+        "close": 0.78499
+      },
+      {
+        "time": 1777086000,
+        "open": 0.78498,
+        "high": 0.78562,
+        "low": 0.78467,
+        "close": 0.78502
+      },
+      {
+        "time": 1777100400,
+        "open": 0.78501,
+        "high": 0.7858,
+        "low": 0.78491,
+        "close": 0.78527
+      },
+      {
+        "time": 1777114800,
+        "open": 0.78528,
+        "high": 0.78544,
+        "low": 0.78501,
+        "close": 0.7854
+      },
+      {
+        "time": 1777129200,
+        "open": 0.7854,
+        "high": 0.78544,
+        "low": 0.78507,
+        "close": 0.78541
+      },
+      {
+        "time": 1777143600,
+        "open": 0.78539,
+        "high": 0.78544,
+        "low": 0.78518,
+        "close": 0.7854
+      },
+      {
+        "time": 1777158000,
+        "open": 0.78538,
+        "high": 0.78542,
+        "low": 0.78492,
+        "close": 0.78497
+      },
+      {
+        "time": 1777172400,
+        "open": 0.78496,
+        "high": 0.78551,
+        "low": 0.78486,
+        "close": 0.785
+      },
+      {
+        "time": 1777186800,
+        "open": 0.785,
+        "high": 0.78552,
+        "low": 0.78496,
+        "close": 0.78513
+      },
+      {
+        "time": 1777201200,
+        "open": 0.78513,
+        "high": 0.78516,
+        "low": 0.78493,
+        "close": 0.78494
+      },
+      {
+        "time": 1777215600,
+        "open": 0.78494,
+        "high": 0.78498,
+        "low": 0.78492,
+        "close": 0.78494
+      },
+      {
+        "time": 1777230000,
+        "open": 0.78493,
+        "high": 0.78672,
+        "low": 0.78488,
+        "close": 0.7867
+      },
+      {
+        "time": 1777244400,
+        "open": 0.78668,
+        "high": 0.78679,
+        "low": 0.78457,
+        "close": 0.78654
+      },
+      {
+        "time": 1777258800,
+        "open": 0.78654,
+        "high": 0.78721,
+        "low": 0.78486,
+        "close": 0.78705
+      },
+      {
+        "time": 1777273200,
+        "open": 0.78705,
+        "high": 0.78714,
+        "low": 0.78553,
+        "close": 0.78577
+      },
+      {
+        "time": 1777287600,
+        "open": 0.78576,
+        "high": 0.78588,
+        "low": 0.78442,
+        "close": 0.7848
+      },
+      {
+        "time": 1777302000,
+        "open": 0.78481,
+        "high": 0.7857,
+        "low": 0.78474,
+        "close": 0.7855
       }
     ],
     "AUD/USD": [
-      {
-        "time": 1775646000,
-        "open": 0.70527,
-        "high": 0.70715,
-        "low": 0.70433,
-        "close": 0.7067
-      },
-      {
-        "time": 1775660400,
-        "open": 0.7067,
-        "high": 0.70817,
-        "low": 0.70354,
-        "close": 0.70435
-      },
-      {
-        "time": 1775674800,
-        "open": 0.70439,
-        "high": 0.70742,
-        "low": 0.70349,
-        "close": 0.70722
-      },
-      {
-        "time": 1775689200,
-        "open": 0.7072,
-        "high": 0.70775,
-        "low": 0.70441,
-        "close": 0.706
-      },
-      {
-        "time": 1775703600,
-        "open": 0.70598,
-        "high": 0.70621,
-        "low": 0.70296,
-        "close": 0.7044
-      },
-      {
-        "time": 1775718000,
-        "open": 0.70439,
-        "high": 0.70493,
-        "low": 0.70309,
-        "close": 0.70363
-      },
-      {
-        "time": 1775732400,
-        "open": 0.70362,
-        "high": 0.70465,
-        "low": 0.70256,
-        "close": 0.70408
-      },
-      {
-        "time": 1775746800,
-        "open": 0.70409,
-        "high": 0.70441,
-        "low": 0.70234,
-        "close": 0.70279
-      },
-      {
-        "time": 1775761200,
-        "open": 0.70276,
-        "high": 0.70455,
-        "low": 0.70238,
-        "close": 0.70407
-      },
-      {
-        "time": 1775775600,
-        "open": 0.70407,
-        "high": 0.70922,
-        "low": 0.70402,
-        "close": 0.70861
-      },
-      {
-        "time": 1775790000,
-        "open": 0.70859,
-        "high": 0.7095,
-        "low": 0.70745,
-        "close": 0.70837
-      },
-      {
-        "time": 1775804400,
-        "open": 0.70837,
-        "high": 0.70867,
-        "low": 0.70706,
-        "close": 0.70749
-      },
-      {
-        "time": 1775818800,
-        "open": 0.70748,
-        "high": 0.70828,
-        "low": 0.70658,
-        "close": 0.70671
-      },
-      {
-        "time": 1775833200,
-        "open": 0.70671,
-        "high": 0.70724,
-        "low": 0.70531,
-        "close": 0.70587
-      },
-      {
-        "time": 1775847600,
-        "open": 0.70588,
-        "high": 0.70821,
-        "low": 0.70577,
-        "close": 0.70763
-      },
-      {
-        "time": 1775862000,
-        "open": 0.70762,
-        "high": 0.70933,
-        "low": 0.7066,
-        "close": 0.70719
-      },
       {
         "time": 1775876400,
         "open": 0.70718,
@@ -3999,124 +3902,124 @@
       {
         "time": 1777071600,
         "open": 0.71354,
-        "high": 0.71455,
+        "high": 0.71539,
         "low": 0.7127,
-        "close": 0.71409
+        "close": 0.71517
+      },
+      {
+        "time": 1777086000,
+        "open": 0.71515,
+        "high": 0.71537,
+        "low": 0.71465,
+        "close": 0.71493
+      },
+      {
+        "time": 1777100400,
+        "open": 0.71493,
+        "high": 0.71529,
+        "low": 0.71412,
+        "close": 0.71521
+      },
+      {
+        "time": 1777114800,
+        "open": 0.71522,
+        "high": 0.71532,
+        "low": 0.71461,
+        "close": 0.71526
+      },
+      {
+        "time": 1777129200,
+        "open": 0.71526,
+        "high": 0.71532,
+        "low": 0.71461,
+        "close": 0.71528
+      },
+      {
+        "time": 1777143600,
+        "open": 0.71527,
+        "high": 0.71532,
+        "low": 0.71432,
+        "close": 0.71519
+      },
+      {
+        "time": 1777158000,
+        "open": 0.71517,
+        "high": 0.7153,
+        "low": 0.71456,
+        "close": 0.71496
+      },
+      {
+        "time": 1777172400,
+        "open": 0.71495,
+        "high": 0.71531,
+        "low": 0.71448,
+        "close": 0.71526
+      },
+      {
+        "time": 1777186800,
+        "open": 0.71526,
+        "high": 0.71536,
+        "low": 0.71444,
+        "close": 0.71526
+      },
+      {
+        "time": 1777201200,
+        "open": 0.71526,
+        "high": 0.71531,
+        "low": 0.71484,
+        "close": 0.71528
+      },
+      {
+        "time": 1777215600,
+        "open": 0.71528,
+        "high": 0.71531,
+        "low": 0.71476,
+        "close": 0.71515
+      },
+      {
+        "time": 1777230000,
+        "open": 0.71514,
+        "high": 0.7153,
+        "low": 0.71463,
+        "close": 0.71527
+      },
+      {
+        "time": 1777244400,
+        "open": 0.71526,
+        "high": 0.71558,
+        "low": 0.7142,
+        "close": 0.71527
+      },
+      {
+        "time": 1777258800,
+        "open": 0.7153,
+        "high": 0.71559,
+        "low": 0.71268,
+        "close": 0.71387
+      },
+      {
+        "time": 1777273200,
+        "open": 0.71389,
+        "high": 0.71568,
+        "low": 0.71291,
+        "close": 0.71568
+      },
+      {
+        "time": 1777287600,
+        "open": 0.71572,
+        "high": 0.71766,
+        "low": 0.71567,
+        "close": 0.71684
+      },
+      {
+        "time": 1777302000,
+        "open": 0.71684,
+        "high": 0.71688,
+        "low": 0.71586,
+        "close": 0.71615
       }
     ],
     "USD/CAD": [
-      {
-        "time": 1775646000,
-        "open": 1.38504,
-        "high": 1.3851,
-        "low": 1.38324,
-        "close": 1.38351
-      },
-      {
-        "time": 1775660400,
-        "open": 1.3835,
-        "high": 1.38658,
-        "low": 1.38246,
-        "close": 1.38655
-      },
-      {
-        "time": 1775674800,
-        "open": 1.38656,
-        "high": 1.38743,
-        "low": 1.38382,
-        "close": 1.38407
-      },
-      {
-        "time": 1775689200,
-        "open": 1.38409,
-        "high": 1.38705,
-        "low": 1.38397,
-        "close": 1.38436
-      },
-      {
-        "time": 1775703600,
-        "open": 1.38434,
-        "high": 1.38608,
-        "low": 1.38371,
-        "close": 1.38455
-      },
-      {
-        "time": 1775718000,
-        "open": 1.38453,
-        "high": 1.38557,
-        "low": 1.384,
-        "close": 1.38527
-      },
-      {
-        "time": 1775732400,
-        "open": 1.38524,
-        "high": 1.38591,
-        "low": 1.38455,
-        "close": 1.38487
-      },
-      {
-        "time": 1775746800,
-        "open": 1.38486,
-        "high": 1.38598,
-        "low": 1.3846,
-        "close": 1.38491
-      },
-      {
-        "time": 1775761200,
-        "open": 1.38493,
-        "high": 1.38572,
-        "low": 1.38322,
-        "close": 1.38352
-      },
-      {
-        "time": 1775775600,
-        "open": 1.38351,
-        "high": 1.38353,
-        "low": 1.38049,
-        "close": 1.38167
-      },
-      {
-        "time": 1775790000,
-        "open": 1.38165,
-        "high": 1.38246,
-        "low": 1.38093,
-        "close": 1.3817
-      },
-      {
-        "time": 1775804400,
-        "open": 1.38168,
-        "high": 1.3827,
-        "low": 1.3813,
-        "close": 1.38257
-      },
-      {
-        "time": 1775818800,
-        "open": 1.38255,
-        "high": 1.38277,
-        "low": 1.38182,
-        "close": 1.3825
-      },
-      {
-        "time": 1775833200,
-        "open": 1.3825,
-        "high": 1.38439,
-        "low": 1.3824,
-        "close": 1.38366
-      },
-      {
-        "time": 1775847600,
-        "open": 1.38368,
-        "high": 1.38418,
-        "low": 1.38168,
-        "close": 1.38205
-      },
-      {
-        "time": 1775862000,
-        "open": 1.38206,
-        "high": 1.38375,
-        "low": 1.38004,
-        "close": 1.38341
-      },
       {
         "time": 1775876400,
         "open": 1.38339,
@@ -4702,123 +4605,123 @@
         "time": 1777071600,
         "open": 1.36824,
         "high": 1.36991,
-        "low": 1.36815,
-        "close": 1.36844
+        "low": 1.3673,
+        "close": 1.36737
+      },
+      {
+        "time": 1777086000,
+        "open": 1.36733,
+        "high": 1.36753,
+        "low": 1.36629,
+        "close": 1.36705
+      },
+      {
+        "time": 1777100400,
+        "open": 1.36702,
+        "high": 1.36791,
+        "low": 1.36663,
+        "close": 1.36701
+      },
+      {
+        "time": 1777114800,
+        "open": 1.36702,
+        "high": 1.36735,
+        "low": 1.36696,
+        "close": 1.36706
+      },
+      {
+        "time": 1777129200,
+        "open": 1.3671,
+        "high": 1.36736,
+        "low": 1.36698,
+        "close": 1.3671
+      },
+      {
+        "time": 1777143600,
+        "open": 1.36709,
+        "high": 1.36767,
+        "low": 1.36703,
+        "close": 1.36767
+      },
+      {
+        "time": 1777158000,
+        "open": 1.36764,
+        "high": 1.3677,
+        "low": 1.36695,
+        "close": 1.36719
+      },
+      {
+        "time": 1777172400,
+        "open": 1.36716,
+        "high": 1.36807,
+        "low": 1.36701,
+        "close": 1.36753
+      },
+      {
+        "time": 1777186800,
+        "open": 1.36751,
+        "high": 1.36799,
+        "low": 1.3671,
+        "close": 1.36756
+      },
+      {
+        "time": 1777201200,
+        "open": 1.36756,
+        "high": 1.36767,
+        "low": 1.36697,
+        "close": 1.36719
+      },
+      {
+        "time": 1777215600,
+        "open": 1.3672,
+        "high": 1.36765,
+        "low": 1.36713,
+        "close": 1.36759
+      },
+      {
+        "time": 1777230000,
+        "open": 1.36758,
+        "high": 1.36776,
+        "low": 1.36714,
+        "close": 1.36754
+      },
+      {
+        "time": 1777244400,
+        "open": 1.36751,
+        "high": 1.36806,
+        "low": 1.36616,
+        "close": 1.36714
+      },
+      {
+        "time": 1777258800,
+        "open": 1.36706,
+        "high": 1.36877,
+        "low": 1.36667,
+        "close": 1.36777
+      },
+      {
+        "time": 1777273200,
+        "open": 1.36775,
+        "high": 1.36817,
+        "low": 1.3668,
+        "close": 1.36705
+      },
+      {
+        "time": 1777287600,
+        "open": 1.36705,
+        "high": 1.36706,
+        "low": 1.36613,
+        "close": 1.36642
+      },
+      {
+        "time": 1777302000,
+        "open": 1.36642,
+        "high": 1.36675,
+        "low": 1.3661,
+        "close": 1.36636
       }
     ],
     "NZD/USD": [
-      {
-        "time": 1775646000,
-        "open": 0.57879,
-        "high": 0.58344,
-        "low": 0.57879,
-        "close": 0.58329
-      },
-      {
-        "time": 1775660400,
-        "open": 0.5833,
-        "high": 0.58491,
-        "low": 0.58133,
-        "close": 0.58168
-      },
-      {
-        "time": 1775674800,
-        "open": 0.5817,
-        "high": 0.5854,
-        "low": 0.58147,
-        "close": 0.58533
-      },
-      {
-        "time": 1775689200,
-        "open": 0.58531,
-        "high": 0.58577,
-        "low": 0.58303,
-        "close": 0.58359
-      },
-      {
-        "time": 1775703600,
-        "open": 0.58358,
-        "high": 0.58375,
-        "low": 0.58109,
-        "close": 0.58222
-      },
-      {
-        "time": 1775718000,
-        "open": 0.5822,
-        "high": 0.58277,
-        "low": 0.58172,
-        "close": 0.58252
-      },
-      {
-        "time": 1775732400,
-        "open": 0.58252,
-        "high": 0.58379,
-        "low": 0.58234,
-        "close": 0.58338
-      },
-      {
-        "time": 1775746800,
-        "open": 0.58339,
-        "high": 0.58383,
-        "low": 0.58268,
-        "close": 0.58307
-      },
-      {
-        "time": 1775761200,
-        "open": 0.58305,
-        "high": 0.58414,
-        "low": 0.58266,
-        "close": 0.58357
-      },
-      {
-        "time": 1775775600,
-        "open": 0.58357,
-        "high": 0.58734,
-        "low": 0.58357,
-        "close": 0.58672
-      },
-      {
-        "time": 1775790000,
-        "open": 0.5867,
-        "high": 0.58736,
-        "low": 0.58543,
-        "close": 0.58599
-      },
-      {
-        "time": 1775804400,
-        "open": 0.58599,
-        "high": 0.58663,
-        "low": 0.58463,
-        "close": 0.58494
-      },
-      {
-        "time": 1775818800,
-        "open": 0.58493,
-        "high": 0.58556,
-        "low": 0.58454,
-        "close": 0.58469
-      },
-      {
-        "time": 1775833200,
-        "open": 0.5847,
-        "high": 0.58508,
-        "low": 0.58331,
-        "close": 0.58357
-      },
-      {
-        "time": 1775847600,
-        "open": 0.58357,
-        "high": 0.58568,
-        "low": 0.58341,
-        "close": 0.58516
-      },
-      {
-        "time": 1775862000,
-        "open": 0.58515,
-        "high": 0.58685,
-        "low": 0.58334,
-        "close": 0.58386
-      },
       {
         "time": 1775876400,
         "open": 0.58385,
@@ -5403,124 +5306,124 @@
       {
         "time": 1777071600,
         "open": 0.5869,
-        "high": 0.58777,
+        "high": 0.588,
         "low": 0.58626,
-        "close": 0.58715
+        "close": 0.58794
+      },
+      {
+        "time": 1777086000,
+        "open": 0.58792,
+        "high": 0.58834,
+        "low": 0.5876,
+        "close": 0.58795
+      },
+      {
+        "time": 1777100400,
+        "open": 0.58795,
+        "high": 0.58803,
+        "low": 0.58766,
+        "close": 0.5879
+      },
+      {
+        "time": 1777114800,
+        "open": 0.58791,
+        "high": 0.588,
+        "low": 0.5879,
+        "close": 0.58791
+      },
+      {
+        "time": 1777129200,
+        "open": 0.58792,
+        "high": 0.58799,
+        "low": 0.58789,
+        "close": 0.58792
+      },
+      {
+        "time": 1777143600,
+        "open": 0.58791,
+        "high": 0.58798,
+        "low": 0.58789,
+        "close": 0.58793
+      },
+      {
+        "time": 1777158000,
+        "open": 0.58791,
+        "high": 0.58798,
+        "low": 0.58789,
+        "close": 0.58792
+      },
+      {
+        "time": 1777172400,
+        "open": 0.58791,
+        "high": 0.58798,
+        "low": 0.58753,
+        "close": 0.58783
+      },
+      {
+        "time": 1777186800,
+        "open": 0.58783,
+        "high": 0.58798,
+        "low": 0.58762,
+        "close": 0.5879
+      },
+      {
+        "time": 1777201200,
+        "open": 0.58791,
+        "high": 0.58802,
+        "low": 0.5879,
+        "close": 0.58794
+      },
+      {
+        "time": 1777215600,
+        "open": 0.58794,
+        "high": 0.58804,
+        "low": 0.58791,
+        "close": 0.58802
+      },
+      {
+        "time": 1777230000,
+        "open": 0.58801,
+        "high": 0.58804,
+        "low": 0.58788,
+        "close": 0.5879
+      },
+      {
+        "time": 1777244400,
+        "open": 0.58789,
+        "high": 0.58831,
+        "low": 0.58758,
+        "close": 0.58788
+      },
+      {
+        "time": 1777258800,
+        "open": 0.58791,
+        "high": 0.58822,
+        "low": 0.58572,
+        "close": 0.58696
+      },
+      {
+        "time": 1777273200,
+        "open": 0.58697,
+        "high": 0.5882,
+        "low": 0.58615,
+        "close": 0.5882
+      },
+      {
+        "time": 1777287600,
+        "open": 0.58823,
+        "high": 0.58948,
+        "low": 0.58819,
+        "close": 0.58876
+      },
+      {
+        "time": 1777302000,
+        "open": 0.58877,
+        "high": 0.58881,
+        "low": 0.58798,
+        "close": 0.58822
       }
     ],
     "EUR/JPY": [
-      {
-        "time": 1775646000,
-        "open": 185.19565,
-        "high": 185.26485,
-        "low": 184.82991,
-        "close": 184.90776
-      },
-      {
-        "time": 1775660400,
-        "open": 184.90228,
-        "high": 185.1947,
-        "low": 184.86625,
-        "close": 184.99982
-      },
-      {
-        "time": 1775674800,
-        "open": 184.99661,
-        "high": 185.33473,
-        "low": 184.953,
-        "close": 185.09465
-      },
-      {
-        "time": 1775689200,
-        "open": 185.0963,
-        "high": 185.23588,
-        "low": 184.98541,
-        "close": 185.07249
-      },
-      {
-        "time": 1775703600,
-        "open": 185.07301,
-        "high": 185.11813,
-        "low": 184.87636,
-        "close": 184.94546
-      },
-      {
-        "time": 1775718000,
-        "open": 184.94306,
-        "high": 185.20427,
-        "low": 184.8652,
-        "close": 185.19574
-      },
-      {
-        "time": 1775732400,
-        "open": 185.19265,
-        "high": 185.26395,
-        "low": 185.11428,
-        "close": 185.20669
-      },
-      {
-        "time": 1775746800,
-        "open": 185.20344,
-        "high": 185.61852,
-        "low": 185.15392,
-        "close": 185.5875
-      },
-      {
-        "time": 1775761200,
-        "open": 185.582,
-        "high": 185.89239,
-        "low": 185.57396,
-        "close": 185.82459
-      },
-      {
-        "time": 1775775600,
-        "open": 185.82451,
-        "high": 186.2439,
-        "low": 185.73445,
-        "close": 185.92153
-      },
-      {
-        "time": 1775790000,
-        "open": 185.92303,
-        "high": 186.232,
-        "low": 185.91556,
-        "close": 186.01171
-      },
-      {
-        "time": 1775804400,
-        "open": 186.01305,
-        "high": 186.1163,
-        "low": 185.9595,
-        "close": 186.05053
-      },
-      {
-        "time": 1775818800,
-        "open": 186.05168,
-        "high": 186.17681,
-        "low": 185.95445,
-        "close": 186.12742
-      },
-      {
-        "time": 1775833200,
-        "open": 186.12289,
-        "high": 186.21196,
-        "low": 186.06531,
-        "close": 186.18765
-      },
-      {
-        "time": 1775847600,
-        "open": 186.18106,
-        "high": 186.56911,
-        "low": 186.09988,
-        "close": 186.5518
-      },
-      {
-        "time": 1775862000,
-        "open": 186.54784,
-        "high": 186.79096,
-        "low": 186.5218,
-        "close": 186.6848
-      },
       {
         "time": 1775876400,
         "open": 186.68488,
@@ -6106,123 +6009,123 @@
         "time": 1777071600,
         "open": 186.81046,
         "high": 186.85728,
-        "low": 186.70297,
-        "close": 186.75871
+        "low": 186.63858,
+        "close": 186.74592
+      },
+      {
+        "time": 1777086000,
+        "open": 186.74861,
+        "high": 186.84799,
+        "low": 186.70537,
+        "close": 186.7649
+      },
+      {
+        "time": 1777100400,
+        "open": 186.77476,
+        "high": 186.93079,
+        "low": 186.69689,
+        "close": 186.70817
+      },
+      {
+        "time": 1777114800,
+        "open": 186.70599,
+        "high": 186.8122,
+        "low": 186.69078,
+        "close": 186.71623
+      },
+      {
+        "time": 1777129200,
+        "open": 186.69925,
+        "high": 186.85838,
+        "low": 186.69925,
+        "close": 186.71646
+      },
+      {
+        "time": 1777143600,
+        "open": 186.71102,
+        "high": 186.78932,
+        "low": 186.70544,
+        "close": 186.78203
+      },
+      {
+        "time": 1777158000,
+        "open": 186.78218,
+        "high": 186.79843,
+        "low": 186.72074,
+        "close": 186.75136
+      },
+      {
+        "time": 1777172400,
+        "open": 186.75275,
+        "high": 186.85238,
+        "low": 186.72871,
+        "close": 186.81557
+      },
+      {
+        "time": 1777186800,
+        "open": 186.81542,
+        "high": 186.85146,
+        "low": 186.7697,
+        "close": 186.80705
+      },
+      {
+        "time": 1777201200,
+        "open": 186.80405,
+        "high": 186.82474,
+        "low": 186.76911,
+        "close": 186.80053
+      },
+      {
+        "time": 1777215600,
+        "open": 186.79635,
+        "high": 186.82122,
+        "low": 186.73534,
+        "close": 186.81568
+      },
+      {
+        "time": 1777230000,
+        "open": 186.81313,
+        "high": 186.8273,
+        "low": 186.51313,
+        "close": 186.5148
+      },
+      {
+        "time": 1777244400,
+        "open": 186.51566,
+        "high": 186.94171,
+        "low": 186.1575,
+        "close": 186.1594
+      },
+      {
+        "time": 1777258800,
+        "open": 186.1878,
+        "high": 186.88856,
+        "low": 186.14612,
+        "close": 186.66934
+      },
+      {
+        "time": 1777273200,
+        "open": 186.66351,
+        "high": 186.87877,
+        "low": 186.57215,
+        "close": 186.84467
+      },
+      {
+        "time": 1777287600,
+        "open": 186.84152,
+        "high": 186.91977,
+        "low": 186.69494,
+        "close": 186.75153
+      },
+      {
+        "time": 1777302000,
+        "open": 186.74786,
+        "high": 186.92064,
+        "low": 186.73312,
+        "close": 186.80895
       }
     ],
     "GBP/JPY": [
-      {
-        "time": 1775646000,
-        "open": 212.44384,
-        "high": 212.64565,
-        "low": 212.16251,
-        "close": 212.46573
-      },
-      {
-        "time": 1775660400,
-        "open": 212.46447,
-        "high": 212.77644,
-        "low": 212.2873,
-        "close": 212.6493
-      },
-      {
-        "time": 1775674800,
-        "open": 212.64641,
-        "high": 213.16554,
-        "low": 212.52567,
-        "close": 212.92558
-      },
-      {
-        "time": 1775689200,
-        "open": 212.92328,
-        "high": 213.01128,
-        "low": 212.65641,
-        "close": 212.68861
-      },
-      {
-        "time": 1775703600,
-        "open": 212.68637,
-        "high": 212.71832,
-        "low": 212.41574,
-        "close": 212.42199
-      },
-      {
-        "time": 1775718000,
-        "open": 212.42295,
-        "high": 212.74565,
-        "low": 212.37332,
-        "close": 212.73011
-      },
-      {
-        "time": 1775732400,
-        "open": 212.73139,
-        "high": 212.782,
-        "low": 212.58861,
-        "close": 212.71261
-      },
-      {
-        "time": 1775746800,
-        "open": 212.71078,
-        "high": 213.16212,
-        "low": 212.64762,
-        "close": 213.14303
-      },
-      {
-        "time": 1775761200,
-        "open": 213.13992,
-        "high": 213.40809,
-        "low": 213.07748,
-        "close": 213.34892
-      },
-      {
-        "time": 1775775600,
-        "open": 213.34542,
-        "high": 213.80496,
-        "low": 213.26595,
-        "close": 213.45012
-      },
-      {
-        "time": 1775790000,
-        "open": 213.44161,
-        "high": 213.85187,
-        "low": 213.43031,
-        "close": 213.64241
-      },
-      {
-        "time": 1775804400,
-        "open": 213.64335,
-        "high": 213.7584,
-        "low": 213.51978,
-        "close": 213.70612
-      },
-      {
-        "time": 1775818800,
-        "open": 213.70672,
-        "high": 213.74825,
-        "low": 213.55895,
-        "close": 213.65971
-      },
-      {
-        "time": 1775833200,
-        "open": 213.66221,
-        "high": 213.85473,
-        "low": 213.63191,
-        "close": 213.81931
-      },
-      {
-        "time": 1775847600,
-        "open": 213.82105,
-        "high": 214.21105,
-        "low": 213.7449,
-        "close": 214.21105
-      },
-      {
-        "time": 1775862000,
-        "open": 214.20885,
-        "high": 214.47774,
-        "low": 214.13689,
-        "close": 214.33131
-      },
       {
         "time": 1775876400,
         "open": 214.3272,
@@ -6807,124 +6710,124 @@
       {
         "time": 1777071600,
         "open": 215.40988,
-        "high": 215.45418,
-        "low": 215.25704,
-        "close": 215.32076
+        "high": 215.50295,
+        "low": 215.25299,
+        "close": 215.467
+      },
+      {
+        "time": 1777086000,
+        "open": 215.46228,
+        "high": 215.79101,
+        "low": 215.42431,
+        "close": 215.64819
+      },
+      {
+        "time": 1777100400,
+        "open": 215.65207,
+        "high": 215.7868,
+        "low": 215.3077,
+        "close": 215.62846
+      },
+      {
+        "time": 1777114800,
+        "open": 215.61828,
+        "high": 215.79345,
+        "low": 215.61662,
+        "close": 215.63835
+      },
+      {
+        "time": 1777129200,
+        "open": 215.64521,
+        "high": 215.7628,
+        "low": 215.62387,
+        "close": 215.64286
+      },
+      {
+        "time": 1777143600,
+        "open": 215.64281,
+        "high": 215.65438,
+        "low": 215.59258,
+        "close": 215.64737
+      },
+      {
+        "time": 1777158000,
+        "open": 215.64575,
+        "high": 215.68031,
+        "low": 215.59972,
+        "close": 215.64823
+      },
+      {
+        "time": 1777172400,
+        "open": 215.64378,
+        "high": 215.67318,
+        "low": 215.52133,
+        "close": 215.62341
+      },
+      {
+        "time": 1777186800,
+        "open": 215.61909,
+        "high": 215.683,
+        "low": 215.55035,
+        "close": 215.66069
+      },
+      {
+        "time": 1777201200,
+        "open": 215.65917,
+        "high": 215.67304,
+        "low": 215.61286,
+        "close": 215.63957
+      },
+      {
+        "time": 1777215600,
+        "open": 215.64084,
+        "high": 215.66575,
+        "low": 215.61499,
+        "close": 215.64988
+      },
+      {
+        "time": 1777230000,
+        "open": 215.65096,
+        "high": 215.71904,
+        "low": 214.95617,
+        "close": 215.28582
+      },
+      {
+        "time": 1777244400,
+        "open": 215.28281,
+        "high": 215.58984,
+        "low": 214.49951,
+        "close": 214.67207
+      },
+      {
+        "time": 1777258800,
+        "open": 214.64156,
+        "high": 215.94261,
+        "low": 214.64156,
+        "close": 215.62902
+      },
+      {
+        "time": 1777273200,
+        "open": 215.62414,
+        "high": 215.72468,
+        "low": 215.43154,
+        "close": 215.63243
+      },
+      {
+        "time": 1777287600,
+        "open": 215.6285,
+        "high": 215.74931,
+        "low": 215.57373,
+        "close": 215.63449
+      },
+      {
+        "time": 1777302000,
+        "open": 215.63563,
+        "high": 215.77751,
+        "low": 215.58973,
+        "close": 215.64685
       }
     ],
     "AUD/JPY": [
-      {
-        "time": 1775646000,
-        "open": 111.91901,
-        "high": 112.04869,
-        "low": 111.5853,
-        "close": 111.91845
-      },
-      {
-        "time": 1775660400,
-        "open": 111.91653,
-        "high": 112.07027,
-        "low": 111.45177,
-        "close": 111.55326
-      },
-      {
-        "time": 1775674800,
-        "open": 111.54823,
-        "high": 111.77692,
-        "low": 111.48648,
-        "close": 111.74429
-      },
-      {
-        "time": 1775689200,
-        "open": 111.74374,
-        "high": 111.87812,
-        "low": 111.58531,
-        "close": 111.85106
-      },
-      {
-        "time": 1775703600,
-        "open": 111.84905,
-        "high": 111.89655,
-        "low": 111.58029,
-        "close": 111.70139
-      },
-      {
-        "time": 1775718000,
-        "open": 111.70173,
-        "high": 111.81891,
-        "low": 111.57719,
-        "close": 111.77202
-      },
-      {
-        "time": 1775732400,
-        "open": 111.77198,
-        "high": 111.81789,
-        "low": 111.64009,
-        "close": 111.76604
-      },
-      {
-        "time": 1775746800,
-        "open": 111.76546,
-        "high": 111.83182,
-        "low": 111.6929,
-        "close": 111.74544
-      },
-      {
-        "time": 1775761200,
-        "open": 111.74423,
-        "high": 112.00912,
-        "low": 111.69824,
-        "close": 111.95976
-      },
-      {
-        "time": 1775775600,
-        "open": 111.95635,
-        "high": 112.60282,
-        "low": 111.93938,
-        "close": 112.4974
-      },
-      {
-        "time": 1775790000,
-        "open": 112.49569,
-        "high": 112.74249,
-        "low": 112.4569,
-        "close": 112.62773
-      },
-      {
-        "time": 1775804400,
-        "open": 112.62866,
-        "high": 112.68064,
-        "low": 112.46437,
-        "close": 112.62596
-      },
-      {
-        "time": 1775818800,
-        "open": 112.62854,
-        "high": 112.68596,
-        "low": 112.47819,
-        "close": 112.50018
-      },
-      {
-        "time": 1775833200,
-        "open": 112.50148,
-        "high": 112.63025,
-        "low": 112.40068,
-        "close": 112.46172
-      },
-      {
-        "time": 1775847600,
-        "open": 112.46045,
-        "high": 112.65666,
-        "low": 112.43289,
-        "close": 112.63375
-      },
-      {
-        "time": 1775862000,
-        "open": 112.63144,
-        "high": 112.86494,
-        "low": 112.59234,
-        "close": 112.63738
-      },
       {
         "time": 1775876400,
         "open": 112.63667,
@@ -7509,124 +7412,124 @@
       {
         "time": 1777071600,
         "open": 113.84107,
-        "high": 113.92034,
+        "high": 114.02437,
         "low": 113.77411,
-        "close": 113.90596
+        "close": 113.96271
+      },
+      {
+        "time": 1777086000,
+        "open": 113.95895,
+        "high": 114.03309,
+        "low": 113.93766,
+        "close": 113.93766
+      },
+      {
+        "time": 1777100400,
+        "open": 113.93788,
+        "high": 114.00016,
+        "low": 113.76985,
+        "close": 113.96283
+      },
+      {
+        "time": 1777114800,
+        "open": 113.96656,
+        "high": 114.06704,
+        "low": 113.87902,
+        "close": 113.97685
+      },
+      {
+        "time": 1777129200,
+        "open": 113.98663,
+        "high": 114.07425,
+        "low": 113.85232,
+        "close": 113.97913
+      },
+      {
+        "time": 1777143600,
+        "open": 113.97788,
+        "high": 113.98822,
+        "low": 113.82452,
+        "close": 113.97135
+      },
+      {
+        "time": 1777158000,
+        "open": 113.96831,
+        "high": 114.00221,
+        "low": 113.866,
+        "close": 113.93583
+      },
+      {
+        "time": 1777172400,
+        "open": 113.93364,
+        "high": 114.02007,
+        "low": 113.8501,
+        "close": 113.99188
+      },
+      {
+        "time": 1777186800,
+        "open": 113.99126,
+        "high": 114.02505,
+        "low": 113.83892,
+        "close": 113.98897
+      },
+      {
+        "time": 1777201200,
+        "open": 113.98981,
+        "high": 113.99421,
+        "low": 113.90329,
+        "close": 113.9841
+      },
+      {
+        "time": 1777215600,
+        "open": 113.98428,
+        "high": 113.99302,
+        "low": 113.8997,
+        "close": 113.96694
+      },
+      {
+        "time": 1777230000,
+        "open": 113.9658,
+        "high": 113.98337,
+        "low": 113.74451,
+        "close": 113.84728
+      },
+      {
+        "time": 1777244400,
+        "open": 113.84476,
+        "high": 114.02495,
+        "low": 113.38646,
+        "close": 113.65399
+      },
+      {
+        "time": 1777258800,
+        "open": 113.64205,
+        "high": 114.2304,
+        "low": 113.39279,
+        "close": 113.91445
+      },
+      {
+        "time": 1777273200,
+        "open": 113.91626,
+        "high": 114.14143,
+        "low": 113.69567,
+        "close": 114.13293
+      },
+      {
+        "time": 1777287600,
+        "open": 114.1366,
+        "high": 114.27884,
+        "low": 114.1123,
+        "close": 114.15362
+      },
+      {
+        "time": 1777302000,
+        "open": 114.15375,
+        "high": 114.22972,
+        "low": 114.12541,
+        "close": 114.13235
       }
     ],
     "NZD/JPY": [
-      {
-        "time": 1775646000,
-        "open": 91.84131,
-        "high": 92.41411,
-        "low": 91.79716,
-        "close": 92.37602
-      },
-      {
-        "time": 1775660400,
-        "open": 92.37488,
-        "high": 92.56358,
-        "low": 92.11188,
-        "close": 92.12512
-      },
-      {
-        "time": 1775674800,
-        "open": 92.12034,
-        "high": 92.49735,
-        "low": 92.11011,
-        "close": 92.4839
-      },
-      {
-        "time": 1775689200,
-        "open": 92.48396,
-        "high": 92.55047,
-        "low": 92.31957,
-        "close": 92.45668
-      },
-      {
-        "time": 1775703600,
-        "open": 92.45654,
-        "high": 92.49253,
-        "low": 92.24986,
-        "close": 92.32631
-      },
-      {
-        "time": 1775718000,
-        "open": 92.32772,
-        "high": 92.5342,
-        "low": 92.26435,
-        "close": 92.5342
-      },
-      {
-        "time": 1775732400,
-        "open": 92.53404,
-        "high": 92.64206,
-        "low": 92.4959,
-        "close": 92.60659
-      },
-      {
-        "time": 1775746800,
-        "open": 92.60551,
-        "high": 92.74231,
-        "low": 92.58277,
-        "close": 92.70894
-      },
-      {
-        "time": 1775761200,
-        "open": 92.7079,
-        "high": 92.82518,
-        "low": 92.66821,
-        "close": 92.79816
-      },
-      {
-        "time": 1775775600,
-        "open": 92.79565,
-        "high": 93.24456,
-        "low": 92.79287,
-        "close": 93.14548
-      },
-      {
-        "time": 1775790000,
-        "open": 93.14409,
-        "high": 93.24213,
-        "low": 93.07943,
-        "close": 93.1696
-      },
-      {
-        "time": 1775804400,
-        "open": 93.16952,
-        "high": 93.24308,
-        "low": 93.07505,
-        "close": 93.11632
-      },
-      {
-        "time": 1775818800,
-        "open": 93.119,
-        "high": 93.1574,
-        "low": 93.03655,
-        "close": 93.07757
-      },
-      {
-        "time": 1775833200,
-        "open": 93.07726,
-        "high": 93.18855,
-        "low": 92.93694,
-        "close": 92.97776
-      },
-      {
-        "time": 1775847600,
-        "open": 92.97619,
-        "high": 93.14682,
-        "low": 92.93029,
-        "close": 93.13887
-      },
-      {
-        "time": 1775862000,
-        "open": 93.1371,
-        "high": 93.37667,
-        "low": 92.95353,
-        "close": 92.9921
-      },
       {
         "time": 1775876400,
         "open": 92.99144,
@@ -8211,124 +8114,124 @@
       {
         "time": 1777071600,
         "open": 93.6364,
-        "high": 93.70351,
+        "high": 93.71526,
         "low": 93.57666,
-        "close": 93.64278
+        "close": 93.68663
+      },
+      {
+        "time": 1777086000,
+        "open": 93.68607,
+        "high": 93.7859,
+        "low": 93.67745,
+        "close": 93.70106
+      },
+      {
+        "time": 1777100400,
+        "open": 93.70484,
+        "high": 93.74747,
+        "low": 93.66012,
+        "close": 93.67814
+      },
+      {
+        "time": 1777114800,
+        "open": 93.68356,
+        "high": 93.76443,
+        "low": 93.67414,
+        "close": 93.68493
+      },
+      {
+        "time": 1777129200,
+        "open": 93.68541,
+        "high": 93.73847,
+        "low": 93.67971,
+        "close": 93.68573
+      },
+      {
+        "time": 1777143600,
+        "open": 93.68358,
+        "high": 93.69952,
+        "low": 93.68033,
+        "close": 93.69044
+      },
+      {
+        "time": 1777158000,
+        "open": 93.68898,
+        "high": 93.705,
+        "low": 93.68618,
+        "close": 93.68916
+      },
+      {
+        "time": 1777172400,
+        "open": 93.68912,
+        "high": 93.70977,
+        "low": 93.65735,
+        "close": 93.68236
+      },
+      {
+        "time": 1777186800,
+        "open": 93.68307,
+        "high": 93.72523,
+        "low": 93.65268,
+        "close": 93.6935
+      },
+      {
+        "time": 1777201200,
+        "open": 93.6935,
+        "high": 93.7068,
+        "low": 93.68447,
+        "close": 93.69359
+      },
+      {
+        "time": 1777215600,
+        "open": 93.69217,
+        "high": 93.71023,
+        "low": 93.6909,
+        "close": 93.70826
+      },
+      {
+        "time": 1777230000,
+        "open": 93.70615,
+        "high": 93.71436,
+        "low": 93.57106,
+        "close": 93.57353
+      },
+      {
+        "time": 1777244400,
+        "open": 93.57232,
+        "high": 93.77159,
+        "low": 93.36103,
+        "close": 93.4106
+      },
+      {
+        "time": 1777258800,
+        "open": 93.41243,
+        "high": 93.7419,
+        "low": 93.35321,
+        "close": 93.66258
+      },
+      {
+        "time": 1777273200,
+        "open": 93.65984,
+        "high": 93.81038,
+        "low": 93.51299,
+        "close": 93.80371
+      },
+      {
+        "time": 1777287600,
+        "open": 93.8074,
+        "high": 93.8813,
+        "low": 93.74725,
+        "close": 93.75977
+      },
+      {
+        "time": 1777302000,
+        "open": 93.75837,
+        "high": 93.81151,
+        "low": 93.74343,
+        "close": 93.75406
       }
     ],
     "CAD/JPY": [
-      {
-        "time": 1775646000,
-        "open": 114.55678,
-        "high": 114.6441,
-        "low": 114.39234,
-        "close": 114.46832
-      },
-      {
-        "time": 1775660400,
-        "open": 114.46821,
-        "high": 114.51799,
-        "low": 114.16676,
-        "close": 114.21867
-      },
-      {
-        "time": 1775674800,
-        "open": 114.21996,
-        "high": 114.28278,
-        "low": 114.02792,
-        "close": 114.15774
-      },
-      {
-        "time": 1775689200,
-        "open": 114.15772,
-        "high": 114.49048,
-        "low": 114.04364,
-        "close": 114.44591
-      },
-      {
-        "time": 1775703600,
-        "open": 114.4444,
-        "high": 114.60386,
-        "low": 114.40215,
-        "close": 114.54061
-      },
-      {
-        "time": 1775718000,
-        "open": 114.53761,
-        "high": 114.67882,
-        "low": 114.46363,
-        "close": 114.67678
-      },
-      {
-        "time": 1775732400,
-        "open": 114.67642,
-        "high": 114.70896,
-        "low": 114.57732,
-        "close": 114.62346
-      },
-      {
-        "time": 1775746800,
-        "open": 114.62328,
-        "high": 114.82879,
-        "low": 114.60336,
-        "close": 114.80583
-      },
-      {
-        "time": 1775761200,
-        "open": 114.80713,
-        "high": 115.01111,
-        "low": 114.72739,
-        "close": 114.93404
-      },
-      {
-        "time": 1775775600,
-        "open": 114.9352,
-        "high": 115.22173,
-        "low": 114.85432,
-        "close": 114.90612
-      },
-      {
-        "time": 1775790000,
-        "open": 114.90499,
-        "high": 115.18558,
-        "low": 114.85871,
-        "close": 115.07911
-      },
-      {
-        "time": 1775804400,
-        "open": 115.07682,
-        "high": 115.18355,
-        "low": 115.04586,
-        "close": 115.14675
-      },
-      {
-        "time": 1775818800,
-        "open": 115.14188,
-        "high": 115.17804,
-        "low": 115.06181,
-        "close": 115.14704
-      },
-      {
-        "time": 1775833200,
-        "open": 115.14552,
-        "high": 115.23255,
-        "low": 115.0714,
-        "close": 115.14363
-      },
-      {
-        "time": 1775847600,
-        "open": 115.1438,
-        "high": 115.18949,
-        "low": 115.0331,
-        "close": 115.16683
-      },
-      {
-        "time": 1775862000,
-        "open": 115.16773,
-        "high": 115.31859,
-        "low": 114.97146,
-        "close": 115.13388
-      },
       {
         "time": 1775876400,
         "open": 115.13304,
@@ -8915,7 +8818,119 @@
         "open": 116.60734,
         "high": 116.64092,
         "low": 116.45568,
-        "close": 116.58087
+        "close": 116.54055
+      },
+      {
+        "time": 1777086000,
+        "open": 116.5403,
+        "high": 116.67883,
+        "low": 116.53078,
+        "close": 116.58224
+      },
+      {
+        "time": 1777100400,
+        "open": 116.58044,
+        "high": 116.62819,
+        "low": 116.52033,
+        "close": 116.56429
+      },
+      {
+        "time": 1777114800,
+        "open": 116.55565,
+        "high": 116.63067,
+        "low": 116.52902,
+        "close": 116.56492
+      },
+      {
+        "time": 1777129200,
+        "open": 116.55698,
+        "high": 116.6618,
+        "low": 116.54822,
+        "close": 116.56033
+      },
+      {
+        "time": 1777143600,
+        "open": 116.56051,
+        "high": 116.56922,
+        "low": 116.51972,
+        "close": 116.51972
+      },
+      {
+        "time": 1777158000,
+        "open": 116.52057,
+        "high": 116.59352,
+        "low": 116.51653,
+        "close": 116.56221
+      },
+      {
+        "time": 1777172400,
+        "open": 116.56199,
+        "high": 116.58664,
+        "low": 116.5294,
+        "close": 116.54247
+      },
+      {
+        "time": 1777186800,
+        "open": 116.54047,
+        "high": 116.58745,
+        "low": 116.51909,
+        "close": 116.53697
+      },
+      {
+        "time": 1777201200,
+        "open": 116.53438,
+        "high": 116.57459,
+        "low": 116.5242,
+        "close": 116.5591
+      },
+      {
+        "time": 1777215600,
+        "open": 116.55765,
+        "high": 116.56944,
+        "low": 116.52295,
+        "close": 116.52737
+      },
+      {
+        "time": 1777230000,
+        "open": 116.52769,
+        "high": 116.57295,
+        "low": 116.2571,
+        "close": 116.39054
+      },
+      {
+        "time": 1777244400,
+        "open": 116.39129,
+        "high": 116.64073,
+        "low": 116.13172,
+        "close": 116.22831
+      },
+      {
+        "time": 1777258800,
+        "open": 116.23474,
+        "high": 116.84616,
+        "low": 116.21505,
+        "close": 116.66968
+      },
+      {
+        "time": 1777273200,
+        "open": 116.66767,
+        "high": 116.69596,
+        "low": 116.60108,
+        "close": 116.65921
+      },
+      {
+        "time": 1777287600,
+        "open": 116.65659,
+        "high": 116.67725,
+        "low": 116.47782,
+        "close": 116.54357
+      },
+      {
+        "time": 1777302000,
+        "open": 116.54234,
+        "high": 116.72792,
+        "low": 116.53636,
+        "close": 116.65086
       }
     ]
   }
