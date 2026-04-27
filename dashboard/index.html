@@ -57,20 +57,27 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .drum-row{height:37px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:0 var(--pad);font-family:'VT323',monospace;font-size:19px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;gap:0;}
 .drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.4);}
 .d-pair{display:inline-block;width:62px;text-align:left;}
-.d-cat{display:inline-block;width:30px;text-align:left;opacity:.35;font-size:16px;}
-.d-qai{display:inline-block;width:38px;text-align:right;font-size:16px;opacity:.8;}
-.d-arr{display:inline-block;width:18px;text-align:center;font-size:14px;line-height:1;}
+.d-cat{display:inline-block;width:30px;text-align:left;opacity:.35;font-size:19px;}
+.d-scores{display:inline-block;width:54px;text-align:left;font-size:19px;opacity:.7;}
+.d-qai{display:inline-block;width:38px;text-align:right;font-size:19px;opacity:.8;}
+.d-arr{display:inline-block;width:22px;text-align:center;font-size:14px;line-height:1;padding-left:4px;}
 #drum-fade-top{position:absolute;top:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
 #drum-fade-bot{position:absolute;bottom:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
 #drum-center-line{position:absolute;top:50%;left:0;right:0;height:37px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
 
 /* ── Signal strip ── */
 #sig-strip{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
-.ssp{flex:1;display:flex;flex-direction:column;align-items:center;padding:9px 2px;cursor:pointer;border:none;background:transparent;position:relative;}
+.ssp{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;cursor:pointer;border:none;background:transparent;position:relative;}
 .ssp:not(:last-child){border-right:1px solid var(--border);}
-.ssp-tf{font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);}
-.ssp-val{font-size:var(--md);font-weight:700;margin-top:2px;}
-.ssp-score{font-size:var(--xs);color:var(--muted);margin-top:1px;}
+.ssp-tf{font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin-bottom:5px;}
+.ssp-pill{width:100%;text-align:center;padding:6px 2px;border-radius:var(--r-sm);font-size:var(--md);font-weight:700;border:1px solid transparent;}
+.ssp-score{font-size:var(--xs);color:var(--muted);margin-top:3px;}
+.pill-SB{background:rgba(35,134,54,.25);border-color:rgba(35,134,54,.5);color:var(--buy);}
+.pill-B{background:rgba(35,134,54,.13);border-color:rgba(35,134,54,.3);color:var(--buy);}
+.pill-SS{background:rgba(248,81,73,.25);border-color:rgba(248,81,73,.5);color:var(--sell);}
+.pill-S{background:rgba(248,81,73,.13);border-color:rgba(248,81,73,.3);color:var(--sell);}
+.pill-CF{background:rgba(227,179,65,.15);border-color:rgba(227,179,65,.4);color:var(--amber);}
+.pill-N{background:rgba(139,148,158,.08);border-color:rgba(139,148,158,.2);color:var(--muted);}
 
 /* ── Indicator strip ── */
 #ind-strip{display:flex;background:#0d1117;border-bottom:1px solid var(--border);flex-shrink:0;}
@@ -203,17 +210,17 @@ tr:last-child td{border-bottom:none;}
     <div id="sig-strip">
       <button class="ssp" id="ssp-d1" onclick="openSignalSheet('d1')">
         <span class="ssp-tf">D1</span>
-        <span class="ssp-val" id="ssp-d1-val" style="color:var(--muted)">—</span>
+        <div class="ssp-pill pill-N" id="ssp-d1-pill">—</div>
         <span class="ssp-score" id="ssp-d1-score"></span>
       </button>
       <button class="ssp" id="ssp-h4" onclick="openSignalSheet('h4')">
         <span class="ssp-tf">H4</span>
-        <span class="ssp-val" id="ssp-h4-val" style="color:var(--muted)">—</span>
+        <div class="ssp-pill pill-N" id="ssp-h4-pill">—</div>
         <span class="ssp-score" id="ssp-h4-score"></span>
       </button>
       <button class="ssp" id="ssp-h1" onclick="openSignalSheet('h1')">
         <span class="ssp-tf">H1</span>
-        <span class="ssp-val" id="ssp-h1-val" style="color:var(--muted)">—</span>
+        <div class="ssp-pill pill-N" id="ssp-h1-pill">—</div>
         <span class="ssp-score" id="ssp-h1-score"></span>
       </button>
     </div>
@@ -375,7 +382,7 @@ tr:last-child td{border-bottom:none;}
       <button id="ib-macd"   class="ind-btn"      onclick="toggleMACD()">MACD</button>
     </div>
     <div id="cht-row2">
-      <input id="cht-alert-inp" type="number" step="0.00001" placeholder="Price level…"/>
+      <input id="cht-alert-inp" type="number" step="0.00001" placeholder="e.g. 1.08450"/>
       <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;">↑ Above</button>
       <button class="btn" onclick="setLevelAlert()" style="padding:5px 8px;flex-shrink:0;">Set Alert</button>
     </div>
@@ -611,16 +618,17 @@ function onPairSelect(pair){
   renderIndStrip(pair);
   highlightCSM(pair);
 }
+function pillBgClass(lbl){if(!lbl||lbl==='N/A')return'pill-N';const l=lbl.toLowerCase();if(l==='strong buy')return'pill-SB';if(l==='buy')return'pill-B';if(l==='strong sell')return'pill-SS';if(l==='sell')return'pill-S';if(l==='conflict')return'pill-CF';return'pill-N';}
 function renderSignalStrip(pair){
   ['d1','h4','h1'].forEach(tf=>{
     const data=tf==='d1'?(D.d1&&D.d1[pair]):tf==='h4'?(D.h4&&D.h4[pair]):(D.h1&&D.h1[pair]);
     const label=data?data.label:'';
     const score=data?data.score:0;
     const abbr=pillAbbr(label);
-    const col=scoreColor(label,score);
+    const cls=pillBgClass(label);
     const scoreStr=data?(score>0?'+'+score:String(score)):'';
-    document.getElementById('ssp-'+tf+'-val').textContent=abbr||'—';
-    document.getElementById('ssp-'+tf+'-val').style.color=col;
+    const pill=document.getElementById('ssp-'+tf+'-pill');
+    if(pill){pill.textContent=abbr||'—';pill.className='ssp-pill '+cls;}
     document.getElementById('ssp-'+tf+'-score').textContent=scoreStr;
   });
 }
@@ -860,7 +868,7 @@ function buildDrumRows(){
     // Arrow: fixed-width span, same font-size for both directions
     const arrChar=dir==='bull'?'▲':dir==='bear'?'▼':'–';
     const arrCol=dir==='bull'?'#3fb950':dir==='bear'?'#f85149':'#8b949e';
-    return{pair,html:`<span class="d-pair">${pair.replace('/','')}</span><span class="d-cat">${isShort?(hasSig?'SIG':'LST'):''}</span><span class="d-qai">${qai.score>0?qai.score+'%':'—'}</span><span class="d-arr" style="color:${arrCol};">${arrChar}</span>`};
+    return{pair,html:`<span class="d-pair">${pair.replace('/','')}</span><span class="d-cat">${isShort?(hasSig?'SIG':'LST'):''}</span><span class="d-scores">${d1} ${h4} ${h1}</span><span class="d-qai">${qai.score>0?qai.score+'%':'—'}</span><span class="d-arr" style="color:${arrCol};">${arrChar}</span>`};
   });
 }
 let drumRows=[];
@@ -923,7 +931,12 @@ function buildLwChart(container){
   container.innerHTML='';
   const w=container.clientWidth||window.innerWidth;
   const h=container.clientHeight||Math.max(200,window.innerHeight-160);
-  return LightweightCharts.createChart(container,{width:w,height:h,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{borderColor:'#30363d'},timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},handleScroll:true,handleScale:true});
+  const isJpy=selectedPair.includes('JPY');
+  return LightweightCharts.createChart(container,{width:w,height:h,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.08,bottom:0.08}},timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},handleScroll:true,handleScale:true});
+}
+function makeCandleSeries(chart){
+  const isJpy=selectedPair.includes('JPY');
+  return chart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',priceFormat:{type:'price',precision:isJpy?3:5,minMove:isJpy?0.001:0.00001}});
 }
 function renderChtPrice(){
   const container=document.getElementById('cht-price');if(!container||chtShowMacd)return;
@@ -932,7 +945,7 @@ function renderChtPrice(){
   if(closed()&&ohlcv.length){const fc=ohlcv.slice().reverse().find(b=>{const d=new Date(b.time*1000),dow=d.getUTCDay(),h=d.getUTCHours();return!(dow===6||(dow===0&&h<22)||(dow===5&&h>=22));});if(fc)ohlcv=ohlcv.filter(b=>b.time<=fc.time);}
   if(!ohlcv.length){container.innerHTML=`<div class="loading">${selectedPair} ${chtTf} — no OHLCV data</div>`;return;}
   const chart=buildLwChart(container);
-  const candles=chart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149'});
+  const candles=makeCandleSeries(chart);
   candles.setData(ohlcv);
   if(indState.ema200&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),200);const s=chart.addLineSeries({color:'rgba(63,185,80,.6)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
   if(indState.ema50&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),50);const s=chart.addLineSeries({color:'rgba(56,139,253,.7)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
@@ -976,7 +989,46 @@ async function pushAlertsToGitHub(alerts){const token=localStorage.getItem('gh_p
 
 // ══ BRIEF + PROMPTS
 function buildRankedShortlist(){const signals=[];PAIRS.forEach(pair=>{const h4d=D.h4&&D.h4[pair];const d1d=D.d1&&D.d1[pair];if(!h4d||!d1d)return;const score=h4d.score||0;if(Math.abs(score)<3)return;const adx=h4d.raw?h4d.raw.adx:0;signals.push({pair,score,dir:score>0?"bull":"bear",label:h4d.label,adx:adx||0});});signals.sort((a,b)=>Math.abs(b.score)-Math.abs(a.score)||b.adx-a.adx);const kept=[],dropped=[];signals.forEach(s=>{let correlated=false;for(const k of kept){if(k.dir!==s.dir)continue;const cv=getCorrVal(k.pair,s.pair);if(cv!==null&&Math.abs(cv)>=0.7){dropped.push({...s,droppedBy:k.pair,corrVal:Math.round(cv*100)});correlated=true;break;}}if(!correlated)kept.push(s);});return{kept,dropped,all:signals};}
-function generateBrief(){const{h1,h4,d1,csm,regime}=D;if(!regime||!csm||!csm.rankings)return null;const r=regime.regime||"Unknown";const s=regime.signals||{};const rankings=csm.rankings||{};const{kept,dropped,all}=buildRankedShortlist();const sorted=Object.entries(rankings).sort((a,b)=>b[1]-a[1]);const strongest=sorted.slice(0,2).map(([c,v])=>`${c} (${v.toFixed(0)})`).join(" and ");const weakest=sorted.slice(-2).map(([c,v])=>`${c} (${v.toFixed(0)})`).join(" and ");const usdProxy=parseFloat(s.usd_proxy)||0;const shDiv=parseFloat(s.sh_divergence)||0;const dispersion=parseFloat(s.dispersion)||0;let signalText="";if(all.length===0){signalText="No pairs meet signal threshold.";}else{const bullPairs=kept.filter(x=>x.dir==="bull");const bearPairs=kept.filter(x=>x.dir==="bear");if(bullPairs.length)signalText+="BUY: "+bullPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", "+x.score+")").join(", ")+".";if(bearPairs.length){if(signalText)signalText+="\n";signalText+="SELL: "+bearPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", "+x.score+")").join(", ")+".";}if(dropped.length)signalText+="\nFiltered (corr): "+dropped.map(x=>x.pair.replace("/","")).join(", ")+".";}return["Regime: "+r+"  "+regime.confidence,"","USD: "+(usdProxy>0.5?"Broadly strong":usdProxy<-0.5?"Broadly weak":"Mixed")+" ("+usdProxy.toFixed(1)+")","SH: "+(shDiv>15?"Risk-off pressure":shDiv<-15?"Risk appetite supportive":"Balanced"),"Disp: "+(dispersion>60?"High clarity":dispersion>30?"Moderate":"Low"),"","Strongest: "+strongest,"Weakest: "+weakest,"",signalText].join("\n");}
+function generateBrief(){
+  const{h1,h4,d1,csm,regime}=D;if(!regime||!csm||!csm.rankings)return null;
+  const r=regime.regime||"Unknown";const s=regime.signals||{};const rankings=csm.rankings||{};
+  const{kept,dropped,all}=buildRankedShortlist();
+  const sorted=Object.entries(rankings).sort((a,b)=>b[1]-a[1]);
+  const strongest=sorted.slice(0,2).map(([c,v])=>`${c} (${v.toFixed(0)})`).join(" and ");
+  const weakest=sorted.slice(-2).map(([c,v])=>`${c} (${v.toFixed(0)})`).join(" and ");
+  const usdProxy=parseFloat(s.usd_proxy)||0;const shDiv=parseFloat(s.sh_divergence)||0;const dispersion=parseFloat(s.dispersion)||0;
+  const shText=shDiv>15?"Safe-haven currencies (JPY, CHF) outperforming — risk-off pressure.":shDiv<-15?"Safe-haven demand absent — risk appetite supportive.":"Safe-haven and risk currencies balanced.";
+  const usdText=usdProxy>0.5?"USD broadly strong across pairs.":usdProxy<-0.5?"USD broadly weak across pairs.":"USD direction mixed.";
+  const dispText=dispersion>60?"High CSM dispersion ("+dispersion.toFixed(0)+") — clear winners and losers.":dispersion>30?"Moderate dispersion ("+dispersion.toFixed(0)+") — some directional clarity.":"Low dispersion ("+dispersion.toFixed(0)+") — market lacks clear direction.";
+  let signalText="";
+  if(all.length===0){signalText="No pairs currently meet the signal threshold.";}
+  else{
+    const bullPairs=kept.filter(x=>x.dir==="bull");const bearPairs=kept.filter(x=>x.dir==="bear");
+    if(bullPairs.length)signalText+="BUY: "+bullPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", score:"+x.score+", ADX:"+x.adx.toFixed(0)+")").join(", ")+".";
+    if(bearPairs.length){if(signalText)signalText+="\n";signalText+="SELL: "+bearPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", score:"+x.score+", ADX:"+x.adx.toFixed(0)+")").join(", ")+".";}
+    if(dropped.length)signalText+="\n\nCorrelation filter removed: "+dropped.map(x=>x.pair.replace("/","")+" (corr with "+x.droppedBy.replace("/","")+" +"+x.corrVal+")").join(", ")+".";}
+  const extPairs=PAIRS.filter(p=>D.h4&&D.h4[p]&&D.h4[p].extended&&D.h4[p].extended.extended);
+  const extText=extPairs.length?"Extended: "+extPairs.map(p=>p.replace("/","")).join(", ")+" — price stretched, reduced conviction.":"All active signals fresh — no extension warnings.";
+  const adxVals=PAIRS.map(p=>D.h4&&D.h4[p]&&D.h4[p].raw?D.h4[p].raw.adx:null).filter(Boolean);
+  const avgAdx=adxVals.length?adxVals.reduce((a,b)=>a+b,0)/adxVals.length:0;
+  const adxText=avgAdx>25?"Avg ADX "+avgAdx.toFixed(0)+" — trending market, signals carry weight.":avgAdx>20?"Avg ADX "+avgAdx.toFixed(0)+" — borderline trend, use caution.":"Avg ADX "+avgAdx.toFixed(0)+" — low trend participation.";
+  let convText='';
+  const convCurr=D.conviction&&D.conviction.currencies;
+  if(convCurr){
+    const convSorted=Object.entries(convCurr).map(([c,d])=>({c,v:d.conviction})).sort((a,b)=>b.v-a.v);
+    const cotDate=D.conviction.cot_date&&D.conviction.cot_date!=='unknown'?` (COT: ${D.conviction.cot_date})`:'';
+    convText='\nConviction'+cotDate+':';
+    convSorted.forEach(({c,v})=>{convText+='\n  '+c+': '+(v>0?'+':'')+v;});
+  }
+  let ratesText='';
+  if(D.rates){
+    const _rmap=getRatesMap();
+    const keyPairs=[['USD','JPY'],['EUR','USD'],['GBP','USD'],['CAD','JPY'],['AUD','USD']];
+    const rateLines=keyPairs.map(([b,q])=>{const br=_rmap[b],qr=_rmap[q];if(!br||!qr)return null;const bps=Math.round((br.rate-qr.rate)*100);return b+q+': '+(bps>0?'+':'')+bps+'bps ('+br.bank+' '+br.rate+'% vs '+qr.bank+' '+qr.rate+'%)';}).filter(Boolean);
+    if(rateLines.length)ratesText='\nRate differentials:\n'+rateLines.join('\n');
+  }
+  return["Regime: "+r+"  "+(regime.confidence||'')+(regime.data_source?" ["+regime.data_source+"]":""),"",usdText+" "+shText,dispText,"","Strongest: "+strongest+" · Weakest: "+weakest,"",signalText,"",extText,adxText,convText,ratesText,"","Note: correlation based on last "+(D.corr&&D.corr.lookback?D.corr.lookback:50)+" bars."].join("\n");
+}
 function copyBriefPrompt(){const{h1,h4,d1,csm,regime}=D;const{kept,dropped}=buildRankedShortlist();let t="MARKET BRIEF - "+new Date().toLocaleString()+"\n\n";if(csm&&csm.rankings){t+="CURRENCY STRENGTH:\n";Object.entries(csm.rankings).forEach(([c,v])=>{t+=c+" "+v.toFixed(0)+"  ";});t+="\n\n";}t+="TECHNICAL SCORES:\n";PAIRS.forEach(p=>{const h1d=h1&&h1[p],h4d=h4&&h4[p],d1d=d1&&d1[p];const h1l=h1d?h1d.label:"N/A",h4l=h4d?h4d.label:"N/A",d1l=d1d?d1d.label:"N/A";const sc=h4d?h4d.score:0;if(h1l==="Neutral"&&h4l==="Neutral"&&d1l==="Neutral")return;t+=p.replace("/","")+" D1:"+d1l+" H4:"+h4l+" H1:"+h1l+" [score:"+sc+"]\n";});t+="\n";if(regime&&regime.regime){t+="REGIME: "+regime.regime+" ("+regime.confidence+")\n";}if(kept.length){t+="SHORTLIST: "+kept.map(x=>x.pair.replace("/","")).join(", ")+"\n\n";}t+="You are a macro FX strategist with web search access. Search: VIX, DXY, SPX, US10Y.\nOutput: Regime | Key driver | Pair bias per pair | One caution. Max 100 words.";navigator.clipboard.writeText(t).then(()=>{});}
 function copyChartPrompt(pair){if(!pair)pair=selectedPair;const h1d=D.h1&&D.h1[pair];const h4d=D.h4&&D.h4[pair];const d1d=D.d1&&D.d1[pair];const adxV=h4d&&h4d.raw?h4d.raw.adx:null;const atrOk=h4d?h4d.filter_ok!==false:null;const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);const reg=(D.regime&&D.regime.regime)||'Unknown';const convPairs=(D.conviction&&D.conviction.pairs)||{};const convScore=convPairs[pair];const rdPair=computeRateDiff(pair);const rdStr=rdPair?`Rate diff: ${rdPair.diff>0?'+':''}${rdPair.diff}bps\n`:'';const prompt=`You are an institutional FX trader with web search access.\nPair: ${pair.replace('/','')}\nD1: ${d1d?d1d.label:'N/A'} | H4: ${h4d?h4d.label:'N/A'} | H1: ${h1d?h1d.label:'N/A'}\n${convScore!==undefined?'Conviction: '+(convScore>0?'+':'')+convScore+'\n':''}${rdStr}ADX: ${adxV!==null?adxV.toFixed(1):'N/A'} | ATR: ${atrOk===null?'N/A':atrOk?'Normal':'Contracted'} | Extended: ${ext?'Yes':'No'}\nRegime: ${reg}\nTime: ${new Date().toLocaleString()}\n\nSearch VIX, DXY, and ${pair.split('/')[1]} macro context.\nOutput: Edge or Flaw / Verdict. Max 40 words.`;navigator.clipboard.writeText(prompt).then(()=>{});}
 
