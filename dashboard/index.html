@@ -528,7 +528,7 @@ function buildSignalSheetContent(data,pair,tfLabel){
   const scorecol=data.label?scoreColor(data.label,score):'var(--muted)';
   let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">${data.label||'—'}</span><span class="sh-kpi-val" style="color:${scorecol};">${scoreStr}</span></div>`;
   h+=`<div class="sh-hdr">Signals</div>`;
-  h+=Object.entries(SIGS).map(([k,l])=>`<div class="sh-dr"><span class="sh-dn">${l}</span>${sv(sigs[k]??null)}</div>`).join('');
+  h+=Object.entries(SIGS).map(([k,l])=>`<div class="sh-dr"><span class="sh-dn">${l}</span><span class="sh-dv">${sv(sigs[k]??null)}</span></div>`).join('');
   h+=`<div class="sh-hdr">Filters</div>`;
   h+=`<div class="sh-dr"><span class="sh-dn">ADX</span><span class="sh-dv" style="color:${fok?'var(--buy)':'var(--sell)'}">${adx}</span></div>`;
   h+=`<div class="sh-dr"><span class="sh-dn">ATR</span><span class="sh-dv" style="color:${fok?'var(--buy)':'var(--sell)'}">${fok?'Normal':'Contracted'}</span></div>`;
@@ -777,7 +777,7 @@ function buildPairSheetContent(pair){
   const qai=computeQAI(pair);
   const rd=computeRateDiff(pair);
   const regime=D.regime&&D.regime.regime||'Unknown';
-  function row(lbl,val,col){return`<div class="sh-row"><span class="sh-lbl">${lbl}</span><span class="sh-val" style="color:${col||'var(--text)'};">${val}</span></div>`;}
+  function row(lbl,val,col){return`<div class="sh-dr"><span class="sh-dn">${lbl}</span><span class="sh-dv" style="color:${col||'var(--text)'};">${val}</span></div>`;}
   function hdr(t){return`<div class="sh-hdr">${t}</div>`;}
   function scoreCol(label){const l=(label||'').toLowerCase();if(l.includes('strong buy'))return'var(--buy)';if(l.includes('strong sell'))return'var(--sell)';if(l.includes('buy'))return'rgba(63,185,80,.8)';if(l.includes('sell'))return'rgba(248,81,73,.75)';return'var(--muted)';}
   const adx=h4d&&h4d.raw?h4d.raw.adx:null;
@@ -932,8 +932,11 @@ function buildDrumRows(){
     const d1=pillAbbr(d1d?d1d.label:'');const h4=pillAbbr(h4d?h4d.label:'');const h1=pillAbbr(h1d?h1d.label:'');
     const dir=h4d?h4d.direction:'neutral';
     const qai=computeQAI(pair);
-    const arrChar=dir==='bull'?'▲':dir==='bear'?'▼':'–';
-    const arrCol=dir==='bull'?'#3fb950':dir==='bear'?'#f85149':'#8b949e';
+    // Arrow only for meaningful signal labels — neutral pairs get blank space
+    const sigLabels=['Buy','Sell','Strong Buy','Strong Sell'];
+    const hasSignal=h4d&&sigLabels.includes(h4d.label||'');
+    const arrChar=hasSignal?(dir==='bull'?'▲':dir==='bear'?'▼':''):'';
+    const arrCol=dir==='bull'?'#3fb950':'#f85149';
     return{pair,html:`<span class="d-pair">${pair.replace('/','')}</span><span class="d-scores">${d1} ${h4} ${h1}</span><span class="d-qai">${qai.score>0?qai.score+'%':'—'}</span><span class="d-arr" style="color:${arrCol};">${arrChar}</span>`};
   });
 }
