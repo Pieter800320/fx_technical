@@ -28,6 +28,11 @@ jobs:
           TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
           DASHBOARD_URL:      ${{ secrets.DASHBOARD_URL }}
         run: python scanner/scan_h4.py
+      - name: Run alert scanner
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:   ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python scanner/scan_alerts.py H4
       - name: Commit data
         run: |
           git config user.name  "github-actions[bot]"
@@ -36,7 +41,7 @@ jobs:
           cp data/alerts.json     dashboard/ || true
           cp data/regime.json     dashboard/ || true
           cp data/correlation.json dashboard/ || true
-          git add data/h4_scores.json state/cooldown.json data/alerts.json data/regime.json data/correlation.json dashboard/ || true
+          git add data/h4_scores.json state/cooldown.json data/alerts.json data/regime.json data/correlation.json data/alert_cooldown.json dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: H4 scan $(date -u +%Y-%m-%dT%H:%M)"
           git pull --rebase origin main
           git push
