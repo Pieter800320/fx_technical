@@ -129,24 +129,17 @@ def call_claude(prompt: str) -> dict:
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     response = client.messages.create(
         model="claude-opus-4-6",
-        max_tokens=1000,
+        max_tokens=2000,
         messages=[{"role": "user", "content": prompt}],
     )
     raw = response.content[0].text
     print(f"  [Claude] Raw response preview: {raw[:200]}")
-    # Strip markdown code fences if present
-    text = raw.strip()
-    if '```' in text:
-        parts = text.split('```')
-        for part in parts:
-            part = part.strip()
-            if part.startswith('json'):
-                part = part[4:].strip()
-            if part.startswith('{'):
-                text = part
-                break
-
-    data = json.loads(text)
+    # Extract outermost JSON object, tolerating markdown fences
+    start = raw.find('{')
+    end = raw.rfind('}')
+    if start == -1 or end == -1 or end <= start:
+        raise ValueError(f"No JSON object found in response: {raw[:200]}")
+    data = json.loads(raw[start:end + 1])
     return data
 
 
