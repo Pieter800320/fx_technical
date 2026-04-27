@@ -10,10 +10,9 @@ DATA_DIR   = os.path.join(os.path.dirname(__file__), "..", "data")
 OUTPUT     = os.path.join(DATA_DIR, "news_brief.json")
 
 RSS_FEEDS = [
-    ("FXStreet",   "https://www.fxstreet.com/rss/news"),
-    ("ForexLive",  "https://www.forexlive.com/feed/news"),
-    ("DailyFX",    "https://www.dailyfx.com/feeds/all"),
-    ("Nasdaq FX",  "https://www.nasdaq.com/feed/rssoutbound?category=Currencies"),
+    ("FXStreet",  "https://www.fxstreet.com/rss/news"),
+    ("ForexLive", "https://www.forexlive.com/feed/news"),
+    ("Nasdaq FX", "https://www.nasdaq.com/feed/rssoutbound?category=Currencies"),
 ]
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
