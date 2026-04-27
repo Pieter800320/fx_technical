@@ -12,9 +12,9 @@ OUTPUT     = os.path.join(DATA_DIR, "news_brief.json")
 RSS_FEEDS = [
     ("FXStreet",    "https://www.fxstreet.com/rss/news"),
     ("ForexLive",   "https://www.forexlive.com/feed/news"),
-    ("Investing",   "https://www.investing.com/rss/news_285.rss"),
-    ("Fed",         "https://www.federalreserve.gov/feeds/press_all.xml"),
-    ("ECB",         "https://www.ecb.europa.eu/rss/press.html"),
+    ("Reuters FX",  "https://feeds.reuters.com/reuters/businessNews"),
+    ("MarketWatch", "https://feeds.marketwatch.com/marketwatch/marketpulse/"),
+    ("Investing",   "https://www.investing.com/rss/news_25.rss"),
 ]
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
