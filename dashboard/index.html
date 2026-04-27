@@ -57,10 +57,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .drum-row{height:37px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:0 var(--pad);font-family:'VT323',monospace;font-size:19px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;gap:0;}
 .drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.4);}
 .d-pair{display:inline-block;width:62px;text-align:left;}
-.d-cat{display:inline-block;width:30px;text-align:left;opacity:.35;font-size:19px;}
-.d-scores{display:inline-block;width:54px;text-align:left;font-size:19px;opacity:.7;}
-.d-qai{display:inline-block;width:38px;text-align:right;font-size:19px;opacity:.8;}
-.d-arr{display:inline-block;width:22px;text-align:center;font-size:14px;line-height:1;padding-left:4px;}
+.d-scores{display:inline-block;width:58px;text-align:left;font-size:19px;opacity:.7;}
+.d-qai{display:inline-block;width:40px;text-align:right;font-size:19px;opacity:.8;}
+.d-arr{display:inline-block;width:20px;text-align:center;font-size:14px;line-height:1;padding-left:5px;}
 #drum-fade-top{position:absolute;top:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
 #drum-fade-bot{position:absolute;bottom:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
 #drum-center-line{position:absolute;top:50%;left:0;right:0;height:37px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
@@ -103,16 +102,27 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 /* ── Regime ── */
 #regime-section{padding:var(--pad);border-top:1px solid var(--border);}
 
-/* ── Sheet shared rows ── */
-.sh-row{display:flex;align-items:flex-start;padding:6px var(--pad);border-bottom:1px solid var(--border2);gap:var(--gap);}
-.sh-row:last-child{border-bottom:none;}
-.sh-lbl{font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;flex-shrink:0;width:88px;padding-top:1px;}
+/* ── Sheet shared rows — one unified system ── */
+.sh-row,.sh-dr{display:flex;align-items:center;padding:6px var(--pad);border-bottom:1px solid var(--border2);gap:var(--gap);}
+.sh-row:last-child,.sh-dr:last-child{border-bottom:none;}
+/* label col — fixed 88px, uppercase, muted */
+.sh-lbl,.sh-dn{font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;flex-shrink:0;width:88px;}
+/* value col — flex, wraps for long text */
 .sh-val{font-size:var(--sm);font-weight:600;flex:1;line-height:1.5;}
+/* value col for short numeric values — right aligned */
+.sh-dv{font-size:var(--sm);font-weight:600;flex:1;text-align:right;}
+/* section header */
 .sh-hdr{padding:5px var(--pad) 3px;background:var(--surface2);border-bottom:1px solid var(--border2);font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);}
-.sh-dr{display:flex;justify-content:space-between;align-items:center;padding:5px var(--pad);border-bottom:1px solid var(--border2);gap:10px;}
-.sh-dr:last-child{border-bottom:none;}
-.sh-dn{color:var(--muted);font-size:var(--xs);}
-.sh-dv{font-size:var(--xs);font-weight:600;}
+/* dark key-metric header used at top of every sheet */
+.sh-kpi{display:flex;justify-content:space-between;align-items:center;padding:10px var(--pad);background:rgba(0,0,0,.25);border-bottom:1px solid var(--border2);}
+.sh-kpi-lbl{font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;}
+.sh-kpi-val{font-size:var(--lg);font-weight:700;}
+/* QAI bar component rows */
+.sh-comp{display:flex;align-items:center;padding:6px var(--pad);border-bottom:1px solid var(--border2);gap:8px;}
+.sh-comp:last-child{border-bottom:none;}
+.sh-comp-lbl{font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;width:96px;flex-shrink:0;}
+.sh-comp-val{font-size:var(--xs);font-weight:700;width:28px;text-align:right;flex-shrink:0;}
+.sh-comp-wt{font-size:var(--xs);color:var(--muted);width:24px;text-align:right;flex-shrink:0;}
 
 /* ── Buttons ── */
 .btn{display:inline-flex;align-items:center;gap:4px;font-size:var(--xs);font-weight:700;letter-spacing:.05em;text-transform:uppercase;padding:5px 12px;border-radius:var(--r-sm);border:1px solid rgba(56,139,253,.35);background:rgba(56,139,253,.08);color:var(--accent);cursor:pointer;white-space:nowrap;}
@@ -514,8 +524,9 @@ function buildSignalSheetContent(data,pair,tfLabel){
   const fok=data.filter_ok!==false;
   const ext=data.extended&&data.extended.extended;
   const struct=data.structure,cf=data.conflict;
-  let h='';
-  // Signal rows
+  const score=data.score||0;const scoreStr=score>0?'+'+score:String(score);
+  const scorecol=data.label?scoreColor(data.label,score):'var(--muted)';
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">${data.label||'—'}</span><span class="sh-kpi-val" style="color:${scorecol};">${scoreStr}</span></div>`;
   h+=`<div class="sh-hdr">Signals</div>`;
   h+=Object.entries(SIGS).map(([k,l])=>`<div class="sh-dr"><span class="sh-dn">${l}</span>${sv(sigs[k]??null)}</div>`).join('');
   h+=`<div class="sh-hdr">Filters</div>`;
@@ -531,8 +542,8 @@ function buildSignalSheetContent(data,pair,tfLabel){
     h+=`<div class="sh-dr"><span class="sh-dn">Event</span><span class="sh-dv" style="color:${struct.event==='BOS'?'var(--buy)':'var(--amber)'}">${struct.event} (${struct.direction})</span></div>`;
     h+=`<div class="sh-dr"><span class="sh-dn">Strength</span><span class="sh-dv">${Math.round((struct.strength||0)*100)}%</span></div>`;
   }
-  if(cf)h+=`<div class="sh-dr" style="background:rgba(227,179,65,.05)"><span class="sh-dn" style="color:var(--amber)">⚠ Conflict</span><span class="sh-dv" style="color:var(--amber)">Structure vs Momentum</span></div>`;
-  if(ext)h+=`<div class="sh-dr" style="background:rgba(227,179,65,.05)"><span class="sh-dn" style="color:var(--amber)">⚠ Extended</span><span class="sh-dv" style="color:var(--amber)">Yes</span></div>`;
+  if(cf)h+=`<div class="sh-dr" style="background:rgba(227,179,65,.04)"><span class="sh-dn" style="color:var(--amber)">⚠ Conflict</span><span class="sh-dv" style="color:var(--amber)">Struct vs Momentum</span></div>`;
+  if(ext)h+=`<div class="sh-dr" style="background:rgba(227,179,65,.04)"><span class="sh-dn" style="color:var(--amber)">⚠ Extended</span><span class="sh-dv" style="color:var(--amber)">Yes</span></div>`;
   return h;
 }
 function openSignalSheet(tf){
@@ -584,22 +595,19 @@ function openQAISheet(){
   const pair=selectedPair;const qai=computeQAI(pair);
   const labels={d1:'D1 Signal',h4:'H4 Signal',h1:'H1 Signal',reset:'Reset Score',adx:'ADX',atr:'ATR %ile',csm:'CSM Divergence',conv:'Conviction',regime:'Regime',rate:'Rate Diff'};
   const wts={d1:20,h4:15,h1:8,reset:10,adx:4,atr:3,csm:16,conv:12,regime:8,rate:4};
-  let h=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px var(--pad);background:rgba(0,0,0,.2);border-bottom:1px solid var(--border2);">
-    <span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700;">Score</span>
-    <span style="font-size:var(--lg);font-weight:700;color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span>
-  </div>`;
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Quality Alignment</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
   h+=Object.keys(labels).map(k=>{
     const v=qai.comps[k];const pct=v*10;
     const col=pct>=70?'var(--buy)':pct>=40?'var(--amber)':'var(--sell)';
-    return`<div style="display:flex;align-items:center;padding:7px var(--pad);border-bottom:1px solid var(--border2);gap:8px;">
-      <span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;width:100px;flex-shrink:0;">${labels[k]}</span>
+    return`<div class="sh-comp">
+      <span class="sh-comp-lbl">${labels[k]}</span>
       <div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div>
-      <span style="font-size:var(--xs);font-weight:700;color:${col};width:26px;text-align:right;">${v}/10</span>
-      <span style="font-size:var(--xs);color:var(--muted);width:24px;text-align:right;">${wts[k]}%</span>
+      <span class="sh-comp-val" style="color:${col};">${v}/10</span>
+      <span class="sh-comp-wt">${wts[k]}%</span>
     </div>`;
   }).join('');
-  if(qai.capApplied)h+=`<div style="padding:6px var(--pad);font-size:var(--xs);color:var(--amber);">Regime cap applied: ${qai.regime}</div>`;
-  openSheet('Quality Alignment Index',h,pair.replace('/',''));
+  if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} regime</span></div>`;
+  openSheet('QAI',h,pair.replace('/',''));
 }
 
 // ══ RATE DIFF
@@ -714,10 +722,7 @@ function buildPairSheetContent(pair){
   const conv=convPairs[pair];
   const convCol=conv===null||conv===undefined?'var(--muted)':conv>=40?'var(--buy)':conv<=-20?'var(--sell)':conv>=20?'var(--amber)':'var(--muted)';
   const rdVal=rd?(rd.diff>0?'+':'')+rd.diff+'bps '+(rd.direction==='widening'?'↑':rd.direction==='narrowing'?'↓':'→'):'—';
-  let h=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px var(--pad);background:rgba(0,0,0,.2);border-bottom:1px solid var(--border2);">
-    <span style="font-size:var(--sm);color:var(--muted);">QAI</span>
-    <span style="font-size:var(--lg);font-weight:700;color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span>
-  </div>`;
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">${pair}</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
   h+=hdr('Technical');
   h+=row('D1',d1d?d1d.label:'No data',scoreCol(d1d?d1d.label:''));
   h+=row('H4',h4d?h4d.label:'No data',scoreCol(h4d?h4d.label:''));
@@ -783,10 +788,7 @@ function openRegimeSheet(){
   const r=D.regime;if(!r||!r.regime)return;
   const c=RC[r.regime]||RC['Mixed'];const s=r.signals||{};
   const rows=[["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],["Risk basket",s.risk_basket],["Gold",s.gold_direction||"—"],["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],["Dispersion",s.dispersion],["Data source",r.data_source||"D1"],["Vol ratio",r.vol_ratio]];
-  let h=`<div style="display:flex;justify-content:space-between;align-items:center;padding:10px var(--pad);background:rgba(0,0,0,.2);border-bottom:1px solid var(--border2);">
-    <span style="font-size:var(--md);font-weight:700;color:${c.c};">${r.regime}</span>
-    <span style="font-size:var(--sm);color:${c.c};font-weight:600;">${(r.confidence||'').toUpperCase()}</span>
-  </div>`;
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl" style="color:${c.c};">${r.regime}</span><span class="sh-kpi-val" style="color:${c.c};font-size:var(--md);">${(r.confidence||'').toUpperCase()}</span></div>`;
   h+=rows.map(row=>{if(!row)return'';const[k,v]=row;const vStr=v!==null&&v!==undefined?String(v):'—';const n=parseFloat(vStr);const col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
   openSheet('Regime',h);
 }
@@ -809,16 +811,19 @@ function renderRegime(r){
 // ══ CSM SHEET
 function buildCSMSheet(ccy){
   const bd=D.csm&&D.csm.breakdown||{};
+  const rankings=D.csm&&D.csm.rankings||{};
   const convCurr=(D.conviction&&D.conviction.currencies)||{};
   const cotDate=D.conviction&&D.conviction.cot_date;
+  const val=rankings[ccy]||0;
   const pairs=(bd[ccy]||[]).map(p=>{const col=p.bull?'var(--buy)':'var(--sell)',arr=p.bull?'▲':'▼';return`<div class="sh-dr"><span class="sh-dn">${p.pair}</span><span class="sh-dv" style="color:${col};">${arr} ${p.score>0?'+':''}${p.score.toFixed(2)}</span></div>`;}).join('');
-  let h=`<div class="sh-hdr">Pair Breakdown</div>${pairs||'<div style="padding:8px var(--pad);color:var(--muted);font-size:var(--sm);">No pair data</div>'}`;
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Strength</span><span class="sh-kpi-val" style="color:var(--accent);">${val.toFixed(1)}</span></div>`;
+  h+=`<div class="sh-hdr">Pair Breakdown</div>${pairs||'<div style="padding:8px var(--pad);color:var(--muted);font-size:var(--sm);">No pair data</div>'}`;
   const cdata=convCurr[ccy];
   if(cdata&&ccy!=='USD'){
     const convScore=cdata.conviction;const comp=cdata.components||{};
     const cotStale=D.conviction&&D.conviction.cot_stale;
     const convCol=convScore>=40?'var(--buy)':convScore<=-20?'var(--sell)':convScore>=20?'var(--amber)':'var(--muted)';
-    h+=`<div class="sh-hdr">Conviction${convScore!==null?` — <span style="color:${convCol}">${convScore>0?'+':''}${convScore}</span>`:''}</div>`;
+    h+=`<div class="sh-hdr">Conviction — <span style="color:${convCol};font-weight:700;">${convScore!==null?(convScore>0?'+':'')+convScore:'—'}</span></div>`;
     if(cotStale)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ COT</span><span class="sh-dv" style="color:var(--amber);">Stale data</span></div>`;
     else if(!cdata.cot_available)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">COT</span><span class="sh-dv" style="color:var(--amber);">Pending</span></div>`;
     else if(cotDate)h+=`<div class="sh-dr"><span class="sh-dn">COT Date</span><span class="sh-dv">${cotDate}</span></div>`;
@@ -829,7 +834,7 @@ function buildCSMSheet(ccy){
       h+=`<div class="sh-dr"><span class="sh-dn">${lbl}</span><span class="sh-dv" style="color:${col};">${v>0?'+':''}${v}</span></div>`;
     });
   } else if(ccy==='USD'){
-    h+=`<div class="sh-hdr">Conviction</div><div class="sh-dr"><span class="sh-dn">COT</span><span class="sh-dv">N/A (no futures contract)</span></div>`;
+    h+=`<div class="sh-hdr">Conviction</div><div class="sh-dr"><span class="sh-dn">COT</span><span class="sh-dv">N/A — no futures</span></div>`;
   }
   return h;
 }
@@ -851,24 +856,21 @@ function renderCSM(csm,conviction){
 // ══ DRUM
 function getCorrVal(p1,p2){if(!D.corr||!D.corr.pairs||!D.corr.matrix)return null;const i=D.corr.pairs.indexOf(p1.replace('/',''));const j=D.corr.pairs.indexOf(p2.replace('/',''));if(i<0||j<0)return null;return D.corr.matrix[i][j];}
 function buildDrumRows(){
-  const signals=[];
-  PAIRS.forEach(pair=>{const h4d=D.h4&&D.h4[pair];const d1d=D.d1&&D.d1[pair];if(!h4d||!d1d)return;const score=h4d.score||0;if(Math.abs(score)<3)return;signals.push({pair,score,dir:score>0?'bull':'bear',adx:h4d.raw?h4d.raw.adx||0:0});});
-  signals.sort((a,b)=>Math.abs(b.score)-Math.abs(a.score)||b.adx-a.adx);
-  const keptPairs=new Set();
-  signals.forEach(s=>{let c=false;for(const k of keptPairs){const cv=getCorrVal(k,s.pair);if(cv!==null&&Math.abs(cv)>=0.7){c=true;break;}}if(!c)keptPairs.add(s.pair);});
-  const alertsArr=D.alerts&&D.alerts.alerts;const cutoff=Date.now()-24*60*60*1000;
-  const ordered=[...keptPairs,...PAIRS.filter(p=>!keptPairs.has(p))];
-  return ordered.map(pair=>{
+  // Rank all 12 pairs by H4 score strength descending — strongest signals at top of drum
+  const ranked=PAIRS.map(pair=>{
+    const h4d=D.h4&&D.h4[pair];
+    const score=h4d?Math.abs(h4d.score||0):0;
+    const adx=h4d&&h4d.raw?h4d.raw.adx||0:0;
+    return{pair,score,adx};
+  }).sort((a,b)=>b.score-a.score||b.adx-a.adx);
+  return ranked.map(({pair})=>{
     const h4d=D.h4&&D.h4[pair];const d1d=D.d1&&D.d1[pair];const h1d=D.h1&&D.h1[pair];
     const d1=pillAbbr(d1d?d1d.label:'');const h4=pillAbbr(h4d?h4d.label:'');const h1=pillAbbr(h1d?h1d.label:'');
     const dir=h4d?h4d.direction:'neutral';
-    const isShort=keptPairs.has(pair);
-    const hasSig=!!(alertsArr&&alertsArr.some(a=>a.pair===pair&&a.timestamp&&new Date(a.timestamp).getTime()>cutoff));
     const qai=computeQAI(pair);
-    // Arrow: fixed-width span, same font-size for both directions
     const arrChar=dir==='bull'?'▲':dir==='bear'?'▼':'–';
     const arrCol=dir==='bull'?'#3fb950':dir==='bear'?'#f85149':'#8b949e';
-    return{pair,html:`<span class="d-pair">${pair.replace('/','')}</span><span class="d-cat">${isShort?(hasSig?'SIG':'LST'):''}</span><span class="d-scores">${d1} ${h4} ${h1}</span><span class="d-qai">${qai.score>0?qai.score+'%':'—'}</span><span class="d-arr" style="color:${arrCol};">${arrChar}</span>`};
+    return{pair,html:`<span class="d-pair">${pair.replace('/','')}</span><span class="d-scores">${d1} ${h4} ${h1}</span><span class="d-qai">${qai.score>0?qai.score+'%':'—'}</span><span class="d-arr" style="color:${arrCol};">${arrChar}</span>`};
   });
 }
 let drumRows=[];
@@ -952,7 +954,9 @@ function renderChtPrice(){
   if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper','rgba(227,179,65,.5)'],['middle','rgba(227,179,65,.3)'],['lower','rgba(227,179,65,.5)']].forEach(([k,col])=>{const s=chart.addLineSeries({color:col,lineWidth:1,lineStyle:k==='middle'?2:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
   const alerts=laLoad().filter(a=>a.pair===selectedPair&&a.active);
   alerts.forEach(a=>{const s=chart.addLineSeries({color:a.direction==='above'?'rgba(63,185,80,.8)':'rgba(248,81,73,.8)',lineWidth:1,lineStyle:3,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});s.setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);});
-  chart.timeScale().fitContent();
+  // Show last 100 bars — prevents squish on tight-range pairs like AUDUSD
+  const visN=Math.min(100,ohlcv.length);
+  chart.timeScale().setVisibleLogicalRange({from:ohlcv.length-visN,to:ohlcv.length+2});
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:container.clientWidth,height:container.clientHeight});}).observe(container);
   chtMainInst=chart;renderChtAlerts();
 }
