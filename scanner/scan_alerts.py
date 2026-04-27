@@ -21,7 +21,7 @@ CSM_FILE = BASE / "csm.json"
 REG_FILE = BASE / "regime.json"
 CD_FILE  = BASE / "alert_cooldown.json"    # cooldown timestamps per pair
 
-TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN", "")
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT  = os.environ.get("TELEGRAM_CHAT_ID", "")
 DASHBOARD_URL  = "https://pieter800320.github.io/fx_technical"
 
