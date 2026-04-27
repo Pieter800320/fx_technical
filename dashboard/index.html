@@ -2413,7 +2413,7 @@ async function init(){
     load("h1_scores.json",true),load("h4_scores.json",true),
     load("d1_scores.json"),load("csm.json"),load("alerts.json"),
     load("regime.json"),load("correlation.json"),load("conviction.json"),
-    load("calendar.json"),load("rates.json"),load("news_brief.json"),
+    load("calendar.json"),load("rates.json"),load("news_brief.json", true),
   ]);
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v.updated):[]).filter(Boolean).sort();
   const parseTS=s=>{if(!s)return new Date(s);const c=s.endsWith('Z')||s.includes('+')?s:s+'Z';return new Date(c);};
