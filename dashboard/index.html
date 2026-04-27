@@ -681,28 +681,92 @@ function openDrawerSheet(name){
 }
 function buildNewsSheetContent(){
   const nb=D.newsBrief;
-  function row(lbl,val,col){return`<div class="sh-row"><span class="sh-lbl">${lbl}</span><span class="sh-val" style="color:${col||'var(--text)'};">${val}</span></div>`;}
-  function hdr(t){return`<div class="sh-hdr">${t}</div>`;}
   const dirCol=d=>d==='bearish'?'var(--sell)':d==='bullish'?'var(--buy)':'var(--amber)';
-  let h='';
-  if(!nb||nb.status==='unavailable'||!nb.themes){
-    h+=hdr('AI News Brief');h+='<div style="padding:10px var(--pad);font-size:var(--sm);color:var(--muted);">Not available yet — runs 4× daily.</div>';
-  } else {
-    const updStr=nb.updated?new Date(nb.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+' UTC':'—';
-    h+=hdr('News Brief · '+updStr+' · '+(nb.headline_count||0)+' headlines');
-    h+=row('USD Bias',(nb.usd_bias||'—').toUpperCase(),dirCol(nb.usd_bias));
-    h+=row('Risk Sent.',(nb.risk_sentiment||'—').replace('-',' ').toUpperCase(),nb.risk_sentiment==='risk-on'?'var(--buy)':nb.risk_sentiment==='risk-off'?'var(--sell)':'var(--amber)');
-    if(nb.themes&&nb.themes.length){
-      h+=hdr('Themes');
-      nb.themes.forEach(t=>{const ccys=(t.currencies||[]).join(' · ');h+=`<div style="display:flex;align-items:flex-start;padding:6px var(--pad);border-bottom:1px solid var(--border2);gap:var(--gap);"><span style="flex:1;font-size:var(--sm);line-height:1.5;">${t.theme}</span><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;"><span style="font-size:var(--xs);font-weight:700;color:${dirCol(t.direction)};text-transform:uppercase;">${t.direction}</span>${ccys?`<span style="font-size:var(--xs);color:var(--muted);">${ccys}</span>`:''}</div></div>`;});
-    }
-    if(nb.key_observation)h+=row('Key Insight',nb.key_observation,'var(--accent)');
-    if(nb.watch)h+=row('Watch',nb.watch,'var(--muted)');
+
+  // ── Macro grid ──────────────────────────────────────────────────────────
+  function buildMacroGrid(macro){
+    if(!macro||!Object.keys(macro).length)return'';
+    const insts=[
+      {key:'vix',   label:'VIX',     fmt:v=>v.toFixed(1),              invert:true},
+      {key:'us10y', label:'US 10Y',  fmt:v=>v.toFixed(2)+'%',          invert:false},
+      {key:'wti',   label:'WTI Oil', fmt:v=>'$'+v.toFixed(1),           invert:false},
+      {key:'gold',  label:'Gold',    fmt:v=>'$'+Math.round(v).toLocaleString(), invert:false},
+      {key:'spx',   label:'S&P 500', fmt:v=>Math.round(v).toLocaleString(), invert:false},
+      {key:'btc',   label:'Bitcoin', fmt:v=>'$'+Math.round(v/1000)+'k', invert:false},
+      {key:'copper',label:'Copper',  fmt:v=>'$'+v.toFixed(2),           invert:false},
+    ];
+    const cells=insts.map(inst=>{
+      const d=macro[inst.key];
+      if(!d)return`<div style="padding:8px var(--pad);border-bottom:1px solid var(--border2);border-right:1px solid var(--border2);opacity:.35;"><div style="font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">${inst.label}</div><div style="font-size:var(--md);font-weight:700;color:var(--muted);margin-top:3px;">—</div></div>`;
+      const chg=d.change_pct;const isPos=chg>0;const isNeg=chg<0;
+      const col=inst.invert
+        ?(isPos?'var(--sell)':isNeg?'var(--buy)':'var(--muted)')
+        :(isPos?'var(--buy)':isNeg?'var(--sell)':'var(--muted)');
+      const arr=isPos?'▲':isNeg?'▼':'→';
+      return`<div style="padding:8px var(--pad);border-bottom:1px solid var(--border2);border-right:1px solid var(--border2);">
+        <div style="font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;">${inst.label}</div>
+        <div style="font-size:var(--md);font-weight:700;color:var(--text);margin-top:3px;">${inst.fmt(d.value)}</div>
+        <div style="font-size:var(--xs);font-weight:600;color:${col};margin-top:2px;">${arr} ${Math.abs(chg).toFixed(2)}%</div>
+      </div>`;
+    });
+    // pad to even
+    if(cells.length%2!==0)cells.push('<div style="border-bottom:1px solid var(--border2);"></div>');
+    return`<div class="sh-hdr">Macro Snapshot</div><div style="display:grid;grid-template-columns:1fr 1fr;">${cells.join('')}</div>`;
   }
-  h+=hdr('Technical Brief');
+
+  let h='';
+  const updStr=nb&&nb.updated?new Date(nb.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+' UTC':'—';
+  const headline_count=nb&&nb.headline_count?nb.headline_count:0;
+
+  // ── KPI header ────────────────────────────────────────────────────────
+  if(nb&&nb.usd_bias){
+    const usdCol=dirCol(nb.usd_bias);
+    const riskStr=(nb.risk_sentiment||'neutral').replace('-',' ').toUpperCase();
+    const riskCol=nb.risk_sentiment==='risk-on'?'var(--buy)':nb.risk_sentiment==='risk-off'?'var(--sell)':'var(--amber)';
+    h+=`<div class="sh-kpi">
+      <span class="sh-kpi-lbl" style="color:${usdCol};">USD ${(nb.usd_bias||'').toUpperCase()}</span>
+      <span style="font-size:var(--sm);font-weight:700;color:${riskCol};">${riskStr}</span>
+    </div>`;
+  } else {
+    h+=`<div class="sh-kpi"><span class="sh-kpi-lbl">Market Brief</span><span style="font-size:var(--xs);color:var(--muted);">${updStr}</span></div>`;
+  }
+
+  // ── Macro grid (always shown if data present) ─────────────────────────
+  h+=buildMacroGrid(nb&&nb.macro||{});
+
+  // ── Narrative (interpretation first) ─────────────────────────────────
+  if(nb&&nb.narrative){
+    h+=`<div class="sh-hdr">Market Narrative · ${updStr} · ${headline_count} headlines</div>`;
+    h+=`<div style="padding:10px var(--pad);background:var(--surface2);border-bottom:1px solid var(--border2);">
+      <div style="font-size:var(--sm);line-height:1.85;color:var(--text);">${nb.narrative}</div>
+    </div>`;
+  } else if(!nb||nb.status==='unavailable'){
+    h+=`<div class="sh-hdr">Market Narrative</div>`;
+    h+=`<div style="padding:10px var(--pad);font-size:var(--sm);color:var(--muted);border-bottom:1px solid var(--border2);">Not available yet — runs 4× daily at 06/10/14/18 UTC.</div>`;
+  }
+
+  // ── News themes ───────────────────────────────────────────────────────
+  if(nb&&nb.themes&&nb.themes.length){
+    h+=`<div class="sh-hdr">News Themes</div>`;
+    nb.themes.forEach(t=>{
+      const ccys=(t.currencies||[]).join(' · ');
+      h+=`<div style="display:flex;align-items:flex-start;padding:7px var(--pad);border-bottom:1px solid var(--border2);gap:var(--gap);">
+        <span style="flex:1;font-size:var(--sm);line-height:1.5;">${t.theme}</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;min-width:52px;">
+          <span style="font-size:var(--xs);font-weight:700;color:${dirCol(t.direction)};text-transform:uppercase;">${t.direction}</span>
+          ${ccys?`<span style="font-size:var(--xs);color:var(--muted);">${ccys}</span>`:''}
+        </div>
+      </div>`;
+    });
+    if(nb.key_observation)h+=`<div class="sh-row"><span class="sh-lbl">Key Insight</span><span class="sh-val" style="color:var(--accent);">${nb.key_observation}</span></div>`;
+    if(nb.watch)h+=`<div class="sh-row"><span class="sh-lbl">Watch</span><span class="sh-val" style="color:var(--muted);">${nb.watch}</span></div>`;
+  }
+
+  // ── Technical brief ───────────────────────────────────────────────────
+  h+=`<div class="sh-hdr">Technical Brief</div>`;
   const brief=generateBrief();
-  h+=`<div style="padding:8px var(--pad);font-size:var(--sm);line-height:1.9;white-space:pre-wrap;">${brief||'No data.'}</div>`;
-  h+=`<div style="padding:8px var(--pad);"><button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button></div>`;
+  h+=`<div style="padding:8px var(--pad) 10px;font-size:var(--sm);line-height:1.9;white-space:pre-wrap;">${brief||'No data.'}</div>`;
+  h+=`<div style="padding:8px var(--pad) 12px;"><button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button></div>`;
   return h;
 }
 function buildPairSheetContent(pair){
