@@ -1016,13 +1016,45 @@ function renderChtPrice(){
   const chart=buildLwChart(container);
   const candles=makeCandleSeries(chart);
   candles.setData(ohlcv);
+
+  // ── Indicators ───────────────────────────────────────────────────────────
   if(indState.ema200&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),200);const s=chart.addLineSeries({color:'rgba(63,185,80,.6)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
   if(indState.ema50&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),50);const s=chart.addLineSeries({color:'rgba(56,139,253,.7)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
   if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper','rgba(227,179,65,.5)'],['middle','rgba(227,179,65,.3)'],['lower','rgba(227,179,65,.5)']].forEach(([k,col])=>{const s=chart.addLineSeries({color:col,lineWidth:1,lineStyle:k==='middle'?2:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
+
+  // ── Level alert lines (grey dotted) ────────────────────────────────────
   const alerts=laLoad().filter(a=>a.pair===selectedPair&&a.active);
-  alerts.forEach(a=>{const s=chart.addLineSeries({color:a.direction==='above'?'rgba(63,185,80,.8)':'rgba(248,81,73,.8)',lineWidth:1,lineStyle:3,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});s.setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);});
-  // Show last 100 bars — prevents squish on tight-range pairs like AUDUSD
+  alerts.forEach(a=>{
+    const s=chart.addLineSeries({color:'rgba(139,148,158,.7)',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});
+    s.setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);
+  });
+
+  // ── Journal trade levels (SL=red, Entry=white, TP=green) ──────────────
+  const trades=jLoad().filter(t=>t.pair===selectedPair&&t.outcome==='open'&&(t.entry||t.sl||t.tp));
+  trades.forEach(t=>{
+    const levels=[
+      {price:t.sl,   color:'rgba(248,81,73,.85)',  label:'SL'},
+      {price:t.entry,color:'rgba(230,237,243,.75)', label:'Entry'},
+      {price:t.tp,   color:'rgba(63,185,80,.85)',   label:'TP'},
+    ];
+    levels.forEach(({price,color,label})=>{
+      if(!price)return;
+      const s=chart.addLineSeries({color,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:label});
+      s.setData([{time:ohlcv[0].time,value:price},{time:ohlcv[ohlcv.length-1].time,value:price}]);
+    });
+  });
+
+  // ── Visible range — last 100 bars, with minimum price span to prevent squish ─
   const visN=Math.min(100,ohlcv.length);
+  const visOhlcv=ohlcv.slice(-visN);
+  const highs=visOhlcv.map(b=>b.high);const lows=visOhlcv.map(b=>b.low);
+  const priceHigh=Math.max(...highs);const priceLow=Math.min(...lows);
+  const priceRange=priceHigh-priceLow;
+  const minRange=selectedPair.includes('JPY')?0.5:0.005;
+  if(priceRange<minRange){
+    const mid=(priceHigh+priceLow)/2;
+    candles.applyOptions({autoscaleInfoProvider:()=>({priceRange:{minValue:mid-minRange/2,maxValue:mid+minRange/2},margins:{above:0.1,below:0.1}})});
+  }
   chart.timeScale().setVisibleLogicalRange({from:ohlcv.length-visN,to:ohlcv.length+2});
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:container.clientWidth,height:container.clientHeight});}).observe(container);
   chtMainInst=chart;renderChtAlerts();
@@ -1062,43 +1094,52 @@ async function pushAlertsToGitHub(alerts){const token=localStorage.getItem('gh_p
 function buildRankedShortlist(){const signals=[];PAIRS.forEach(pair=>{const h4d=D.h4&&D.h4[pair];const d1d=D.d1&&D.d1[pair];if(!h4d||!d1d)return;const score=h4d.score||0;if(Math.abs(score)<3)return;const adx=h4d.raw?h4d.raw.adx:0;signals.push({pair,score,dir:score>0?"bull":"bear",label:h4d.label,adx:adx||0});});signals.sort((a,b)=>Math.abs(b.score)-Math.abs(a.score)||b.adx-a.adx);const kept=[],dropped=[];signals.forEach(s=>{let correlated=false;for(const k of kept){if(k.dir!==s.dir)continue;const cv=getCorrVal(k.pair,s.pair);if(cv!==null&&Math.abs(cv)>=0.7){dropped.push({...s,droppedBy:k.pair,corrVal:Math.round(cv*100)});correlated=true;break;}}if(!correlated)kept.push(s);});return{kept,dropped,all:signals};}
 function generateBrief(){
   const{h1,h4,d1,csm,regime}=D;if(!regime||!csm||!csm.rankings)return null;
-  const r=regime.regime||"Unknown";const s=regime.signals||{};const rankings=csm.rankings||{};
+  const r=regime.regime||'Unknown';
+  const s=regime.signals||{};
+  const rankings=csm.rankings||{};
   const{kept,dropped,all}=buildRankedShortlist();
   const sorted=Object.entries(rankings).sort((a,b)=>b[1]-a[1]);
-  const strongest=sorted.slice(0,2).map(([c,v])=>`${c} (${v.toFixed(0)})`).join(" and ");
-  const weakest=sorted.slice(-2).map(([c,v])=>`${c} (${v.toFixed(0)})`).join(" and ");
-  const usdProxy=parseFloat(s.usd_proxy)||0;const shDiv=parseFloat(s.sh_divergence)||0;const dispersion=parseFloat(s.dispersion)||0;
-  const shText=shDiv>15?"Safe-haven currencies (JPY, CHF) outperforming — risk-off pressure.":shDiv<-15?"Safe-haven demand absent — risk appetite supportive.":"Safe-haven and risk currencies balanced.";
-  const usdText=usdProxy>0.5?"USD broadly strong across pairs.":usdProxy<-0.5?"USD broadly weak across pairs.":"USD direction mixed.";
-  const dispText=dispersion>60?"High CSM dispersion ("+dispersion.toFixed(0)+") — clear winners and losers.":dispersion>30?"Moderate dispersion ("+dispersion.toFixed(0)+") — some directional clarity.":"Low dispersion ("+dispersion.toFixed(0)+") — market lacks clear direction.";
-  let signalText="";
-  if(all.length===0){signalText="No pairs currently meet the signal threshold.";}
+  const strongest=sorted.slice(0,3).map(([c,v])=>`${c} ${v.toFixed(0)}`).join(' · ');
+  const weakest=sorted.slice(-3).map(([c,v])=>`${c} ${v.toFixed(0)}`).join(' · ');
+
+  // Signals — compact single line per pair
+  let sigLines='';
+  if(all.length===0){sigLines='No signals.';}
   else{
-    const bullPairs=kept.filter(x=>x.dir==="bull");const bearPairs=kept.filter(x=>x.dir==="bear");
-    if(bullPairs.length)signalText+="BUY: "+bullPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", score:"+x.score+", ADX:"+x.adx.toFixed(0)+")").join(", ")+".";
-    if(bearPairs.length){if(signalText)signalText+="\n";signalText+="SELL: "+bearPairs.map(x=>x.pair.replace("/","")+" ("+x.label+", score:"+x.score+", ADX:"+x.adx.toFixed(0)+")").join(", ")+".";}
-    if(dropped.length)signalText+="\n\nCorrelation filter removed: "+dropped.map(x=>x.pair.replace("/","")+" (corr with "+x.droppedBy.replace("/","")+" +"+x.corrVal+")").join(", ")+".";}
-  const extPairs=PAIRS.filter(p=>D.h4&&D.h4[p]&&D.h4[p].extended&&D.h4[p].extended.extended);
-  const extText=extPairs.length?"Extended: "+extPairs.map(p=>p.replace("/","")).join(", ")+" — price stretched, reduced conviction.":"All active signals fresh — no extension warnings.";
-  const adxVals=PAIRS.map(p=>D.h4&&D.h4[p]&&D.h4[p].raw?D.h4[p].raw.adx:null).filter(Boolean);
-  const avgAdx=adxVals.length?adxVals.reduce((a,b)=>a+b,0)/adxVals.length:0;
-  const adxText=avgAdx>25?"Avg ADX "+avgAdx.toFixed(0)+" — trending market, signals carry weight.":avgAdx>20?"Avg ADX "+avgAdx.toFixed(0)+" — borderline trend, use caution.":"Avg ADX "+avgAdx.toFixed(0)+" — low trend participation.";
-  let convText='';
+    kept.forEach(x=>{
+      const dir=x.dir==='bull'?'▲':'▼';
+      const ext=x.ext?' ⚠':'';
+      sigLines+=`${dir} ${x.pair.replace('/','')}: ${x.label} (${x.score>0?'+':''}${x.score})${ext}\n`;
+    });
+    if(dropped.length)sigLines+=`Filtered: ${dropped.map(x=>x.pair.replace('/','')+'↔'+x.droppedBy.replace('/','') ).join(', ')}\n`;
+  }
+
+  // Conviction — one line, only notable values
   const convCurr=D.conviction&&D.conviction.currencies;
+  let convLine='';
   if(convCurr){
-    const convSorted=Object.entries(convCurr).map(([c,d])=>({c,v:d.conviction})).sort((a,b)=>b.v-a.v);
-    const cotDate=D.conviction.cot_date&&D.conviction.cot_date!=='unknown'?` (COT: ${D.conviction.cot_date})`:'';
-    convText='\nConviction'+cotDate+':';
-    convSorted.forEach(({c,v})=>{convText+='\n  '+c+': '+(v>0?'+':'')+v;});
+    const notable=Object.entries(convCurr).map(([c,d])=>({c,v:d.conviction})).filter(x=>Math.abs(x.v)>=20).sort((a,b)=>Math.abs(b.v)-Math.abs(a.v));
+    if(notable.length)convLine='Conv: '+notable.map(x=>`${x.c}${x.v>0?'+':''}${x.v}`).join(' · ');
   }
-  let ratesText='';
+
+  // Rate diff — key pair only
+  let rateLines='';
   if(D.rates){
-    const _rmap=getRatesMap();
-    const keyPairs=[['USD','JPY'],['EUR','USD'],['GBP','USD'],['CAD','JPY'],['AUD','USD']];
-    const rateLines=keyPairs.map(([b,q])=>{const br=_rmap[b],qr=_rmap[q];if(!br||!qr)return null;const bps=Math.round((br.rate-qr.rate)*100);return b+q+': '+(bps>0?'+':'')+bps+'bps ('+br.bank+' '+br.rate+'% vs '+qr.bank+' '+qr.rate+'%)';}).filter(Boolean);
-    if(rateLines.length)ratesText='\nRate differentials:\n'+rateLines.join('\n');
+    const _rm=getRatesMap();
+    const keyPairs=[['USD','JPY'],['EUR','USD'],['GBP','USD']];
+    rateLines=keyPairs.map(([b,q])=>{const br=_rm[b],qr=_rm[q];if(!br||!qr)return null;const bps=Math.round((br.rate-qr.rate)*100);return `${b}${q} ${bps>0?'+':''}${bps}bps`;}).filter(Boolean).join(' · ');
   }
-  return["Regime: "+r+"  "+(regime.confidence||'')+(regime.data_source?" ["+regime.data_source+"]":""),"",usdText+" "+shText,dispText,"","Strongest: "+strongest+" · Weakest: "+weakest,"",signalText,"",extText,adxText,convText,ratesText,"","Note: correlation based on last "+(D.corr&&D.corr.lookback?D.corr.lookback:50)+" bars."].join("\n");
+
+  const lines=[
+    `${r} · ${(regime.confidence||'').toUpperCase()} · USD ${parseFloat(s.usd_proxy||0)>0?'▲':'▼'} · SH ${parseFloat(s.sh_divergence||0)>0?'▲':'▼'}`,
+    `▲ ${strongest}`,
+    `▼ ${weakest}`,
+    '',
+    sigLines.trim(),
+    convLine,
+    rateLines,
+  ].filter(l=>l!==null&&l!==undefined);
+  return lines.join('\n');
 }
 function copyBriefPrompt(){const{h1,h4,d1,csm,regime}=D;const{kept,dropped}=buildRankedShortlist();let t="MARKET BRIEF - "+new Date().toLocaleString()+"\n\n";if(csm&&csm.rankings){t+="CURRENCY STRENGTH:\n";Object.entries(csm.rankings).forEach(([c,v])=>{t+=c+" "+v.toFixed(0)+"  ";});t+="\n\n";}t+="TECHNICAL SCORES:\n";PAIRS.forEach(p=>{const h1d=h1&&h1[p],h4d=h4&&h4[p],d1d=d1&&d1[p];const h1l=h1d?h1d.label:"N/A",h4l=h4d?h4d.label:"N/A",d1l=d1d?d1d.label:"N/A";const sc=h4d?h4d.score:0;if(h1l==="Neutral"&&h4l==="Neutral"&&d1l==="Neutral")return;t+=p.replace("/","")+" D1:"+d1l+" H4:"+h4l+" H1:"+h1l+" [score:"+sc+"]\n";});t+="\n";if(regime&&regime.regime){t+="REGIME: "+regime.regime+" ("+regime.confidence+")\n";}if(kept.length){t+="SHORTLIST: "+kept.map(x=>x.pair.replace("/","")).join(", ")+"\n\n";}t+="You are a macro FX strategist with web search access. Search: VIX, DXY, SPX, US10Y.\nOutput: Regime | Key driver | Pair bias per pair | One caution. Max 100 words.";navigator.clipboard.writeText(t).then(()=>{});}
 function copyChartPrompt(pair){if(!pair)pair=selectedPair;const h1d=D.h1&&D.h1[pair];const h4d=D.h4&&D.h4[pair];const d1d=D.d1&&D.d1[pair];const adxV=h4d&&h4d.raw?h4d.raw.adx:null;const atrOk=h4d?h4d.filter_ok!==false:null;const ext=!!(h4d&&h4d.extended&&h4d.extended.extended);const reg=(D.regime&&D.regime.regime)||'Unknown';const convPairs=(D.conviction&&D.conviction.pairs)||{};const convScore=convPairs[pair];const rdPair=computeRateDiff(pair);const rdStr=rdPair?`Rate diff: ${rdPair.diff>0?'+':''}${rdPair.diff}bps\n`:'';const prompt=`You are an institutional FX trader with web search access.\nPair: ${pair.replace('/','')}\nD1: ${d1d?d1d.label:'N/A'} | H4: ${h4d?h4d.label:'N/A'} | H1: ${h1d?h1d.label:'N/A'}\n${convScore!==undefined?'Conviction: '+(convScore>0?'+':'')+convScore+'\n':''}${rdStr}ADX: ${adxV!==null?adxV.toFixed(1):'N/A'} | ATR: ${atrOk===null?'N/A':atrOk?'Normal':'Contracted'} | Extended: ${ext?'Yes':'No'}\nRegime: ${reg}\nTime: ${new Date().toLocaleString()}\n\nSearch VIX, DXY, and ${pair.split('/')[1]} macro context.\nOutput: Edge or Flaw / Verdict. Max 40 words.`;navigator.clipboard.writeText(prompt).then(()=>{});}
