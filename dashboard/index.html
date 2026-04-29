@@ -234,19 +234,19 @@ tr:last-child td{border-bottom:none;}
         <span class="ssp-score" id="ssp-h1-score"></span>
       </button>
     </div>
-    <!-- Indicator strip -->
+    <!-- Indicator strip: D1 Rgm | H4 Rgm | D1% | QAI -->
     <div id="ind-strip">
-      <div class="ic" onclick="openRegimeSheet()">
-        <span class="ic-val" id="ic-regime-val">—</span>
-        <span class="ic-lbl">Regime</span>
+      <div class="ic" id="ic-d1-reg" onclick="openRegimeSheet()">
+        <span class="ic-val" id="ic-d1reg-val">—</span>
+        <span class="ic-lbl">D1 Rgm</span>
+      </div>
+      <div class="ic" id="ic-h4-reg" onclick="openRegimeSheet()">
+        <span class="ic-val" id="ic-h4reg-val">—</span>
+        <span class="ic-lbl">H4 Rgm</span>
       </div>
       <div class="ic" id="ic-d1pct">
         <span class="ic-val" id="ic-d1pct-val">—</span>
         <span class="ic-lbl">D1 %</span>
-      </div>
-      <div class="ic" id="ic-d5pct">
-        <span class="ic-val" id="ic-d5pct-val">—</span>
-        <span class="ic-lbl">D5 %</span>
       </div>
       <div class="ic" onclick="openQAISheet()">
         <span class="ic-val" id="ic-qai-val">—</span>
@@ -640,21 +640,47 @@ function renderSignalStrip(pair){
     document.getElementById('ssp-'+tf+'-score').textContent=scoreStr;
   });
 }
+function regAbbr(r){return r==='Risk-On'?'R-On':r==='Risk-Off'?'R-Off':r==='Ranging'?'Rang':r==='Mixed'?'Mix':'—';}
 function renderIndStrip(pair){
-  const reg=D.regime&&D.regime.regime?D.regime.regime:'—';
-  const RC_=RC[reg]||RC['Mixed'];
-  const regAbbr=reg==='Risk-On'?'R-On':reg==='Risk-Off'?'R-Off':reg==='Ranging'?'Rang':'Mix';
-  const rv=document.getElementById('ic-regime-val');rv.textContent=regAbbr;rv.style.color=RC_?RC_.c:'var(--muted)';
+  // ── D1 regime ────────────────────────────────────────────────────────────
+  const d1reg=D.regime&&D.regime.regime?D.regime.regime:'—';
+  const d1RC=RC[d1reg]||RC['Mixed'];
+  const d1RegEl=document.getElementById('ic-d1reg-val');
+  if(d1RegEl){d1RegEl.textContent=regAbbr(d1reg);d1RegEl.style.color=d1RC?d1RC.c:'var(--muted)';}
+
+  // ── H4 regime ────────────────────────────────────────────────────────────
+  const h4regData=D.regime&&D.regime.h4;
+  const h4reg=h4regData&&h4regData.regime?h4regData.regime:'—';
+  const h4RC=RC[h4reg]||RC['Mixed'];
+  const h4RegEl=document.getElementById('ic-h4reg-val');
+  if(h4RegEl){h4RegEl.textContent=regAbbr(h4reg);h4RegEl.style.color=h4RC?h4RC.c:'var(--muted)';}
+
+  // ── Divergence highlight ──────────────────────────────────────────────────
+  const diverging=d1reg!=='—'&&h4reg!=='—'&&d1reg!==h4reg;
+  ['ic-d1-reg','ic-h4-reg'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    if(diverging){
+      el.style.outline='1px solid var(--amber)';
+      el.title='⚡ D1/H4 regime divergence — transition in progress';
+    } else {
+      el.style.outline='none';el.title='';
+    }
+  });
+
+  // ── D1 % change ──────────────────────────────────────────────────────────
   const h1d=D.h1&&D.h1[pair];
   const nowClose=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
   const d1Ohlcv=D.d1&&D.d1._ohlcv&&D.d1._ohlcv[pair];
-  let d1Pct=null,d5Pct=null;
+  let d1Pct=null;
   if(nowClose&&d1Ohlcv&&d1Ohlcv.length>=2){const prev=d1Ohlcv[d1Ohlcv.length-2].close;if(prev)d1Pct=(nowClose-prev)/prev*100;}
-  if(nowClose&&d1Ohlcv&&d1Ohlcv.length>=6){const prev5=d1Ohlcv[d1Ohlcv.length-6].close;if(prev5)d5Pct=(nowClose-prev5)/prev5*100;}
-  const d1v=document.getElementById('ic-d1pct-val');d1v.textContent=fmt2(d1Pct);d1v.style.color=d1Pct===null?'var(--muted)':d1Pct>=0?'var(--buy)':'var(--sell)';
-  const d5v=document.getElementById('ic-d5pct-val');d5v.textContent=fmt2(d5Pct);d5v.style.color=d5Pct===null?'var(--muted)':d5Pct>=0?'var(--buy)':'var(--sell)';
+  const d1v=document.getElementById('ic-d1pct-val');
+  if(d1v){d1v.textContent=fmt2(d1Pct);d1v.style.color=d1Pct===null?'var(--muted)':d1Pct>=0?'var(--buy)':'var(--sell)';}
+
+  // ── QAI ──────────────────────────────────────────────────────────────────
   const qai=computeQAI(pair);
-  const qv=document.getElementById('ic-qai-val');qv.textContent=qai.score>0?qai.score+'%':'—';qv.style.color=qai.col;
+  const qv=document.getElementById('ic-qai-val');
+  if(qv){qv.textContent=qai.score>0?qai.score+'%':'—';qv.style.color=qai.col;}
 }
 function highlightCSM(pair){
   const[base,quote]=pair.split('/');
@@ -854,7 +880,10 @@ function buildPairSheetContent(pair){
   h+=row('ATR %ile',atrPct===null?'—':atrPct+(atrPct>=70?' Hi':atrPct<=30?' Lo':' Mid'),atrPct===null?'var(--muted)':atrPct>=70?'var(--sell)':atrPct<=30?'var(--buy)':'var(--muted)');
   h+=row('Reset',resetRaw===null?'—':resetRaw+(resetRaw<=20?' Coiled':resetRaw<=35?' Settling':''),resetRaw===null?'var(--muted)':resetRaw<=20?'var(--buy)':resetRaw<=35?'var(--amber)':'var(--muted)');
   h+=hdr('Fundamental');
-  h+=row('Regime',regime,regime==='Risk-On'?'var(--buy)':regime==='Risk-Off'?'var(--sell)':'var(--amber)');
+  const h4regStr=D.regime&&D.regime.h4&&D.regime.h4.regime?D.regime.h4.regime:null;
+  const regDisp=h4regStr&&h4regStr!==regime?`${regime} → ${h4regStr}`:regime;
+  const regDiverging=h4regStr&&h4regStr!==regime;
+  h+=row('Regime',regDisp,regDiverging?'var(--amber)':regime==='Risk-On'?'var(--buy)':regime==='Risk-Off'?'var(--sell)':'var(--amber)');
   h+=row('Rate Diff',rdVal,rd?(rd.diff>0?'var(--buy)':rd.diff<0?'var(--sell)':'var(--muted)'):'var(--muted)');
   h+=hdr('Sentiment');
   h+=row('Conviction',conv!==undefined&&conv!==null?(conv>0?'+':'')+conv:'—',convCol);
@@ -909,10 +938,52 @@ function buildLiveContent(){
 // ══ REGIME SHEET
 function openRegimeSheet(){
   const r=D.regime;if(!r||!r.regime)return;
-  const c=RC[r.regime]||RC['Mixed'];const s=r.signals||{};
-  const rows=[["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],["Risk basket",s.risk_basket],["Gold",s.gold_direction||"—"],["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],["Dispersion",s.dispersion],["Data source",r.data_source||"D1"],["Vol ratio",r.vol_ratio]];
-  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl" style="color:${c.c};">${r.regime}</span><span class="sh-kpi-val" style="color:${c.c};font-size:var(--md);">${(r.confidence||'').toUpperCase()}</span></div>`;
-  h+=rows.map(row=>{if(!row)return'';const[k,v]=row;const vStr=v!==null&&v!==undefined?String(v):'—';const n=parseFloat(vStr);const col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
+  const c=RC[r.regime]||RC['Mixed'];
+  const s=r.signals||{};
+  const h4r=r.h4;
+  const diverging=h4r&&h4r.regime&&h4r.regime!==r.regime;
+
+  // ── KPI: D1 regime left, H4 regime right ─────────────────────────────────
+  let h=`<div class="sh-kpi">
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <span style="font-size:var(--lg);font-weight:700;color:${c.c};">${r.regime}</span>
+      <span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">D1 · ${(r.confidence||'').toUpperCase()}</span>
+    </div>`;
+
+  if(h4r&&h4r.regime){
+    const h4c=RC[h4r.regime]||RC['Mixed'];
+    h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+      <span style="font-size:var(--lg);font-weight:700;color:${h4c.c};">${h4r.regime}</span>
+      <span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">H4 · ${(h4r.confidence||'').toUpperCase()}</span>
+    </div>`;
+  } else {
+    h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+      <span style="font-size:var(--sm);color:var(--muted);">H4 pending</span>
+    </div>`;
+  }
+  h+=`</div>`;
+
+  // ── Divergence warning ────────────────────────────────────────────────────
+  if(diverging){
+    h+=`<div style="display:flex;align-items:center;gap:6px;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);">
+      <span style="font-size:var(--sm);font-weight:700;color:var(--amber);">⚡ Regime Divergence</span>
+      <span style="font-size:var(--xs);color:var(--muted);flex:1;">H4 leading — D1 transition in progress</span>
+    </div>`;
+  }
+
+  // ── D1 signals detail ─────────────────────────────────────────────────────
+  h+=`<div class="sh-hdr">D1 Signals</div>`;
+  const rows=[["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],["Risk basket",s.risk_basket],["Gold",s.gold_direction||"—"],["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],["Dispersion",s.dispersion],["Vol ratio",r.vol_ratio]];
+  h+=rows.map(row=>{if(!row)return'';const[k,v]=row;if(v===null||v===undefined)return'';const vStr=String(v);const n=parseFloat(vStr);const col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
+
+  // ── H4 signals detail ─────────────────────────────────────────────────────
+  if(h4r&&h4r.signals){
+    h+=`<div class="sh-hdr">H4 Signals</div>`;
+    const h4s=h4r.signals;
+    const h4rows=[["Safe-haven div",h4s.sh_divergence],["USD proxy",h4s.usd_proxy],["Risk basket",h4s.risk_basket],["Dispersion",h4s.dispersion]];
+    h+=h4rows.map(row=>{if(!row)return'';const[k,v]=row;if(v===null||v===undefined)return'';const vStr=String(v);const n=parseFloat(vStr);const col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
+  }
+
   openSheet('Regime',h);
 }
 function renderRegime(r){
