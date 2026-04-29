@@ -326,6 +326,61 @@ RULES:
     print(f"  [Claude narrative] {wc} words")
     return narrative
 
+def call_edge_scores(macro, themes_data, tech_text, corr_text):
+    """Score all 12 pairs 1-10 on cross-source coherence (Edge score)."""
+    # Build compact summary of inputs
+    macro_lines = []
+    for key, _, label, invert in STOOQ_INSTRUMENTS:
+        d = macro.get(key)
+        if not d:
+            continue
+        chg = d["change_pct"]
+        arr = "▲" if chg > 0 else "▼" if chg < 0 else "→"
+        macro_lines.append(f"{label}: {d['value']:.4g} ({arr}{abs(chg):.2f}%)")
+    macro_text = "\n".join(macro_lines) or "No macro data"
+
+    themes = themes_data.get("themes", [])
+    themes_text = f"USD bias: {themes_data.get('usd_bias','?')} | Risk: {themes_data.get('risk_sentiment','?')}\n"
+    themes_text += "\n".join(f"- {t['theme']} [{t['direction'].upper()}]" for t in themes[:6])
+
+    prompt = f"""You are a professional FX analyst. Score each currency pair 1-10 on EDGE — how coherently all four data sources (correlation, technicals, macro, news) agree on a tradeable direction for that pair right now.
+
+Scoring guide:
+10 = All four sources fully aligned, clear direction, no contradictions
+7-9 = Three sources agree, one mild conflict
+4-6 = Mixed signals, sources partially agree
+1-3 = Contradictory sources, no clear edge
+
+DATA:
+CORRELATIONS: {corr_text[:800]}
+TECHNICALS: {tech_text}
+MACRO: {macro_text}
+NEWS: {themes_text}
+
+Score ALL 12 pairs. Respond ONLY with valid JSON, no markdown, no explanation:
+{{"EURUSD":7,"GBPUSD":5,"USDJPY":9,"USDCHF":6,"AUDUSD":4,"USDCAD":5,"NZDUSD":8,"EURJPY":6,"GBPJPY":5,"AUDJPY":4,"NZDJPY":7,"CADJPY":5}}
+
+Replace the example numbers with your actual scores. Return only the JSON object."""
+
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    resp = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=200,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = resp.content[0].text.strip()
+    scores = json.loads(_strip_json(raw))
+    # Validate — ensure all 12 pairs present, clamp 1-10
+    for pair in PAIRS:
+        key = pair.replace("/", "")
+        if key not in scores:
+            scores[key] = 5
+        else:
+            scores[key] = max(1, min(10, int(scores[key])))
+    print(f"  [Claude edge] scores: {scores}")
+    return scores
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     print(f"=== News Brief — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC ===")
@@ -349,10 +404,11 @@ def main():
 
     # 4. Default stub
     result = {
-        "status":   "unavailable",
-        "updated":  datetime.now(timezone.utc).isoformat(),
-        "macro":    macro,
+        "status":    "unavailable",
+        "updated":   datetime.now(timezone.utc).isoformat(),
+        "macro":     macro,
         "narrative": "",
+        "edge_scores": {},
     }
 
     can_call = (
@@ -373,15 +429,22 @@ def main():
             result.update(themes_data)
             result["status"] = "ok"
             result["macro"]  = macro   # restore after update()
+            result["edge_scores"] = {}  # restore after update()
         except Exception as e:
             print(f"  Claude themes error: {e}")
 
-        # Narrative call (only if themes succeeded)
         if result["status"] == "ok":
+            # Narrative call
             try:
                 result["narrative"] = call_narrative(macro, result, tech_text, corr_text)
             except Exception as e:
                 print(f"  Claude narrative error: {e}")
+
+            # Edge scores call — all 12 pairs
+            try:
+                result["edge_scores"] = call_edge_scores(macro, result, tech_text, corr_text)
+            except Exception as e:
+                print(f"  Claude edge error: {e}")
     else:
         print("  Skipping Claude calls (no headlines or no API key)")
 
