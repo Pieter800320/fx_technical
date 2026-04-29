@@ -20,6 +20,7 @@ from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, is_extended
 from scanner.correlate import compute_correlation
 from scanner.cooldown import is_on_cooldown, record_alert
+from scanner.regime import classify_regime
 from alerts.news import get_alert_context
 from alerts.log import log_alert
 
@@ -252,6 +253,27 @@ def main():
         json.dump(h4_output, f, indent=2)
     print(f"\n  Saved: {H4_OUTPUT}")
     print(f"  Saved: {CORR_OUTPUT}")
+
+    # ── H4 Regime ─────────────────────────────────────────────────────────────
+    print("\n  Computing H4 market regime...")
+    try:
+        csm_data   = load_scores(os.path.join(DATA_DIR, "csm.json"))
+        h4_regime  = classify_regime(csm_data, h4_results)
+        # Patch only the h4 key — preserve the D1 regime written by scan_d1.py
+        existing   = load_scores(REGIME_FILE)
+        existing["h4"] = {
+            "regime":     h4_regime["regime"],
+            "confidence": h4_regime["confidence"],
+            "signals":    h4_regime["signals"],
+            "updated":    now.isoformat(),
+        }
+        with open(REGIME_FILE, "w") as f:
+            json.dump(existing, f, indent=2)
+        print(f"  H4 Regime: {h4_regime['regime']} ({h4_regime['confidence']})")
+        print(f"  Saved: {REGIME_FILE} (h4 key updated)")
+    except Exception as e:
+        print(f"  [H4 Regime] ERROR: {e}")
+
     print("=== H4 Scan complete ===\n")
 
 

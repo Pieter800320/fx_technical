@@ -153,14 +153,19 @@ def main():
         }, f, indent=2)
 
     # vol_ratio removed from output (regime.py no longer computes it)
+    # Preserve h4 key written by scan_h4.py so D1 write does not clobber it.
+    existing_regime = load_json(REGIME_OUTPUT)
+    regime_doc = {
+        "regime":      regime_result["regime"],
+        "confidence":  regime_result["confidence"],
+        "data_source": regime_result["data_source"],
+        "signals":     regime_result["signals"],
+        "updated":     now.isoformat(),
+    }
+    if "h4" in existing_regime:
+        regime_doc["h4"] = existing_regime["h4"]
     with open(REGIME_OUTPUT, "w") as f:
-        json.dump({
-            "regime":      regime_result["regime"],
-            "confidence":  regime_result["confidence"],
-            "data_source": regime_result["data_source"],
-            "signals":     regime_result["signals"],
-            "updated":     now.isoformat(),
-        }, f, indent=2)
+        json.dump(regime_doc, f, indent=2)
 
     print(f"\n  Saved: {D1_OUTPUT}")
     print(f"  Saved: {CSM_OUTPUT}")
