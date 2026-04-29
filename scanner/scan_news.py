@@ -145,7 +145,7 @@ def load_tech():
                 return json.load(f)
         except Exception:
             return {}
-    return lj("h4_scores.json"), lj("d1_scores.json"), lj("csm.json"), lj("regime.json")
+    return lj("h4_scores.json"), lj("d1_scores.json"), lj("csm.json"), lj("regime.json"), lj("correlation.json")
 
 def build_tech_text(h4, d1, csm, regime):
     lines = []
@@ -209,9 +209,28 @@ def call_themes(headlines_text, n):
     print(f"  [Claude themes] preview: {raw[:100]}")
     return json.loads(_strip_json(raw))
 
-def call_narrative(macro, themes_data, tech_text):
-    """Generate 150-word integrated FX narrative."""
-    # Macro text
+def build_corr_text(corr):
+    """Format correlation matrix into readable leading-pair analysis."""
+    if not corr or not corr.get("pairs") or not corr.get("matrix"):
+        return "No correlation data available."
+    pairs  = corr["pairs"]
+    matrix = corr["matrix"]
+    lines  = []
+    # Find strongest positive and negative correlations for each pair
+    for i, p in enumerate(pairs):
+        row = matrix[i]
+        ranked = sorted(
+            [(pairs[j], row[j]) for j in range(len(pairs)) if j != i and row[j] is not None],
+            key=lambda x: abs(x[1]), reverse=True
+        )[:3]
+        corrs = ", ".join(f"{q}({v:+.2f})" for q, v in ranked)
+        lines.append(f"{p}: {corrs}")
+    return "\n".join(lines)
+
+def call_narrative(macro, themes_data, tech_text, corr_text):
+    """Generate structured five-section FX market narrative with conviction scores."""
+
+    # ── Macro text ──────────────────────────────────────────────────────────
     macro_lines = []
     for key, _, label, invert in STOOQ_INSTRUMENTS:
         d = macro.get(key)
@@ -219,38 +238,74 @@ def call_narrative(macro, themes_data, tech_text):
             continue
         chg = d["change_pct"]
         arr = "▲" if chg > 0 else "▼" if chg < 0 else "→"
-        macro_lines.append(f"{label}: {d['value']:.4g} ({arr}{abs(chg):.2f}%)")
+        risk_tag = " [RISK-OFF signal]" if (invert and chg > 0) or (not invert and key in ("vix",) and chg > 0) else ""
+        macro_lines.append(f"{label}: {d['value']:.4g} ({arr}{abs(chg):.2f}%){risk_tag}")
     macro_text = "\n".join(macro_lines) or "No macro data"
 
-    # Themes text
+    # ── News themes text ────────────────────────────────────────────────────
     themes = themes_data.get("themes", [])
-    t_lines = [f"- {t['theme']} [{t['direction'].upper()}]" for t in themes]
+    t_lines = [f"- {t['theme']} [{t['direction'].upper()}] ({t.get('confidence','?')})" for t in themes[:6]]
     themes_text = (
         f"USD bias: {themes_data.get('usd_bias','?')} | "
-        f"Risk: {themes_data.get('risk_sentiment','?')}\n"
+        f"Risk sentiment: {themes_data.get('risk_sentiment','?')}\n"
         + "\n".join(t_lines)
     )
 
-    prompt = (
-        "You are a senior FX strategist writing a pre-session market brief. "
-        "Write a 150-word narrative integrating ALL THREE data sources below.\n\n"
-        f"MACRO READINGS:\n{macro_text}\n\n"
-        f"NEWS THEMES:\n{themes_text}\n\n"
-        f"TECHNICAL PICTURE:\n{tech_text}\n\n"
-        "Rules:\n"
-        "- Reference specific instruments and FX pairs by name\n"
-        "- Highlight where macro + news + technical converge\n"
-        "- Explicitly flag any contradictions between the three sources\n"
-        "- End with one actionable watch point for today's session\n"
-        "- Flowing prose only — no bullet points, no section headers\n"
-        "- Target 140-160 words\n\n"
-        "Write the narrative directly, no preamble:"
+    # ── System + user prompt ────────────────────────────────────────────────
+    system = (
+        "You are a professional macro FX trader. "
+        "Your task is to synthesize multi-source market data into a clear, internally consistent narrative. "
+        "You must resolve contradictions by prioritizing correlation and price behavior over narrative. "
+        "Do not summarize inputs. Infer the dominant drivers and produce a coherent, decisive interpretation."
     )
+
+    user = f"""DATA:
+
+1) CORRELATIONS (H4, 50-bar):
+{corr_text}
+
+2) TECHNICALS (regime, CSM strength, signals, ADX):
+{tech_text}
+
+3) CROSS-ASSET MACRO:
+{macro_text}
+
+4) NEWS / FUNDAMENTALS:
+{themes_text}
+
+TASK: Produce a structured FX market narrative in EXACTLY this format. No deviations.
+
+DOMINANT DRIVERS
+[Rank the top 3 drivers by strength. One line each. Format: "1. [Driver] — [why it's dominant]"]
+
+PRICE CONFIRMS
+[What correlation data + price action confirms or rejects the narrative. 2-3 sentences. Be specific about which pairs are leading/lagging.]
+
+REGIME
+[One line: Risk-On / Risk-Off / Mixed — confirmed or conflicted. Reference VIX, Gold, S&P500 specifically.]
+
+CONTRADICTIONS
+[Identify max 2 genuine conflicts between sources. If none, say "None identified." Format: "1. [Pair/theme]: [conflict explained in one line]"]
+
+TRADE IMPLICATIONS
+Best: [Pair] [▲/▼] — [reason, max 15 words] — Conviction [X]/10
+Secondary: [Pair] [▲/▼] — [reason, max 15 words] — Conviction [X]/10
+Avoid: [Pair] — [reason, max 10 words]
+Watch: [One trigger that confirms or invalidates the primary trade]
+
+RULES:
+- Correlation overrides fundamentals if they conflict
+- Conviction score: 10 = all four sources aligned, 1 = all sources conflicted
+- No generic statements ("markets are uncertain", "traders should be cautious")
+- No hedging language
+- Be decisive"""
+
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resp = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=500,
-        messages=[{"role": "user", "content": prompt}],
+        max_tokens=700,
+        system=system,
+        messages=[{"role": "user", "content": user}],
     )
     narrative = resp.content[0].text.strip()
     wc = len(narrative.split())
@@ -274,8 +329,9 @@ def main():
     print(f"  Total headlines after dedup: {len(all_items)}")
 
     # 3. Technical data
-    h4, d1, csm, regime = load_tech()
+    h4, d1, csm, regime, corr = load_tech()
     tech_text = build_tech_text(h4, d1, csm, regime)
+    corr_text = build_corr_text(corr)
 
     # 4. Default stub
     result = {
@@ -309,7 +365,7 @@ def main():
         # Narrative call (only if themes succeeded)
         if result["status"] == "ok":
             try:
-                result["narrative"] = call_narrative(macro, result, tech_text)
+                result["narrative"] = call_narrative(macro, result, tech_text, corr_text)
             except Exception as e:
                 print(f"  Claude narrative error: {e}")
     else:
