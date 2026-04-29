@@ -56,10 +56,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #drum-scroll::-webkit-scrollbar{display:none;}
 .drum-row{height:37px;scroll-snap-align:center;display:flex;align-items:center;justify-content:center;padding:0 var(--pad);font-family:'VT323',monospace;font-size:19px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;gap:0;}
 .drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.4);}
-.d-pair{display:inline-block;width:62px;text-align:left;}
-.d-scores{display:inline-block;width:58px;text-align:left;font-size:19px;opacity:.7;}
-.d-qai{display:inline-block;width:40px;text-align:right;font-size:19px;opacity:.8;}
-.d-arr{display:inline-block;width:20px;text-align:center;font-size:14px;line-height:1;padding-left:5px;}
+.d-pair{display:inline-block;width:60px;text-align:left;}
+.d-scores{display:inline-block;width:54px;text-align:left;font-size:19px;opacity:.7;}
+.d-setup{display:inline-block;width:34px;text-align:right;font-size:16px;opacity:.8;}
+.d-edge{display:inline-block;width:18px;text-align:right;font-size:16px;opacity:.8;padding-left:3px;}
 #drum-fade-top{position:absolute;top:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
 #drum-fade-bot{position:absolute;bottom:0;left:0;right:0;height:70px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
 #drum-center-line{position:absolute;top:50%;left:0;right:0;height:37px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
@@ -250,7 +250,7 @@ tr:last-child td{border-bottom:none;}
       </div>
       <div class="ic" onclick="openQAISheet()">
         <span class="ic-val" id="ic-qai-val">—</span>
-        <span class="ic-lbl">QAI</span>
+        <span class="ic-lbl">Setup</span>
       </div>
     </div>
     <!-- Drawer grid 2×2 — all open as bottom sheets -->
@@ -595,7 +595,7 @@ function openQAISheet(){
   const pair=selectedPair;const qai=computeQAI(pair);
   const labels={d1:'D1 Signal',h4:'H4 Signal',h1:'H1 Signal',reset:'Reset Score',adx:'ADX',atr:'ATR %ile',csm:'CSM Divergence',conv:'Conviction',regime:'Regime',rate:'Rate Diff'};
   const wts={d1:20,h4:15,h1:8,reset:10,adx:4,atr:3,csm:16,conv:12,regime:8,rate:4};
-  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Quality Alignment</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Setup Alignment</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
   h+=Object.keys(labels).map(k=>{
     const v=qai.comps[k];const pct=v*10;
     const col=pct>=70?'var(--buy)':pct>=40?'var(--amber)':'var(--sell)';
@@ -607,7 +607,7 @@ function openQAISheet(){
     </div>`;
   }).join('');
   if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} regime</span></div>`;
-  openSheet('QAI',h,pair.replace('/',''));
+  openSheet('Setup',h,pair.replace('/',''));
 }
 
 // ══ RATE DIFF
@@ -871,7 +871,18 @@ function buildPairSheetContent(pair){
   const conv=convPairs[pair];
   const convCol=conv===null||conv===undefined?'var(--muted)':conv>=40?'var(--buy)':conv<=-20?'var(--sell)':conv>=20?'var(--amber)':'var(--muted)';
   const rdVal=rd?(rd.diff>0?'+':'')+rd.diff+'bps '+(rd.direction==='widening'?'↑':rd.direction==='narrowing'?'↓':'→'):'—';
-  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">${pair}</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
+  const edge=getEdgeScore(pair);
+  const edgeCol=edge===null?'var(--muted)':edge>=8?'var(--buy)':edge>=6?'var(--amber)':'var(--sell)';
+  let h=`<div class="sh-kpi">
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <span style="font-size:var(--lg);font-weight:700;color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span>
+      <span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Setup</span>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+      <span style="font-size:var(--lg);font-weight:700;color:${edgeCol};">${edge!==null?edge+'/10':'—'}</span>
+      <span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Edge</span>
+    </div>
+  </div>`;
   h+=hdr('Technical');
   h+=row('D1',d1d?d1d.label:'No data',scoreCol(d1d?d1d.label:''));
   h+=row('H4',h4d?h4d.label:'No data',scoreCol(h4d?h4d.label:''));
@@ -1049,25 +1060,37 @@ function renderCSM(csm,conviction){
 
 // ══ DRUM
 function getCorrVal(p1,p2){if(!D.corr||!D.corr.pairs||!D.corr.matrix)return null;const i=D.corr.pairs.indexOf(p1.replace('/',''));const j=D.corr.pairs.indexOf(p2.replace('/',''));if(i<0||j<0)return null;return D.corr.matrix[i][j];}
+function getEdgeScore(pair){
+  const es=D.newsBrief&&D.newsBrief.edge_scores;
+  if(!es)return null;
+  const key=pair.replace('/','');
+  return es[key]!==undefined?es[key]:null;
+}
 function buildDrumRows(){
-  // Rank all 12 pairs by H4 score strength descending — strongest signals at top of drum
+  // Rank all 12 pairs by combined Setup+Edge descending
   const ranked=PAIRS.map(pair=>{
     const h4d=D.h4&&D.h4[pair];
-    const score=h4d?Math.abs(h4d.score||0):0;
+    const setup=computeQAI(pair).score;
+    const edge=getEdgeScore(pair)||0;
+    const combined=setup*0.6+edge*4; // normalise edge (max 10) to ~same scale as setup (max 100)
     const adx=h4d&&h4d.raw?h4d.raw.adx||0:0;
-    return{pair,score,adx};
-  }).sort((a,b)=>b.score-a.score||b.adx-a.adx);
+    return{pair,combined,adx};
+  }).sort((a,b)=>b.combined-a.combined||b.adx-a.adx);
+
   return ranked.map(({pair})=>{
     const h4d=D.h4&&D.h4[pair];const d1d=D.d1&&D.d1[pair];const h1d=D.h1&&D.h1[pair];
     const d1=pillAbbr(d1d?d1d.label:'');const h4=pillAbbr(h4d?h4d.label:'');const h1=pillAbbr(h1d?h1d.label:'');
     const dir=h4d?h4d.direction:'neutral';
-    const qai=computeQAI(pair);
-    // Arrow only for meaningful signal labels — neutral pairs get blank space
+    const setup=computeQAI(pair);
+    const edge=getEdgeScore(pair);
     const sigLabels=['Buy','Sell','Strong Buy','Strong Sell'];
     const hasSignal=h4d&&sigLabels.includes(h4d.label||'');
     const arrChar=hasSignal?(dir==='bull'?'▲':dir==='bear'?'▼':''):'';
     const arrCol=dir==='bull'?'#3fb950':'#f85149';
-    return{pair,html:`<span class="d-pair">${pair.replace('/','')}</span><span class="d-scores">${d1} ${h4} ${h1}</span><span class="d-qai">${qai.score>0?qai.score+'%':'—'}</span><span class="d-arr" style="color:${arrCol};">${arrChar}</span>`};
+    // Edge colour: green ≥8, amber 6-7, red ≤5
+    const edgeCol=edge===null?'#8b949e':edge>=8?'#3fb950':edge>=6?'#e3b341':'#f85149';
+    const edgeStr=edge!==null?String(edge):'—';
+    return{pair,html:`<span class="d-pair">${pair.replace('/','')}</span><span class="d-scores">${d1} ${h4} ${h1}</span><span class="d-setup" style="opacity:.8;">${setup.score>0?setup.score+'%':'—'}</span><span class="d-edge" style="color:${edgeCol};">${edgeStr}</span><span style="display:inline-block;width:16px;text-align:center;font-size:14px;color:${arrCol};">${arrChar}</span>`};
   });
 }
 let drumRows=[];
