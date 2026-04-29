@@ -59,30 +59,35 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Forex1212/1.0)"}
 
 # ── Stooq ─────────────────────────────────────────────────────────────────────
 def fetch_stooq(symbol):
-    """Return {value, change, change_pct} for last daily bar, or None."""
-    url = f"https://stooq.com/q/d/l/?s={symbol}&i=d"
+    """Fetch last close + day change via Yahoo Finance unofficial API."""
+    yf_map = {
+        "^vix":   "^VIX",
+        "^tnx":   "^TNX",
+        "cl.f":   "CL=F",
+        "xauusd": "GC=F",
+        "^spx":   "^GSPC",
+        "btcusd": "BTC-USD",
+        "hg.f":   "HG=F",
+    }
+    yf_symbol = yf_map.get(symbol.lower(), symbol)
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_symbol}?interval=1d&range=5d"
     try:
-        req = urllib.request.Request(url, headers=HEADERS)
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0",
+            "Accept": "application/json",
+        })
         with urllib.request.urlopen(req, timeout=12) as resp:
-            raw = resp.read().decode("utf-8", errors="ignore")
-        lines = [
-            l.strip() for l in raw.strip().split("\n")
-            if l.strip() and not l.lower().startswith("date")
-        ]
-        if len(lines) < 2:
+            data = json.loads(resp.read().decode())
+        closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+        closes = [c for c in closes if c is not None]
+        if len(closes) < 2:
             return None
-        def close(line):
-            parts = line.split(",")
-            return float(parts[4]) if len(parts) >= 5 else None
-        prev = close(lines[-2])
-        curr = close(lines[-1])
-        if prev is None or curr is None or prev == 0:
-            return None
+        prev, curr = closes[-2], closes[-1]
         change     = round(curr - prev, 6)
         change_pct = round((change / prev) * 100, 2)
         return {"value": curr, "change": change, "change_pct": change_pct}
     except Exception as e:
-        print(f"    [Stooq] {symbol}: {e}")
+        print(f"    [Yahoo] {symbol}: {e}")
         return None
 
 def fetch_all_macro():
