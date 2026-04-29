@@ -734,14 +734,12 @@ function buildNewsSheetContent(){
   // ── Macro grid (always shown if data present) ─────────────────────────
   h+=buildMacroGrid(nb&&nb.macro||{});
 
-  // ── Narrative (interpretation first) ─────────────────────────────────
+  // ── Narrative — structured five-section renderer ─────────────────────
   if(nb&&nb.narrative){
-    h+=`<div class="sh-hdr">Market Narrative · ${updStr} · ${headline_count} headlines</div>`;
-    h+=`<div style="padding:10px var(--pad);background:var(--surface2);border-bottom:1px solid var(--border2);">
-      <div style="font-size:var(--sm);line-height:1.85;color:var(--text);">${nb.narrative}</div>
-    </div>`;
+    h+=`<div class="sh-hdr">Market Analysis · ${updStr} · ${headline_count} headlines</div>`;
+    h+=renderStructuredNarrative(nb.narrative);
   } else if(!nb||nb.status==='unavailable'){
-    h+=`<div class="sh-hdr">Market Narrative</div>`;
+    h+=`<div class="sh-hdr">Market Analysis</div>`;
     h+=`<div style="padding:10px var(--pad);font-size:var(--sm);color:var(--muted);border-bottom:1px solid var(--border2);">Not available yet — runs 4× daily at 06/10/14/18 UTC.</div>`;
   }
 
@@ -767,6 +765,67 @@ function buildNewsSheetContent(){
   const brief=generateBrief();
   h+=`<div style="padding:8px var(--pad) 10px;font-size:var(--sm);line-height:1.9;white-space:pre-wrap;">${brief||'No data.'}</div>`;
   h+=`<div style="padding:8px var(--pad) 12px;"><button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button></div>`;
+  return h;
+}
+
+function renderStructuredNarrative(text){
+  if(!text)return'';
+  // Section headers the AI will output
+  const sections=['DOMINANT DRIVERS','PRICE CONFIRMS','REGIME','CONTRADICTIONS','TRADE IMPLICATIONS'];
+  const sectionCols={
+    'DOMINANT DRIVERS':'var(--text)',
+    'PRICE CONFIRMS':'var(--accent)',
+    'REGIME':'var(--amber)',
+    'CONTRADICTIONS':'var(--sell)',
+    'TRADE IMPLICATIONS':'var(--buy)',
+  };
+  // Split text into section blocks
+  let remaining=text;
+  const blocks=[];
+  for(let i=0;i<sections.length;i++){
+    const hdr=sections[i];
+    const nextHdr=sections[i+1];
+    const start=remaining.indexOf(hdr);
+    if(start===-1)continue;
+    const end=nextHdr?remaining.indexOf(nextHdr,start+hdr.length):remaining.length;
+    const content=remaining.slice(start+hdr.length,end!==-1?end:undefined).trim();
+    blocks.push({hdr,content,col:sectionCols[hdr]||'var(--text)'});
+  }
+  // If no sections parsed (old format), fall back to plain text
+  if(!blocks.length){
+    return`<div style="padding:10px var(--pad);background:var(--surface2);border-bottom:1px solid var(--border2);font-size:var(--sm);line-height:1.85;">${text}</div>`;
+  }
+  let h='';
+  blocks.forEach(({hdr,content,col})=>{
+    h+=`<div style="border-bottom:1px solid var(--border2);">`;
+    h+=`<div style="padding:5px var(--pad) 3px;background:var(--surface2);font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${col};">${hdr}</div>`;
+    // Trade implications: parse Best/Secondary/Avoid/Watch as individual rows
+    if(hdr==='TRADE IMPLICATIONS'){
+      const tradeLines=content.split('\n').filter(l=>l.trim());
+      tradeLines.forEach(line=>{
+        const trimmed=line.trim();
+        const isBest=trimmed.startsWith('Best:');
+        const isSec=trimmed.startsWith('Secondary:');
+        const isAvoid=trimmed.startsWith('Avoid:');
+        const isWatch=trimmed.startsWith('Watch:');
+        // Color the row label
+        const labelCol=isBest?'var(--buy)':isSec?'rgba(63,185,80,.7)':isAvoid?'var(--sell)':isWatch?'var(--amber)':'var(--muted)';
+        // Extract conviction score if present
+        const convMatch=trimmed.match(/Conviction\s*(\d+)\/10/i);
+        const convScore=convMatch?parseInt(convMatch[1]):null;
+        const convCol=convScore>=8?'var(--buy)':convScore>=6?'var(--amber)':'var(--sell)';
+        // Strip "Conviction X/10" from displayed text
+        const displayText=trimmed.replace(/—\s*Conviction\s*\d+\/10/i,'').trim();
+        h+=`<div style="display:flex;align-items:flex-start;padding:6px var(--pad);border-top:1px solid var(--border2);gap:var(--gap);">
+          <span style="font-size:var(--sm);line-height:1.5;flex:1;color:${labelCol};font-weight:${isBest?'700':'600'};">${displayText}</span>
+          ${convScore!==null?`<span style="font-size:var(--xs);font-weight:700;color:${convCol};flex-shrink:0;padding-top:2px;">${convScore}/10</span>`:''}
+        </div>`;
+      });
+    } else {
+      h+=`<div style="padding:7px var(--pad) 8px;font-size:var(--sm);line-height:1.7;color:var(--text);white-space:pre-wrap;">${content}</div>`;
+    }
+    h+=`</div>`;
+  });
   return h;
 }
 function buildPairSheetContent(pair){
