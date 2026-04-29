@@ -59,35 +59,30 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Forex1212/1.0)"}
 
 # ── Stooq ─────────────────────────────────────────────────────────────────────
 def fetch_stooq(symbol):
-    """Fetch last close + day change via Yahoo Finance unofficial API."""
-    yf_map = {
-        "^vix":   "^VIX",
-        "^tnx":   "^TNX",
-        "cl.f":   "CL=F",
-        "xauusd": "GC=F",
-        "^spx":   "^GSPC",
-        "btcusd": "BTC-USD",
-        "hg.f":   "HG=F",
-    }
-    yf_symbol = yf_map.get(symbol.lower(), symbol)
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{yf_symbol}?interval=1d&range=5d"
+    """Return {value, change, change_pct} for last daily bar, or None."""
+    url = f"https://stooq.com/q/d/l/?s={symbol}&i=d"
     try:
-        req = urllib.request.Request(url, headers={
-            "User-Agent": "Mozilla/5.0",
-            "Accept": "application/json",
-        })
+        req = urllib.request.Request(url, headers=HEADERS)
         with urllib.request.urlopen(req, timeout=12) as resp:
-            data = json.loads(resp.read().decode())
-        closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
-        closes = [c for c in closes if c is not None]
-        if len(closes) < 2:
+            raw = resp.read().decode("utf-8", errors="ignore")
+        lines = [
+            l.strip() for l in raw.strip().split("\n")
+            if l.strip() and not l.lower().startswith("date")
+        ]
+        if len(lines) < 2:
             return None
-        prev, curr = closes[-2], closes[-1]
+        def close(line):
+            parts = line.split(",")
+            return float(parts[4]) if len(parts) >= 5 else None
+        prev = close(lines[-2])
+        curr = close(lines[-1])
+        if prev is None or curr is None or prev == 0:
+            return None
         change     = round(curr - prev, 6)
         change_pct = round((change / prev) * 100, 2)
         return {"value": curr, "change": change, "change_pct": change_pct}
     except Exception as e:
-        print(f"    [Yahoo] {symbol}: {e}")
+        print(f"    [Stooq] {symbol}: {e}")
         return None
 
 def fetch_all_macro():
@@ -154,10 +149,24 @@ def load_tech():
 
 def build_tech_text(h4, d1, csm, regime):
     lines = []
-    reg  = regime.get("regime", "Unknown")
-    conf = regime.get("confidence", "")
-    s    = regime.get("signals", {})
-    lines.append(f"Regime: {reg} {conf} | USD proxy: {s.get('usd_proxy','?')} | SH div: {s.get('sh_divergence','?')}")
+    reg    = regime.get("regime", "Unknown")
+    conf   = regime.get("confidence", "")
+    s      = regime.get("signals", {})
+    h4_reg = regime.get("h4", {})
+    h4_reg_name = h4_reg.get("regime", "") if h4_reg else ""
+
+    # Regime line — flag divergence explicitly
+    if h4_reg_name and h4_reg_name != reg:
+        lines.append(
+            f"Regime: D1={reg} {conf} | H4={h4_reg_name} {h4_reg.get('confidence','')} "
+            f"⚡ DIVERGENCE — H4 is leading, D1 transition in progress"
+        )
+    else:
+        lines.append(
+            f"Regime: {reg} {conf} (D1+H4 aligned)"
+            f" | USD proxy: {s.get('usd_proxy','?')}"
+            f" | SH div: {s.get('sh_divergence','?')}"
+        )
 
     ranks = csm.get("rankings") or {}
     sorted_r = sorted(ranks.items(), key=lambda x: x[1], reverse=True)
