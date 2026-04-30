@@ -59,34 +59,47 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Forex1212/1.0)"}
 
 # ── Stooq ─────────────────────────────────────────────────────────────────────
 def fetch_stooq(symbol):
-    """Return {value, change, change_pct} for last daily bar, or None.
+    """Fetch last close + daily change via Yahoo Finance.
 
-    FIX: handles 1-line responses gracefully (weekends / first trading day).
-    Previously returned None if < 2 lines, causing the macro grid to go blank.
-    Now shows the last value with change=0 when only one bar is available.
+    NOTE: Stooq was abandoned — it blocks GitHub Actions runner IPs and
+    returns empty responses from cloud providers. Yahoo Finance v8 API
+    works reliably without an API key from GitHub Actions.
+
+    Symbol mapping: internal Stooq-style keys → Yahoo Finance tickers.
     """
-    url = f"https://stooq.com/q/d/l/?s={symbol}&i=d"
+    yf_map = {
+        "^vix":   "^VIX",
+        "^tnx":   "^TNX",
+        "cl.f":   "CL=F",
+        "xauusd": "GC=F",
+        "^spx":   "^GSPC",
+        "btcusd": "BTC-USD",
+        "hg.f":   "HG=F",
+    }
+    yf_symbol = yf_map.get(symbol.lower(), symbol)
+    url = (
+        f"https://query1.finance.yahoo.com/v8/finance/chart/"
+        f"{yf_symbol}?interval=1d&range=5d"
+    )
     try:
-        req = urllib.request.Request(url, headers=HEADERS)
+        req = urllib.request.Request(url, headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+            "Accept": "application/json",
+        })
         with urllib.request.urlopen(req, timeout=15) as resp:
-            raw = resp.read().decode("utf-8", errors="ignore")
-        lines = [
-            ln.strip() for ln in raw.strip().split("\n")
-            if ln.strip() and not ln.lower().startswith("date")
-        ]
-        if not lines:
+            data = json.loads(resp.read().decode("utf-8"))
+
+        result = data["chart"]["result"][0]
+        closes = result["indicators"]["quote"][0]["close"]
+        closes = [c for c in closes if c is not None]
+
+        if len(closes) < 1:
             return None
 
-        def close(line):
-            parts = line.split(",")
-            return float(parts[4]) if len(parts) >= 5 else None
+        curr = closes[-1]
 
-        curr = close(lines[-1])
-        if curr is None:
-            return None
-
-        if len(lines) >= 2:
-            prev = close(lines[-2])
+        if len(closes) >= 2:
+            prev = closes[-2]
             if prev and prev != 0:
                 change     = round(curr - prev, 6)
                 change_pct = round((change / prev) * 100, 2)
@@ -94,19 +107,27 @@ def fetch_stooq(symbol):
                 change = 0.0
                 change_pct = 0.0
         else:
-            # Only one bar — show value, no change available
             change = 0.0
             change_pct = 0.0
 
         return {"value": curr, "change": change, "change_pct": change_pct}
 
     except Exception as e:
-        print(f"    [Stooq] {symbol}: {e}")
+        print(f"    [Yahoo] {symbol} ({yf_symbol}): {e}")
         return None
 
 
+def fmt_val(v):
+    """Format macro value cleanly — no scientific notation for large numbers."""
+    if v >= 10_000:
+        return f"{v:,.0f}"   # BTC 94321 -> "94,321" / SPX 5512 -> "5,512"
+    if v >= 100:
+        return f"{v:.1f}"    # Gold 3300.1 -> "3300.1" / WTI 65.4 -> "65.4"
+    return f"{v:.4g}"        # VIX 18.4 -> "18.4" / TNX 4.21 -> "4.21"
+
+
 def fetch_all_macro():
-    print("  Fetching macro data from Stooq...")
+    print("  Fetching macro data from Yahoo Finance...")
     macro = {}
     for key, symbol, label, invert in STOOQ_INSTRUMENTS:
         d = fetch_stooq(symbol)
@@ -115,7 +136,7 @@ def fetch_all_macro():
             d["invert"] = invert
             macro[key]  = d
             arr = "up" if d["change"] > 0 else "down" if d["change"] < 0 else "flat"
-            print(f"    [{label}] {d['value']:.4g} {arr} {abs(d['change_pct']):.2f}%")
+            print(f"    [{label}] {fmt_val(d['value'])} {arr} {abs(d['change_pct']):.2f}%")
         else:
             print(f"    [{label}] unavailable")
     print(f"  Macro: {len(macro)}/{len(STOOQ_INSTRUMENTS)} instruments fetched")
@@ -278,7 +299,7 @@ def call_narrative(macro, themes_data, tech_text, corr_text):
             continue
         chg = d["change_pct"]
         arr = "up" if chg > 0 else "down" if chg < 0 else "flat"
-        macro_lines.append(f"{label}: {d['value']:.4g} ({arr} {abs(chg):.2f}%)")
+        macro_lines.append(f"{label}: {fmt_val(d['value'])} ({arr} {abs(chg):.2f}%)")
     macro_text = "\n".join(macro_lines) or "No macro data"
 
     themes   = themes_data.get("themes", [])
@@ -367,7 +388,7 @@ def call_edge_scores(macro, themes_data, tech_text, corr_text):
             continue
         chg = d["change_pct"]
         arr = "up" if chg > 0 else "down" if chg < 0 else "flat"
-        macro_lines.append(f"{label}: {d['value']:.4g} ({arr} {abs(chg):.2f}%)")
+        macro_lines.append(f"{label}: {fmt_val(d['value'])} ({arr} {abs(chg):.2f}%)")
     macro_text = "\n".join(macro_lines) or "No macro data"
 
     themes      = themes_data.get("themes", [])
