@@ -745,7 +745,7 @@ function renderChtPrice(){
   if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper','rgba(227,179,65,.5)'],['middle','rgba(227,179,65,.3)'],['lower','rgba(227,179,65,.5)']].forEach(([k,col])=>{const s=chart.addLineSeries({color:col,lineWidth:1,lineStyle:k==='middle'?2:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
   const alerts=laLoad().filter(a=>a.pair===selectedPair&&a.active);
   alerts.forEach(a=>{const s=chart.addLineSeries({color:'rgba(139,148,158,.7)',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});s.setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);});
-  const trades=jLoad().filter(t=>t.pair===selectedPair&&t.outcome==='open'&&(t.entry||t.sl||t.tp));
+  const trades=tradesLoad().filter(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending')&&(t.entry||t.sl||t.tp));
   trades.forEach(t=>{[{price:t.sl,color:'rgba(248,81,73,.85)',label:'SL'},{price:t.entry,color:'rgba(230,237,243,.75)',label:'Entry'},{price:t.tp,color:'rgba(63,185,80,.85)',label:'TP'}].forEach(({price,color,label})=>{if(!price)return;const s=chart.addLineSeries({color,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:label});s.setData([{time:ohlcv[0].time,value:price},{time:ohlcv[ohlcv.length-1].time,value:price}]);});});
   const visN=Math.min(100,ohlcv.length),visOhlcv=ohlcv.slice(-visN);
   const priceHigh=Math.max(...visOhlcv.map(b=>b.high)),priceLow=Math.min(...visOhlcv.map(b=>b.low));
