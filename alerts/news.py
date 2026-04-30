@@ -16,9 +16,9 @@ import xml.etree.ElementTree as ET
 import json
 
 RSS_FEEDS = [
-    ("DailyFX",     "https://www.dailyfx.com/feeds/all"),
-    ("MarketPulse", "https://www.marketpulse.com/feed/"),
-    ("FXStreet",    "https://www.fxstreet.com/rss/news"),
+    ("FXStreet",  "https://www.fxstreet.com/rss/news"),
+    ("ForexLive", "https://www.forexlive.com/feed/news"),
+    ("Nasdaq FX", "https://www.nasdaq.com/feed/rssoutbound?category=Currencies"),
 ]
 HEADERS       = {"User-Agent": "Mozilla/5.0 (FX-Dashboard-Bot/1.0)"}
 FF_URL        = "https://nfs.faireconomy.media/ff_calendar_thisweek.json"
