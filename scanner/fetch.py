@@ -16,9 +16,9 @@ BASE_URL = "https://api.twelvedata.com/time_series"
 TF_MAP = {"H1": "1h", "H4": "4h", "D1": "1day"}
 
 BARS_NEEDED = {
-    "H1": 250,   # 250 hourly bars (~10 days)
-    "H4": 500,   # 500 × 4h bars (~83 days)
-    "D1": 500,   # 500 daily bars (~2 years, needed for EMA200 + embed_d1_ohlcv 200-bar chart)
+    "H1": 500,   # 500 hourly bars (~21 days)
+    "H4": 400,   # 400 × 4h bars (~67 days)
+    "D1": 300,   # 300 daily bars (~1.2 years, needed for EMA200 + embed_d1_ohlcv 200-bar chart)
 }
 
 BATCH_SIZE   = 7
