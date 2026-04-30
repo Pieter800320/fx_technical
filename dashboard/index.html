@@ -260,7 +260,7 @@ tr:last-child td{border-bottom:none;}
 </nav>
 <script>
 const PAIRS=["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","AUD/JPY","NZD/JPY","CAD/JPY"];
-const GH_PAGES="https://pieter800320.github.io/fx_technical/data";
+const GH_RAW="https://raw.githubusercontent.com/Pieter800320/fx_technical/main/data";
 const SIGS={EMA200:"EMA 200",EMA50:"EMA 50",RSI:"RSI>50",MACD:"MACD",DMI:"DMI+/-",Structure:"Structure"};
 const SESS={Sydney:[22,7],Tokyo:[23,8],London:[7,16],"New York":[12,21]};
 const RC={"Risk-Off":{c:"#f85149",b:"#b62324"},"Risk-On":{c:"#3fb950",b:"#238636"},"Ranging":{c:"#8b949e",b:"#30363d"},"Mixed":{c:"#e3b341",b:"#e3b341"}};
@@ -1107,7 +1107,7 @@ function exportCSV(){
   const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="forex1212_log.csv";a.click();
 }
 // ── LOAD + INIT
-async function load(file){try{const r=await fetch(`${GH_PAGES}/${file}?t=${Date.now()}`);if(!r.ok)return null;return await r.json();}catch{return null;}}
+async function load(file){try{const r=await fetch(`${GH_RAW}/${file}?t=${Date.now()}`);if(!r.ok)return null;return await r.json();}catch{return null;}}
 async function init(){
   const[h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief]=await Promise.all([
     load("h1_scores.json"),load("h4_scores.json"),load("d1_scores.json"),
