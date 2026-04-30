@@ -52,7 +52,8 @@ STOOQ_INSTRUMENTS = [
 
 PAIRS = [
     "EUR/USD","GBP/USD","USD/JPY","USD/CHF",
-    "AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","XAU/USD",
+    "AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY",
+    "AUD/JPY","NZD/JPY","CAD/JPY",
 ]
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Forex1212/1.0)"}
