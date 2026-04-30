@@ -6,7 +6,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config.pairs import PAIRS, pair_display, is_pair_active, get_active_sessions
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, is_extended
-from scanner.levels import find_levels
 from alerts.telegram import send_level_alert
 
 DATA_DIR     = os.path.join(os.path.dirname(__file__), "..", "data")
