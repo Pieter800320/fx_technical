@@ -36,6 +36,44 @@ def _rate_limit_wait():
     _last_fetch_time = time.time()
 
 
+# ── Spike filter ─────────────────────────────────────────────────────────────
+# Forex data feeds occasionally emit bad ticks at weekly opens or during
+# connectivity gaps — a wick that is 5-100× the normal range.
+# We clamp high/low to within MAX_SPIKE_PCT of the candle open.
+# 3 % is safe for all forex pairs including JPY crosses:
+# the largest legitimate single-hourly move on record is ~4 % (flash crashes),
+# so 3 % catches all data errors without touching real price action.
+
+MAX_SPIKE_PCT = 0.03  # 3 % max deviation of high/low from open
+
+
+def _filter_spikes(df, pair=""):
+    """Clamp candle high/low that deviate more than MAX_SPIKE_PCT from open."""
+    if df.empty:
+        return df
+    spikes_fixed = 0
+    for idx in df.index:
+        o = df.at[idx, "open"]
+        if not o or o != o:  # skip NaN
+            continue
+        threshold = o * MAX_SPIKE_PCT
+        h = df.at[idx, "high"]
+        l = df.at[idx, "low"]
+        c = df.at[idx, "close"]
+        fixed = False
+        if abs(h - o) > threshold:
+            df.at[idx, "high"] = max(o, c)  # clamp to realistic max
+            fixed = True
+        if abs(l - o) > threshold:
+            df.at[idx, "low"] = min(o, c)   # clamp to realistic min
+            fixed = True
+        if fixed:
+            spikes_fixed += 1
+    if spikes_fixed:
+        print(f"    [spike] {pair}: clamped {spikes_fixed} bad candle(s)")
+    return df
+
+
 def fetch_pair(pair, timeframe):
     params = {
         "symbol":     td_symbol(pair),
@@ -73,6 +111,7 @@ def fetch_pair(pair, timeframe):
         for col in ["open", "high", "low", "close"]:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
+        df = _filter_spikes(df, pair)
         return df
     except Exception as e:
         print(f"  [TD] Exception fetching {pair}: {e}")
