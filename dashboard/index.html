@@ -286,7 +286,7 @@ tr:last-child td{border-bottom:none;}
 </nav>
 <script>
 const PAIRS=["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","AUD/JPY","NZD/JPY","CAD/JPY"];
-const GH_API="https://api.github.com/repos/Pieter800320/fx_technical/contents/data";
+const GH_PAGES="https://pieter800320.github.io/fx_technical/data";
 const SIGS={EMA200:"EMA 200",EMA50:"EMA 50",RSI:"RSI>50",MACD:"MACD",DMI:"DMI+/-",Structure:"Structure"};
 const SESS={Sydney:[22,7],Tokyo:[23,8],London:[7,16],"New York":[12,21]};
 const RC={"Risk-Off":{c:"#f85149",b:"#b62324"},"Risk-On":{c:"#3fb950",b:"#238636"},"Ranging":{c:"#8b949e",b:"#30363d"},"Mixed":{c:"#e3b341",b:"#e3b341"}};
@@ -634,7 +634,7 @@ function openRegimeSheet(){
   if(h4r&&h4r.regime){const h4c=RC[h4r.regime]||RC['Mixed'];h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span style="font-size:var(--lg);font-weight:700;color:${h4c.c};">${h4r.regime}</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">H4 · ${(h4r.confidence||'').toUpperCase()}</span></div>`;}
   else{h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span style="font-size:var(--sm);color:var(--muted);">H4 pending</span></div>`;}
   h+=`</div>`;
-  if(diverging){h+=`<div style="display:flex;align-items:center;gap:6px;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">Regime Divergence</span><span style="font-size:var(--xs);color:var(--muted);flex:1;">H4 leading — D1 transition in progress</span></div>`;}
+  if(diverging){h+=`<div style="display:flex;align-items:center;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">Regime Divergence</span></div>`;}
   // Cross-Asset macro grid — natural home for VIX/US10Y/Gold etc.
   const macro=D.newsBrief&&D.newsBrief.macro||{};
   if(Object.keys(macro).length){h+=`<div class="sh-hdr">Cross-Asset</div>`;h+=buildMacroGrid(macro);}
@@ -895,13 +895,13 @@ function renderJournal(){
 }
 function exportCSV(){const e=jLoad();if(!e.length){alert("No trades.");return;}const h=["Date","Pair","Dir","Entry","SL","TP","R_Planned","Outcome","AI_Rec","D1","H4","H1","Regime","Extended","ADX","ATR_OK","Setup_Score","Notes","Post_Notes"];const r=e.map(t=>[t.date,t.pair,t.direction,t.entry,t.sl,t.tp,t.r_planned,t.outcome,t.ai_rec,t.d1_label,t.h4_label,t.h1_label,t.regime,t.extended,t.adx,t.atr_ok,t.qai_score!==undefined?t.qai_score:'',`"${t.notes||""}"`,`"${t.post_notes||""}"`]);const csv=[h.join(","),...r.map(x=>x.join(","))].join("\n");const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="forex1212.csv";a.click();}
 // ── LOAD + INIT
-async function load(file,api=false){try{const r=api?await fetch(`${GH_API}/${file}?t=${Date.now()}`,{headers:{"Accept":"application/vnd.github.v3.raw"}}):await fetch(file+"?t="+Date.now());if(!r.ok)return null;return await r.json();}catch{return null;}}
+async function load(file){try{const r=await fetch(`${GH_PAGES}/${file}?t=${Date.now()}`);if(!r.ok)return null;return await r.json();}catch{return null;}}
 async function init(){
   const[h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief]=await Promise.all([
-    load("h1_scores.json",true),load("h4_scores.json",true),load("d1_scores.json",true),
-    load("csm.json",true),load("alerts.json",true),load("regime.json",true),
-    load("correlation.json",true),load("conviction.json",true),load("calendar.json",true),
-    load("rates.json",true),load("news_brief.json",true),
+    load("h1_scores.json"),load("h4_scores.json"),load("d1_scores.json"),
+    load("csm.json"),load("alerts.json"),load("regime.json"),
+    load("correlation.json"),load("conviction.json"),load("calendar.json"),
+    load("rates.json"),load("news_brief.json"),
   ]);
   const ts=[h1,h4,d1].flatMap(x=>x?Object.values(x).map(v=>v&&v.updated):[]).filter(Boolean).sort();
   const parseTS=s=>{if(!s)return new Date(s);const c=s.endsWith('Z')||s.includes('+')?s:s+'Z';return new Date(c);};
