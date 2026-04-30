@@ -198,7 +198,7 @@ tr:last-child td{border-bottom:none;}
     <div style="overflow-x:auto;">
       <table id="j-tbl">
         <!-- FIX 4: Conv column removed — 16 columns -->
-        <thead><tr><th>Date</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th><th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>QAI</th><th>AI Rec</th><th>Result</th><th>Edit</th><th>Del</th></tr></thead>
+        <thead><tr><th>Date</th><th>Pair</th><th>Dir</th><th>Entry</th><th>SL</th><th>TP</th><th>R</th><th>D1</th><th>H4</th><th>Regime</th><th>Ext</th><th>Setup</th><th>AI Rec</th><th>Result</th><th>Edit</th><th>Del</th></tr></thead>
         <tbody id="j-tbody"><tr><td colspan="16" class="loading">No trades yet.</td></tr></tbody>
       </table>
     </div>
@@ -837,7 +837,7 @@ function updateSnap(){
   if(h4d)sigRow.push("H4: "+h4d.label);
   if(h1d)sigRow.push("H1: "+h1d.label);
   if(sigRow.length)rows.push(sigRow.join("  |  "));
-  rows.push("Regime: "+(regime&&regime.regime?regime.regime+" ("+regime.confidence+")":"—")+"  |  QAI: "+(qai.score>0?qai.score+'%':'—'));
+  rows.push("Regime: "+(regime&&regime.regime?regime.regime+" ("+regime.confidence+")":"—")+"  |  Setup: "+(qai.score>0?qai.score+'%':'—'));
   if(csm&&csm.rankings){const bVal=(csm.rankings[base]||0).toFixed(0),qVal=(csm.rankings[quote]||0).toFixed(0);rows.push(base+" "+bVal+"  |  "+quote+" "+qVal);}
   const techRow=[];
   if(h4d&&h4d.raw)techRow.push("ADX: "+(h4d.raw.adx||0).toFixed(1));
@@ -893,7 +893,7 @@ function renderJournal(){
   const ee=document.getElementById("st-ex");ee.textContent=exp!==null?exp+"R":"-";ee.className="sv "+(exp===null?"":exp>=0?"sg":"sr");
   document.getElementById("st-op").textContent=open||"-";
 }
-function exportCSV(){const e=jLoad();if(!e.length){alert("No trades.");return;}const h=["Date","Pair","Dir","Entry","SL","TP","R_Planned","Outcome","AI_Rec","D1","H4","H1","Regime","Extended","ADX","ATR_OK","QAI_Score","Notes","Post_Notes"];const r=e.map(t=>[t.date,t.pair,t.direction,t.entry,t.sl,t.tp,t.r_planned,t.outcome,t.ai_rec,t.d1_label,t.h4_label,t.h1_label,t.regime,t.extended,t.adx,t.atr_ok,t.qai_score!==undefined?t.qai_score:'',`"${t.notes||""}"`,`"${t.post_notes||""}"`]);const csv=[h.join(","),...r.map(x=>x.join(","))].join("\n");const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="forex1212.csv";a.click();}
+function exportCSV(){const e=jLoad();if(!e.length){alert("No trades.");return;}const h=["Date","Pair","Dir","Entry","SL","TP","R_Planned","Outcome","AI_Rec","D1","H4","H1","Regime","Extended","ADX","ATR_OK","Setup_Score","Notes","Post_Notes"];const r=e.map(t=>[t.date,t.pair,t.direction,t.entry,t.sl,t.tp,t.r_planned,t.outcome,t.ai_rec,t.d1_label,t.h4_label,t.h1_label,t.regime,t.extended,t.adx,t.atr_ok,t.qai_score!==undefined?t.qai_score:'',`"${t.notes||""}"`,`"${t.post_notes||""}"`]);const csv=[h.join(","),...r.map(x=>x.join(","))].join("\n");const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="forex1212.csv";a.click();}
 // ── LOAD + INIT
 async function load(file,api=false){try{const r=api?await fetch(`${GH_API}/${file}?t=${Date.now()}`,{headers:{"Accept":"application/vnd.github.v3.raw"}}):await fetch(file+"?t="+Date.now());if(!r.ok)return null;return await r.json();}catch{return null;}}
 async function init(){
