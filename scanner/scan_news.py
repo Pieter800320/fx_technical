@@ -7,8 +7,8 @@ Output  : data/news_brief.json
 
 JSON fields
   status        "ok" | "unavailable"
-  macro         {vix, us10y, wti, gold, spx, btc, copper}  ← new
-  narrative     150-word integrated FX prose                ← new
+  macro         {vix, us10y, wti, gold, spx, btc, copper}
+  narrative     structured FX prose (5 sections, plain text)
   themes        [{theme, currencies, direction, confidence}]
   usd_bias      "bullish"|"bearish"|"neutral"
   risk_sentiment "risk-on"|"risk-off"|"neutral"
@@ -16,6 +16,7 @@ JSON fields
   watch         one watch point
   updated       ISO timestamp
   headline_count int
+  edge_scores   {EURUSD:7, ...}
 """
 
 import json, os, re, urllib.request
@@ -39,7 +40,6 @@ RSS_FEEDS = [
 ]
 
 # (json_key, stooq_symbol, display_label, invert_color)
-# invert_color=True means rising value is BAD for risk (e.g. VIX)
 STOOQ_INSTRUMENTS = [
     ("vix",    "^vix",   "VIX",     True),
     ("us10y",  "^tnx",   "US 10Y",  False),
@@ -59,31 +59,51 @@ HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Forex1212/1.0)"}
 
 # ── Stooq ─────────────────────────────────────────────────────────────────────
 def fetch_stooq(symbol):
-    """Return {value, change, change_pct} for last daily bar, or None."""
+    """Return {value, change, change_pct} for last daily bar, or None.
+
+    FIX: handles 1-line responses gracefully (weekends / first trading day).
+    Previously returned None if < 2 lines, causing the macro grid to go blank.
+    Now shows the last value with change=0 when only one bar is available.
+    """
     url = f"https://stooq.com/q/d/l/?s={symbol}&i=d"
     try:
         req = urllib.request.Request(url, headers=HEADERS)
-        with urllib.request.urlopen(req, timeout=12) as resp:
+        with urllib.request.urlopen(req, timeout=15) as resp:
             raw = resp.read().decode("utf-8", errors="ignore")
         lines = [
-            l.strip() for l in raw.strip().split("\n")
-            if l.strip() and not l.lower().startswith("date")
+            ln.strip() for ln in raw.strip().split("\n")
+            if ln.strip() and not ln.lower().startswith("date")
         ]
-        if len(lines) < 2:
+        if not lines:
             return None
+
         def close(line):
             parts = line.split(",")
             return float(parts[4]) if len(parts) >= 5 else None
-        prev = close(lines[-2])
+
         curr = close(lines[-1])
-        if prev is None or curr is None or prev == 0:
+        if curr is None:
             return None
-        change     = round(curr - prev, 6)
-        change_pct = round((change / prev) * 100, 2)
+
+        if len(lines) >= 2:
+            prev = close(lines[-2])
+            if prev and prev != 0:
+                change     = round(curr - prev, 6)
+                change_pct = round((change / prev) * 100, 2)
+            else:
+                change = 0.0
+                change_pct = 0.0
+        else:
+            # Only one bar — show value, no change available
+            change = 0.0
+            change_pct = 0.0
+
         return {"value": curr, "change": change, "change_pct": change_pct}
+
     except Exception as e:
         print(f"    [Stooq] {symbol}: {e}")
         return None
+
 
 def fetch_all_macro():
     print("  Fetching macro data from Stooq...")
@@ -94,11 +114,13 @@ def fetch_all_macro():
             d["label"]  = label
             d["invert"] = invert
             macro[key]  = d
-            arr = "↑" if d["change"] > 0 else "↓" if d["change"] < 0 else "→"
-            print(f"    [{label}] {d['value']:.4g} {arr}{abs(d['change_pct']):.2f}%")
+            arr = "up" if d["change"] > 0 else "down" if d["change"] < 0 else "flat"
+            print(f"    [{label}] {d['value']:.4g} {arr} {abs(d['change_pct']):.2f}%")
         else:
             print(f"    [{label}] unavailable")
+    print(f"  Macro: {len(macro)}/{len(STOOQ_INSTRUMENTS)} instruments fetched")
     return macro
+
 
 # ── RSS ───────────────────────────────────────────────────────────────────────
 def fetch_rss(url):
@@ -106,7 +128,7 @@ def fetch_rss(url):
         req = urllib.request.Request(url, headers=HEADERS)
         with urllib.request.urlopen(req, timeout=12) as resp:
             root = ET.parse(resp).getroot()
-        items = []
+        items  = []
         now    = datetime.now(timezone.utc)
         cutoff = now - timedelta(hours=4)
         for item in root.iter("item"):
@@ -128,6 +150,7 @@ def fetch_rss(url):
         print(f"    RSS error: {e}")
         return []
 
+
 def deduplicate(items):
     seen, out = set(), []
     for item in items:
@@ -136,6 +159,7 @@ def deduplicate(items):
             seen.add(key)
             out.append(item)
     return out
+
 
 # ── Technical snapshot ────────────────────────────────────────────────────────
 def load_tech():
@@ -147,28 +171,29 @@ def load_tech():
             return {}
     return lj("h4_scores.json"), lj("d1_scores.json"), lj("csm.json"), lj("regime.json"), lj("correlation.json")
 
+
 def build_tech_text(h4, d1, csm, regime):
-    lines = []
-    reg    = regime.get("regime", "Unknown")
-    conf   = regime.get("confidence", "")
-    s      = regime.get("signals", {})
-    h4_reg = regime.get("h4", {})
+    lines   = []
+    reg     = regime.get("regime", "Unknown")
+    conf    = regime.get("confidence", "")
+    s       = regime.get("signals", {})
+    h4_reg  = regime.get("h4", {})
     h4_reg_name = h4_reg.get("regime", "") if h4_reg else ""
 
-    # Regime line — flag divergence explicitly
+    # FIX: removed special character — plain "DIVERGENCE" instead of "⚡ DIVERGENCE"
     if h4_reg_name and h4_reg_name != reg:
         lines.append(
-            f"Regime: D1={reg} {conf} | H4={h4_reg_name} {h4_reg.get('confidence','')} "
-            f"⚡ DIVERGENCE — H4 is leading, D1 transition in progress"
+            f"Regime: D1={reg} {conf} | H4={h4_reg_name} {h4_reg.get('confidence', '')} "
+            f"DIVERGENCE - H4 is leading, D1 transition in progress"
         )
     else:
         lines.append(
             f"Regime: {reg} {conf} (D1+H4 aligned)"
-            f" | USD proxy: {s.get('usd_proxy','?')}"
-            f" | SH div: {s.get('sh_divergence','?')}"
+            f" | USD proxy: {s.get('usd_proxy', '?')}"
+            f" | SH div: {s.get('sh_divergence', '?')}"
         )
 
-    ranks = csm.get("rankings") or {}
+    ranks    = csm.get("rankings") or {}
     sorted_r = sorted(ranks.items(), key=lambda x: x[1], reverse=True)
     if sorted_r:
         top = " ".join(f"{c}({v:.0f})" for c, v in sorted_r[:3])
@@ -177,7 +202,8 @@ def build_tech_text(h4, d1, csm, regime):
 
     sigs = []
     for pair in PAIRS:
-        h4d = h4.get(pair, {}); d1d = d1.get(pair, {})
+        h4d = h4.get(pair, {})
+        d1d = d1.get(pair, {})
         if not h4d:
             continue
         h4l = h4d.get("label", "Neutral")
@@ -185,33 +211,34 @@ def build_tech_text(h4, d1, csm, regime):
         sc  = h4d.get("score", 0)
         if "Neutral" in h4l and "Neutral" in d1l:
             continue
-        sigs.append(f"{pair.replace('/','')}: D1={d1l} H4={h4l}({sc:+d})")
-    if sigs:
-        lines.append("Signals: " + " | ".join(sigs))
-    else:
-        lines.append("Signals: none above threshold")
+        sigs.append(f"{pair.replace('/', '')}: D1={d1l} H4={h4l}({sc:+d})")
+    lines.append("Signals: " + (" | ".join(sigs) if sigs else "none above threshold"))
     return "\n".join(lines)
+
 
 # ── Claude calls ──────────────────────────────────────────────────────────────
 def _strip_json(raw):
-    start = raw.find("{"); end = raw.rfind("}")
+    start = raw.find("{")
+    end   = raw.rfind("}")
     if start == -1 or end <= start:
         raise ValueError(f"No JSON object found: {raw[:120]}")
     return raw[start:end + 1]
 
+
 def call_themes(headlines_text, n):
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    now_iso = datetime.now(timezone.utc).isoformat()
     prompt = (
         f"You are an institutional FX macro analyst. "
         f"Analyse these {n} FX headlines from the last 4 hours.\n\n"
         f"Headlines:\n{headlines_text}\n\n"
-        f"Respond ONLY with valid JSON, no markdown:\n"
+        f"Respond ONLY with valid JSON. No markdown. No special characters. Plain text values only.\n"
         f'{{"themes":[{{"theme":"...","currencies":["USD"],"direction":"bullish|bearish|neutral","confidence":"high|medium|low"}}],'
         f'"usd_bias":"bullish|bearish|neutral",'
         f'"risk_sentiment":"risk-on|risk-off|neutral",'
         f'"key_observation":"...",'
         f'"watch":"...",'
-        f'"updated":"{datetime.now(timezone.utc).isoformat()}",'
+        f'"updated":"{now_iso}",'
         f'"headline_count":{n}}}'
     )
     resp = client.messages.create(
@@ -223,16 +250,15 @@ def call_themes(headlines_text, n):
     print(f"  [Claude themes] preview: {raw[:100]}")
     return json.loads(_strip_json(raw))
 
+
 def build_corr_text(corr):
-    """Format correlation matrix into readable leading-pair analysis."""
     if not corr or not corr.get("pairs") or not corr.get("matrix"):
         return "No correlation data available."
     pairs  = corr["pairs"]
     matrix = corr["matrix"]
     lines  = []
-    # Find strongest positive and negative correlations for each pair
     for i, p in enumerate(pairs):
-        row = matrix[i]
+        row    = matrix[i]
         ranked = sorted(
             [(pairs[j], row[j]) for j in range(len(pairs)) if j != i and row[j] is not None],
             key=lambda x: abs(x[1]), reverse=True
@@ -241,36 +267,41 @@ def build_corr_text(corr):
         lines.append(f"{p}: {corrs}")
     return "\n".join(lines)
 
-def call_narrative(macro, themes_data, tech_text, corr_text):
-    """Generate structured five-section FX market narrative with conviction scores."""
 
-    # ── Macro text ──────────────────────────────────────────────────────────
+def call_narrative(macro, themes_data, tech_text, corr_text):
+    """Generate structured five-section FX narrative. Plain text only — no markdown."""
+
     macro_lines = []
     for key, _, label, invert in STOOQ_INSTRUMENTS:
         d = macro.get(key)
         if not d:
             continue
         chg = d["change_pct"]
-        arr = "▲" if chg > 0 else "▼" if chg < 0 else "→"
-        risk_tag = " [RISK-OFF signal]" if (invert and chg > 0) or (not invert and key in ("vix",) and chg > 0) else ""
-        macro_lines.append(f"{label}: {d['value']:.4g} ({arr}{abs(chg):.2f}%){risk_tag}")
+        arr = "up" if chg > 0 else "down" if chg < 0 else "flat"
+        macro_lines.append(f"{label}: {d['value']:.4g} ({arr} {abs(chg):.2f}%)")
     macro_text = "\n".join(macro_lines) or "No macro data"
 
-    # ── News themes text ────────────────────────────────────────────────────
-    themes = themes_data.get("themes", [])
-    t_lines = [f"- {t['theme']} [{t['direction'].upper()}] ({t.get('confidence','?')})" for t in themes[:6]]
+    themes   = themes_data.get("themes", [])
+    t_lines  = [
+        f"- {t['theme']} [{t['direction'].upper()}] ({t.get('confidence', '?')})"
+        for t in themes[:6]
+    ]
     themes_text = (
-        f"USD bias: {themes_data.get('usd_bias','?')} | "
-        f"Risk sentiment: {themes_data.get('risk_sentiment','?')}\n"
+        f"USD bias: {themes_data.get('usd_bias', '?')} | "
+        f"Risk sentiment: {themes_data.get('risk_sentiment', '?')}\n"
         + "\n".join(t_lines)
     )
 
-    # ── System + user prompt ────────────────────────────────────────────────
+    # FIX: explicit no-markdown instruction in both system and user prompts
     system = (
         "You are a professional macro FX trader. "
         "Your task is to synthesize multi-source market data into a clear, internally consistent narrative. "
         "You must resolve contradictions by prioritizing correlation and price behavior over narrative. "
-        "Do not summarize inputs. Infer the dominant drivers and produce a coherent, decisive interpretation."
+        "Do not summarize inputs. Infer the dominant drivers and produce a coherent, decisive interpretation. "
+        "CRITICAL: Write in plain text only. "
+        "Do not use any markdown formatting whatsoever: no asterisks, no hash symbols, "
+        "no dashes used as decorators, no bold, no italic, no underscores for emphasis. "
+        "Use plain sentences and the exact section headers shown below, nothing else."
     )
 
     user = f"""DATA:
@@ -287,32 +318,32 @@ def call_narrative(macro, themes_data, tech_text, corr_text):
 4) NEWS / FUNDAMENTALS:
 {themes_text}
 
-TASK: Produce a structured FX market narrative in EXACTLY this format. No deviations.
+TASK: Produce a structured FX market narrative in EXACTLY this format. Plain text only.
 
 DOMINANT DRIVERS
-[Rank the top 3 drivers by strength. One line each. Format: "1. [Driver] — [why it's dominant]"]
+Rank the top 3 drivers by strength. One line each. Format: 1. Driver name because reason it is dominant
 
 PRICE CONFIRMS
-[What correlation data + price action confirms or rejects the narrative. 2-3 sentences. Be specific about which pairs are leading/lagging.]
+What correlation data and price action confirms or rejects the narrative. 2-3 sentences. Be specific about which pairs are leading or lagging.
 
 REGIME
-[One line: Risk-On / Risk-Off / Mixed — confirmed or conflicted. Reference VIX, Gold, S&P500 specifically.]
+One line: Risk-On or Risk-Off or Mixed, confirmed or conflicted. Reference VIX, Gold, and S&P500 specifically.
 
 CONTRADICTIONS
-[Identify max 2 genuine conflicts between sources. If none, say "None identified." Format: "1. [Pair/theme]: [conflict explained in one line]"]
+Identify max 2 genuine conflicts between sources. If none, write: None identified. Format: 1. Pair or theme: conflict explained in one line
 
 TRADE IMPLICATIONS
-Best: [Pair] [▲/▼] — [reason, max 15 words] — Conviction [X]/10
-Secondary: [Pair] [▲/▼] — [reason, max 15 words] — Conviction [X]/10
-Avoid: [Pair] — [reason, max 10 words]
-Watch: [One trigger that confirms or invalidates the primary trade]
+Best: Pair up or down - reason in max 15 words - Conviction X/10
+Secondary: Pair up or down - reason in max 15 words - Conviction X/10
+Avoid: Pair - reason in max 10 words
+Watch: One trigger that confirms or invalidates the primary trade
 
 RULES:
 - Correlation overrides fundamentals if they conflict
-- Conviction score: 10 = all four sources aligned, 1 = all sources conflicted
-- No generic statements ("markets are uncertain", "traders should be cautious")
-- No hedging language
-- Be decisive"""
+- Conviction score: 10 means all four sources aligned, 1 means all sources conflicted
+- No generic statements such as markets are uncertain
+- No hedging language. Be decisive.
+- NO markdown formatting of any kind. No asterisks, no hash symbols, no bold, no bullet dashes."""
 
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resp = client.messages.create(
@@ -326,41 +357,44 @@ RULES:
     print(f"  [Claude narrative] {wc} words")
     return narrative
 
+
 def call_edge_scores(macro, themes_data, tech_text, corr_text):
     """Score all 12 pairs 1-10 on cross-source coherence (Edge score)."""
-    # Build compact summary of inputs
     macro_lines = []
     for key, _, label, invert in STOOQ_INSTRUMENTS:
         d = macro.get(key)
         if not d:
             continue
         chg = d["change_pct"]
-        arr = "▲" if chg > 0 else "▼" if chg < 0 else "→"
-        macro_lines.append(f"{label}: {d['value']:.4g} ({arr}{abs(chg):.2f}%)")
+        arr = "up" if chg > 0 else "down" if chg < 0 else "flat"
+        macro_lines.append(f"{label}: {d['value']:.4g} ({arr} {abs(chg):.2f}%)")
     macro_text = "\n".join(macro_lines) or "No macro data"
 
-    themes = themes_data.get("themes", [])
-    themes_text = f"USD bias: {themes_data.get('usd_bias','?')} | Risk: {themes_data.get('risk_sentiment','?')}\n"
-    themes_text += "\n".join(f"- {t['theme']} [{t['direction'].upper()}]" for t in themes[:6])
+    themes      = themes_data.get("themes", [])
+    themes_text = (
+        f"USD bias: {themes_data.get('usd_bias', '?')} | "
+        f"Risk: {themes_data.get('risk_sentiment', '?')}\n"
+        + "\n".join(f"- {t['theme']} [{t['direction'].upper()}]" for t in themes[:6])
+    )
 
-    prompt = f"""You are a professional FX analyst. Score each currency pair 1-10 on EDGE — how coherently all four data sources (correlation, technicals, macro, news) agree on a tradeable direction for that pair right now.
-
-Scoring guide:
-10 = All four sources fully aligned, clear direction, no contradictions
-7-9 = Three sources agree, one mild conflict
-4-6 = Mixed signals, sources partially agree
-1-3 = Contradictory sources, no clear edge
-
-DATA:
-CORRELATIONS: {corr_text[:800]}
-TECHNICALS: {tech_text}
-MACRO: {macro_text}
-NEWS: {themes_text}
-
-Score ALL 12 pairs. Respond ONLY with valid JSON, no markdown, no explanation:
-{{"EURUSD":7,"GBPUSD":5,"USDJPY":9,"USDCHF":6,"AUDUSD":4,"USDCAD":5,"NZDUSD":8,"EURJPY":6,"GBPJPY":5,"AUDJPY":4,"NZDJPY":7,"CADJPY":5}}
-
-Replace the example numbers with your actual scores. Return only the JSON object."""
+    prompt = (
+        "You are a professional FX analyst. Score each currency pair 1-10 on EDGE - "
+        "how coherently all four data sources (correlation, technicals, macro, news) "
+        "agree on a tradeable direction for that pair right now.\n\n"
+        "Scoring guide:\n"
+        "10 = All four sources fully aligned, clear direction, no contradictions\n"
+        "7-9 = Three sources agree, one mild conflict\n"
+        "4-6 = Mixed signals, sources partially agree\n"
+        "1-3 = Contradictory sources, no clear edge\n\n"
+        f"DATA:\nCORRELATIONS: {corr_text[:800]}\n"
+        f"TECHNICALS: {tech_text}\n"
+        f"MACRO: {macro_text}\n"
+        f"NEWS: {themes_text}\n\n"
+        "Score ALL 12 pairs. Respond ONLY with valid JSON, no markdown, no explanation:\n"
+        '{"EURUSD":7,"GBPUSD":5,"USDJPY":9,"USDCHF":6,"AUDUSD":4,"USDCAD":5,'
+        '"NZDUSD":8,"EURJPY":6,"GBPJPY":5,"AUDJPY":4,"NZDJPY":7,"CADJPY":5}\n\n'
+        "Replace the example numbers with your actual scores. Return only the JSON object."
+    )
 
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resp = client.messages.create(
@@ -368,9 +402,8 @@ Replace the example numbers with your actual scores. Return only the JSON object
         max_tokens=200,
         messages=[{"role": "user", "content": prompt}],
     )
-    raw = resp.content[0].text.strip()
+    raw    = resp.content[0].text.strip()
     scores = json.loads(_strip_json(raw))
-    # Validate — ensure all 12 pairs present, clamp 1-10
     for pair in PAIRS:
         key = pair.replace("/", "")
         if key not in scores:
@@ -383,9 +416,9 @@ Replace the example numbers with your actual scores. Return only the JSON object
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
-    print(f"=== News Brief — {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC ===")
+    print(f"=== News Brief - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC ===")
 
-    # 1. Macro
+    # 1. Macro — always fetch first; written to JSON even if Claude fails
     macro = fetch_all_macro()
 
     # 2. Headlines
@@ -402,12 +435,12 @@ def main():
     tech_text = build_tech_text(h4, d1, csm, regime)
     corr_text = build_corr_text(corr)
 
-    # 4. Default stub
+    # 4. Default stub — macro always present even if Claude is unavailable
     result = {
-        "status":    "unavailable",
-        "updated":   datetime.now(timezone.utc).isoformat(),
-        "macro":     macro,
-        "narrative": "",
+        "status":      "unavailable",
+        "updated":     datetime.now(timezone.utc).isoformat(),
+        "macro":       macro,
+        "narrative":   "",
         "edge_scores": {},
     }
 
@@ -424,23 +457,22 @@ def main():
         # Themes call
         try:
             themes_data = call_themes(headlines_text, len(all_items))
-            print(f"  [Claude themes] {len(themes_data.get('themes',[]))} themes, "
-                  f"usd_bias={themes_data.get('usd_bias')}")
+            print(
+                f"  [Claude themes] {len(themes_data.get('themes', []))} themes, "
+                f"usd_bias={themes_data.get('usd_bias')}"
+            )
             result.update(themes_data)
-            result["status"] = "ok"
-            result["macro"]  = macro   # restore after update()
-            result["edge_scores"] = {}  # restore after update()
+            result["status"]      = "ok"
+            result["macro"]       = macro   # restore after update() overwrites it
+            result["edge_scores"] = {}      # restore after update()
         except Exception as e:
             print(f"  Claude themes error: {e}")
 
         if result["status"] == "ok":
-            # Narrative call
             try:
                 result["narrative"] = call_narrative(macro, result, tech_text, corr_text)
             except Exception as e:
                 print(f"  Claude narrative error: {e}")
-
-            # Edge scores call — all 12 pairs
             try:
                 result["edge_scores"] = call_edge_scores(macro, result, tech_text, corr_text)
             except Exception as e:
@@ -448,12 +480,13 @@ def main():
     else:
         print("  Skipping Claude calls (no headlines or no API key)")
 
-    # 5. Write
+    # 5. Write — macro always included regardless of Claude success
     out = BASE_DIR / "data" / "news_brief.json"
     with open(out, "w") as f:
         json.dump(result, f, indent=2)
-    print(f"  Saved: {out}")
+    print(f"  Saved: {out} | macro keys: {list(result.get('macro', {}).keys())}")
     print("=== News Brief complete ===")
+
 
 if __name__ == "__main__":
     main()
