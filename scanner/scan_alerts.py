@@ -32,7 +32,7 @@ COOLDOWN_H = 20
 PAIRS = [
     "EUR/USD","GBP/USD","USD/JPY","USD/CHF",
     "AUD/USD","USD/CAD","NZD/USD","EUR/JPY",
-    "GBP/JPY","XAU/USD",
+    "GBP/JPY","AUD/JPY","NZD/JPY","CAD/JPY",
 ]
 SIGNAL_LABELS = {"Strong Buy","Strong Sell","Buy","Sell"}
 STRONG_LABELS = {"Strong Buy","Strong Sell"}
@@ -45,7 +45,10 @@ def lj(path):
 def sj(path, data):
     with open(path,"w") as f: json.dump(data, f, indent=2)
 
-def compute_setup(pair, h1, h4, d1, csm_rankings, conv_pairs, regime_str):
+def compute_setup(pair, h1, h4, d1, csm_rankings, regime_str):
+    """Compute Setup% for a pair. Must match frontend computeQAI() exactly.
+    Conviction removed; weights redistributed across 9 components.
+    """
     h1d=h1.get(pair,{}); h4d=h4.get(pair,{}); d1d=d1.get(pair,{})
     base,quote=pair.split("/")
     d1_dir=d1d.get("direction","neutral")
@@ -67,16 +70,13 @@ def compute_setup(pair, h1, h4, d1, csm_rankings, conv_pairs, regime_str):
     csm_base=csm_rankings.get(base,50); csm_quote=csm_rankings.get(quote,50)
     csm_div=(csm_base-csm_quote) if is_bull else (csm_quote-csm_base) if is_bear else abs(csm_base-csm_quote)
     csm_score=10 if csm_div>=30 else 7 if csm_div>=15 else 5 if csm_div>=5 else 3 if csm_div>=-5 else 1
-    conv_raw=conv_pairs.get(pair); conv_score=5
-    if conv_raw is not None:
-        cd=conv_raw if is_bull else -conv_raw if is_bear else abs(conv_raw)
-        conv_score=10 if cd>=60 else 8 if cd>=40 else 6 if cd>=20 else 5 if cd>=0 else 3 if cd>=-20 else 1
     reg_score=5
     if regime_str=="Risk-On": reg_score=9 if is_bull else 5
     elif regime_str=="Risk-Off": reg_score=9 if is_bear else 5
     elif regime_str=="Ranging": reg_score=4
-    weights={"d1":.20,"h4":.15,"h1":.08,"reset":.10,"adx":.04,"atr":.03,"csm":.16,"conv":.12,"regime":.08,"rate":.04}
-    scores={"d1":d1_score,"h4":h4_score,"h1":h1_score,"reset":reset_score,"adx":adx_score,"atr":atr_score,"csm":csm_score,"conv":conv_score,"regime":reg_score,"rate":5}
+    # Weights match frontend computeQAI() exactly (conviction removed, total=1.00)
+    weights={"d1":.23,"h4":.17,"h1":.09,"reset":.11,"adx":.05,"atr":.03,"csm":.18,"regime":.09,"rate":.05}
+    scores={"d1":d1_score,"h4":h4_score,"h1":h1_score,"reset":reset_score,"adx":adx_score,"atr":atr_score,"csm":csm_score,"regime":reg_score,"rate":5}
     raw=round(sum(scores[k]*weights[k] for k in weights)*10)
     riskBases={"AUD","NZD","CAD"}; safeHavens={"CHF","JPY"}
     is_risk=base in riskBases or (quote in riskBases and base not in safeHavens)
@@ -113,7 +113,6 @@ def main(trigger_tf="H4"):
     h1=lj(H1_FILE); h4=lj(H4_FILE); d1=lj(D1_FILE)
     csm=lj(CSM_FILE); reg=lj(REG_FILE); nb=lj(NB_FILE)
     csm_rankings=csm.get("rankings",{})
-    conv_pairs={}
     regime_str=reg.get("regime","Mixed")
     edge_scores=nb.get("edge_scores",{})
     cd=load_cooldown()
@@ -130,7 +129,7 @@ def main(trigger_tf="H4"):
         if adx<ADX_MIN: continue
         if not h4d.get("filter_ok",True): continue
         if h4d.get("conflict",False): continue
-        setup=compute_setup(pair,h1,h4,d1,csm_rankings,conv_pairs,regime_str)
+        setup=compute_setup(pair,h1,h4,d1,csm_rankings,regime_str)
         if setup<SETUP_MIN: continue
         edge=edge_scores.get(pair.replace("/",""))
         if edge is None or edge<EDGE_MIN: continue
