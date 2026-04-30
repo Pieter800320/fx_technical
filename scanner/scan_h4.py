@@ -66,10 +66,10 @@ def compute_reset_score(ohlcv_closes, period=20, direction='neutral'):
     ) for i in range(10, len(closes))])
     momentum_slow = np.mean(mom_series[-period:]) if len(mom_series) >= period else momentum
 
-    if direction == 'bullish':
+    if direction == 'bull':
         pos_component     = (pos_proxy + 1) / 2
         stretch_component = (stretch + 1) / 2
-    elif direction == 'bearish':
+    elif direction == 'bear':
         pos_component     = (-pos_proxy + 1) / 2
         stretch_component = (-stretch + 1) / 2
     else:
