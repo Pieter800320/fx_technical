@@ -21,9 +21,6 @@ jobs:
         with:
           python-version: "3.11"
       - run: pip install -r requirements.txt
-      - name: Pull latest data before scan
-        run: git pull origin main --no-rebase || true
-
       - name: Run H4 scan
         env:
           TWELVEDATA_API_KEY: ${{ secrets.TWELVEDATA_API_KEY }}
@@ -46,7 +43,7 @@ jobs:
           cp data/correlation.json dashboard/ || true
           git add data/h4_scores.json state/cooldown.json data/alerts.json data/regime.json data/correlation.json data/alert_cooldown.json dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: H4 scan $(date -u +%Y-%m-%dT%H:%M)"
-          git pull --rebase origin main
+          git pull origin main --no-rebase -X ours
           git push
 
   deploy_dashboard:
