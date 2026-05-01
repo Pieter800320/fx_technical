@@ -36,17 +36,15 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #drum-wrap{background:#020e02;border-bottom:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;}
 #drum-scroll{height:260px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;}
 #drum-scroll::-webkit-scrollbar{display:none;}
-.drum-row{height:52px;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px 8px;font-family:'VT323',monospace;font-size:19px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;gap:2px;width:100%;}
+.drum-row{height:52px;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 8px 3px 11px;font-family:'VT323',monospace;font-size:19px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;gap:2px;width:100%;border-left:3px solid transparent;}
 .drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.4);}
+.drum-row.d-corr{border-left-color:var(--amber);}
 .d-top{display:flex;align-items:center;justify-content:center;gap:0;width:100%;}
-.d-pair{display:inline-block;width:54px;text-align:left;font-size:19px;}
-.d-s1{display:inline-block;width:20px;text-align:center;font-size:19px;margin-left:6px;}
-.d-s2{display:inline-block;width:20px;text-align:center;font-size:19px;}
-.d-s3{display:inline-block;width:20px;text-align:center;font-size:19px;}
-.d-setup{display:inline-block;width:30px;text-align:right;font-size:19px;margin-left:6px;}
-.d-edge{display:inline-block;width:16px;text-align:center;font-size:19px;margin-left:6px;}
-.d-arr{display:inline-block;width:20px;text-align:center;font-size:19px;line-height:1;}
-.d-bar-zone{display:flex;align-items:center;gap:3px;width:calc(100% - 16px);height:10px;}
+.d-pair{display:inline-block;width:58px;text-align:left;font-size:19px;}
+.d-setup{display:inline-block;width:36px;text-align:right;font-size:19px;}
+.d-edge{display:inline-block;width:18px;text-align:right;font-size:19px;margin-left:8px;}
+.d-arr{display:inline-block;width:22px;text-align:center;font-size:19px;line-height:1;margin-left:4px;}
+.d-bar-zone{display:flex;align-items:center;gap:3px;width:100%;height:10px;}
 .d-bar-item{position:relative;height:10px;background:rgba(0,204,51,.07);border:1px solid rgba(0,204,51,.25);border-radius:1px;overflow:hidden;flex:1;min-width:0;}
 #drum-fade-top{position:absolute;top:0;left:0;right:0;height:90px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
 #drum-fade-bot{position:absolute;bottom:0;left:0;right:0;height:90px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
@@ -189,6 +187,8 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div class="slbl">Open &amp; Pending</div>
     <div id="log-open" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);"></div>
+    <div class="slbl">Pattern Analysis</div>
+    <div id="log-patterns" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:var(--pad);"></div>
     <div class="slbl">Closed Trades</div>
     <div id="log-closed" style="max-height:380px;overflow-y:auto;border-top:1px solid var(--border);border-bottom:1px solid var(--border);"></div>
   </div>
@@ -812,15 +812,30 @@ function buildDrumRows(){
   const ranked=PAIRS.map(pair=>{
     const h4d=D.h4&&D.h4[pair],setup=computeQAI(pair).score,edge=getEdgeScore(pair)||0;
     const combined=setup*0.6+edge*4,adx=h4d&&h4d.raw?h4d.raw.adx||0:0;
-    return{pair,combined,adx};
+    return{pair,combined,adx,setup,edge};
   }).sort((a,b)=>b.combined-a.combined||b.adx-a.adx);
+
+  // Correlation flag: mark pairs correlated >0.7 with a higher-ranked pair in same direction
+  const corrFlagged=new Set();
+  ranked.forEach((r,i)=>{
+    if(i===0)return;
+    const dir=r.setup>50?'bull':'bear';
+    for(let j=0;j<i;j++){
+      const other=ranked[j];
+      const otherDir=other.setup>50?'bull':'bear';
+      if(dir!==otherDir)continue;
+      const cv=getCorrVal(r.pair,other.pair);
+      if(cv!==null&&Math.abs(cv)>=0.7){corrFlagged.add(r.pair);break;}
+    }
+  });
+
   return ranked.map(({pair})=>{
-    const h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair],h1d=D.h1&&D.h1[pair];
-    const d1=pillAbbr(d1d?d1d.label:''),h4=pillAbbr(h4d?h4d.label:''),h1=pillAbbr(h1d?h1d.label:'');
-    const dir=h4d?h4d.direction:'neutral',setup=computeQAI(pair),edge=getEdgeScore(pair);
+    const h4d=D.h4&&D.h4[pair];
+    const dir=h4d?h4d.direction:'neutral';
+    const setup=computeQAI(pair);
+    const edge=getEdgeScore(pair);
     const edgeStr=edge!==null?String(edge):'—';
-    // Telegram alert arrow — shows when pair has a live alert cooldown (<20h)
-    // Arrow direction from current H4/D1 direction; colour bright alert green/red
+    // Telegram alert arrow (Telegram signal only)
     const cooldown=D.alertCooldown&&D.alertCooldown[pair];
     const cooldownAge=cooldown?((Date.now()-new Date(cooldown).getTime())/3600000):999;
     const hasAlert=cooldownAge<20;
@@ -830,13 +845,13 @@ function buildDrumRows(){
       arrStyle='color:#00ff55;text-shadow:0 0 6px #00ff55;';
     }
     const barZone=buildDrumBarZone(pair);
+    const corrClass=corrFlagged.has(pair)?' d-corr':'';
     const topLine=
       `<span class="d-pair">${pair.replace('/','')}</span>`+
-      `<span class="d-s1">${d1}</span><span class="d-s2">${h4}</span><span class="d-s3">${h1}</span>`+
       `<span class="d-setup">${setup.score>0?setup.score+'%':'—'}</span>`+
       `<span class="d-edge">${edgeStr}</span>`+
       `<span class="d-arr" style="${arrStyle}">${arrChar}</span>`;
-    return{pair,html:
+    return{pair,corrClass,html:
       `<div class="d-top">${topLine}</div>`+
       barZone
     };
@@ -847,7 +862,7 @@ function updateDrum(){
   const drum=document.getElementById('drum-scroll');if(!drum)return;
   drumRows=buildDrumRows();const PAD=2;
   const blanks=n=>Array(n).fill(`<div class="drum-row" style="opacity:0;pointer-events:none;"></div>`).join('');
-  drum.innerHTML=blanks(PAD)+drumRows.map((r,i)=>`<div class="drum-row" data-idx="${i}" data-pair="${r.pair}">${r.html}</div>`).join('')+blanks(PAD);
+  drum.innerHTML=blanks(PAD)+drumRows.map((r,i)=>`<div class="drum-row${r.corrClass||''}" data-idx="${i}" data-pair="${r.pair}">${r.html}</div>`).join('')+blanks(PAD);
   const idx=drumRows.findIndex(r=>r.pair===selectedPair);
   drum.scrollTop=(idx>=0?idx:0)*52;
   updateDrumHighlight();
@@ -1285,6 +1300,52 @@ function renderLog(){
       }).join('')+'</tbody></table></div>';
     }
   }
+  // Pattern analysis
+  const pEl=document.getElementById('log-patterns');
+  if(pEl){
+    const cls2=trades.filter(t=>t.status==='closed'&&t.result&&t.result!=='manual');
+    if(cls2.length<3){
+      pEl.innerHTML='<span style="font-size:var(--xs);color:var(--muted);">Need at least 3 closed trades for pattern analysis.</span>';
+    } else {
+      const wr2=(t)=>{
+        const w=t.filter(x=>x.result==='win').length;
+        return t.length?Math.round(w/t.length*100):null;
+      };
+      // Setup% buckets
+      const s_lo=cls2.filter(t=>(t.setup_score||0)<60);
+      const s_mid=cls2.filter(t=>(t.setup_score||0)>=60&&(t.setup_score||0)<75);
+      const s_hi=cls2.filter(t=>(t.setup_score||0)>=75);
+      // Edge buckets
+      const e_lo=cls2.filter(t=>(t.edge_score||0)<6);
+      const e_mid=cls2.filter(t=>(t.edge_score||0)>=6&&(t.edge_score||0)<8);
+      const e_hi=cls2.filter(t=>(t.edge_score||0)>=8);
+      const cell=(label,trades,minN=1)=>{
+        const w=wr2(trades);
+        const col=w===null?'var(--muted)':w>=60?'var(--buy)':w>=45?'var(--amber)':'var(--sell)';
+        const txt=trades.length<minN?'—':(w+'% ('+trades.length+')');
+        return`<div style="flex:1;text-align:center;"><div style="font-size:var(--md);font-weight:700;color:${col};">${txt}</div><div style="font-size:var(--xs);color:var(--muted);margin-top:1px;">${label}</div></div>`;
+      };
+      const sep='<div style="width:1px;background:var(--border2);flex-shrink:0;"></div>';
+      let h='';
+      // Setup% row
+      h+=`<div style="margin-bottom:8px;"><div style="font-size:var(--xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Win Rate by Setup%</div>`;
+      h+=`<div style="display:flex;gap:0;">${cell('<60%',s_lo)}${sep}${cell('60-75%',s_mid)}${sep}${cell('>75%',s_hi)}</div></div>`;
+      // Edge row
+      h+=`<div style="margin-bottom:8px;"><div style="font-size:var(--xs);font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px;">Win Rate by Edge</div>`;
+      h+=`<div style="display:flex;gap:0;">${cell('<6',e_lo)}${sep}${cell('6-7',e_mid)}${sep}${cell('8-10',e_hi)}</div></div>`;
+      // Best/worst pairs
+      const pairWr={};
+      cls2.forEach(t=>{if(!pairWr[t.pair])pairWr[t.pair]=[];pairWr[t.pair].push(t);});
+      const pairStats=Object.entries(pairWr).filter(([,v])=>v.length>=2).map(([p,v])=>({p:p.replace('/',''),wr:wr2(v),n:v.length})).sort((a,b)=>b.wr-a.wr);
+      if(pairStats.length){
+        const best=pairStats[0],worst=pairStats[pairStats.length-1];
+        h+=`<div style="display:flex;gap:8px;"><div style="flex:1;"><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;font-weight:700;">Best Pair</span><div style="font-size:var(--md);font-weight:700;color:var(--buy);">${best.p} ${best.wr}% (${best.n})</div></div>`;
+        h+=`<div style="flex:1;"><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;font-weight:700;">Worst Pair</span><div style="font-size:var(--md);font-weight:700;color:var(--sell);">${worst.p} ${worst.wr}% (${worst.n})</div></div></div>`;
+      }
+      pEl.innerHTML=h;
+    }
+  }
+
   // Performance stats
   const all=trades;
   const cls=all.filter(t=>t.status==='closed');
