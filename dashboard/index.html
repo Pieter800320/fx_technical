@@ -72,7 +72,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .csm-row{display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;border-radius:4px;}
 .csm-lbl{width:34px;font-size:var(--sm);font-weight:700;flex-shrink:0;}
 .csm-track{flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;}
-.csm-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:0 3px 3px 0;}
+.csm-fill{height:100%;background:linear-gradient(90deg,#1f6feb,#58a6ff);border-radius:0 3px 3px 0;}.csm-fill-h4{height:100%;background:linear-gradient(90deg,#8a6800,#e3b341);border-radius:0 3px 3px 0;}.csm-toggle{display:flex;gap:1px;margin:0 var(--pad) 6px;}.csm-tb{flex:1;padding:4px;font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.06em;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;border-radius:var(--r-sm);}.csm-tb.active{background:rgba(56,139,253,.1);border-color:rgba(56,139,253,.4);color:var(--accent);}
 .csm-val{width:36px;text-align:right;font-size:var(--xs);color:var(--muted);flex-shrink:0;}
 .csm-active-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;transition:background .2s;}
 #regime-section{padding:var(--pad);border-top:1px solid var(--border);}
@@ -168,6 +168,7 @@ tr:last-child td{border-bottom:none;}
       <button class="btn" onclick="openChart()" style="width:100%;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Open Chart</button>
     </div>
     <div class="slbl">Currency Strength</div>
+    <div class="csm-toggle"><button class="csm-tb active" id="csm-tb-d1" onclick="setCsmMode('d1')">D1</button><button class="csm-tb" id="csm-tb-h4" onclick="setCsmMode('h4')">H4</button></div>
     <div id="csm-section"><div class="loading">Loading…</div></div>
     <div id="regime-section"><div class="slbl" style="padding:0 0 6px;">Regime</div><div id="regime-strip" onclick="openRegimeSheet()" style="cursor:pointer;"></div></div>
   </div>
@@ -271,7 +272,7 @@ const CCYS=['USD','EUR','GBP','JPY','CHF','AUD','CAD','NZD'];
 const LA_KEY='fx1212_level_alerts_v1',IND_KEY='fx1212_indicators_v1';
 const GH_OWNER='Pieter800320',GH_REPO='fx_technical';
 
-let D={},selectedPair=PAIRS[0],corrSelectedPair=null;
+let D={},selectedPair=PAIRS[0],corrSelectedPair=null,csmMode='d1';
 let chtTf='H1',chtShowMacd=false,chtMainInst=null,chtMacdInst=null;
 let alertDir='above',candleTimerInt=null;
 let indState={ema200:true,ema50:false,bb:false},ratesLocal={};
@@ -658,13 +659,25 @@ function buildCSMSheet(ccy){
   }
   return h;
 }
+function setCsmMode(mode){
+  csmMode=mode;
+  const d1Btn=document.getElementById('csm-tb-d1'),h4Btn=document.getElementById('csm-tb-h4');
+  if(d1Btn){d1Btn.className='csm-tb'+(mode==='d1'?' active':'');}
+  if(h4Btn){h4Btn.className='csm-tb'+(mode==='h4'?' active':'');}
+  renderCSM(D.csm,D.conviction);
+}
 function renderCSM(csm,conviction){
   const el=document.getElementById('csm-section');
   if(!csm||!csm.rankings){el.innerHTML='<div class="loading">No data.</div>';return;}
   const[selBase,selQuote]=selectedPair.split('/');
-  el.innerHTML=Object.entries(csm.rankings).map(([ccy,val])=>{
+  const isH4=csmMode==='h4';
+  const rankings=isH4&&csm.h4_rankings?csm.h4_rankings:csm.rankings;
+  const fillClass=isH4?'csm-fill-h4':'csm-fill';
+  el.innerHTML=Object.entries(rankings).map(([ccy,val])=>{
     const isActive=(ccy===selBase||ccy===selQuote);
-    return`<div class="csm-row" data-ccy="${ccy}" style="background:${isActive?'rgba(56,139,253,.05)':'transparent'};" onclick="openSheet('${ccy} — Breakdown',buildCSMSheet('${ccy}'))"><div class="csm-active-dot" style="background:${isActive?'var(--accent)':'transparent'};"></div><span class="csm-lbl">${ccy}</span><div class="csm-track"><div class="csm-fill" style="width:${val}%"></div></div><span class="csm-val">${val.toFixed(1)}</span></div>`;
+    const d1Val=csm.rankings[ccy]||0;
+    const diverg='';
+    return`<div class="csm-row" data-ccy="${ccy}" style="background:${isActive?'rgba(56,139,253,.05)':'transparent'};" onclick="openSheet('${ccy} — Breakdown',buildCSMSheet('${ccy}'))"><div class="csm-active-dot" style="background:${isActive?'var(--accent)':'transparent'};"></div><span class="csm-lbl">${ccy}</span><div class="csm-track"><div class="${fillClass}" style="width:${val}%"></div></div><span class="csm-val">${val.toFixed(1)}</span>${diverg}</div>`;
   }).join('');
 }
 function getCorrVal(p1,p2){if(!D.corr||!D.corr.pairs||!D.corr.matrix)return null;const i=D.corr.pairs.indexOf(p1.replace('/',''));const j=D.corr.pairs.indexOf(p2.replace('/',''));if(i<0||j<0)return null;return D.corr.matrix[i][j];}
