@@ -344,7 +344,7 @@ def call_themes(headlines_text, n):
         f'"headline_count":{n}}}'
     )
     resp = client.messages.create(
-        model="claude-opus-4-6",
+        model="claude-haiku-4-5-20251001",
         max_tokens=1000,
         messages=[{"role": "user", "content": prompt}],
     )
