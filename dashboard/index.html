@@ -483,7 +483,8 @@ function renderIndStrip(pair){
   // H4 Regime cell — shows H4 leading regime with direction arrow
   const d1reg=D.regime&&D.regime.regime?D.regime.regime:'—';
   const h4regData=D.regime&&D.regime.h4,h4reg=h4regData&&h4regData.regime?h4regData.regime:'—';
-  const direction=D.regime&&D.regime.direction||'Stable';
+  const fr=D.regime&&D.regime.final_regime||null;
+  const direction=fr?fr.direction:(D.regime&&D.regime.direction||'Stable');
   const mb=D.regime&&D.regime.macro_bias||null;
   const h4RC=RC[h4reg]||RC['Mixed'];
   const macroContradicts=mb&&((d1reg==='Risk-On'&&mb.score<0)||(d1reg==='Risk-Off'&&mb.score>0));
@@ -670,36 +671,46 @@ function buildLiveContent(){
 }
 // ── REGIME SHEET — FIX 4: macro grid added as Cross-Asset section
 function openRegimeSheet(){
-  const r=D.regime;if(!r||!r.regime)return;
-  const c=RC[r.regime]||RC['Mixed'],s=r.signals||{},h4r=r.h4;
+  const r=D.regime;if(!r)return;
+  const fr=r.final_regime||null;
+  const h4r=r.h4||null;
   const mb=r.macro_bias||null;
-  const dir=r.direction||'Stable';
+  const ai=r.ai_sentiment||null;
+  const primary=fr||h4r||r;
+  const regName=primary.regime||(r.regime||'—');
+  const c=RC[regName]||RC['Mixed'];
+  const dir=fr?fr.direction:(r.direction||'Stable');
   const dirArr=dir==='Strengthening'?'↑':dir==='Deteriorating'?'↓':'→';
   const dirCol=dir==='Strengthening'?'var(--buy)':dir==='Deteriorating'?'var(--sell)':'var(--muted)';
-  const macroContradicts=mb&&((r.regime==='Risk-On'&&mb.score<0)||(r.regime==='Risk-Off'&&mb.score>0));
-  const finalCol=macroContradicts?'var(--amber)':c.c;
+  const conf=(primary.confidence||'').toUpperCase();
+  const spread=fr?fr.spread:null;
+  const spreading=spread!==null&&spread>=4;
 
-  // ── KPI: Combined reading
+  // ── KPI: Final Regime
   let h=`<div class="sh-kpi">`;
   h+=`<div style="display:flex;flex-direction:column;gap:2px;">`;
-  h+=`<span style="font-size:var(--lg);font-weight:700;color:${finalCol};">${r.regime} <span style="color:${dirCol};">${dirArr}</span></span>`;
-  h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">D1 ${(r.confidence||'').toUpperCase()} · ${dir}</span>`;
+  h+=`<span style="font-size:var(--lg);font-weight:700;color:${c.c};">${regName} <span style="color:${dirCol};">${dirArr}</span></span>`;
+  h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">${conf} · ${dir}${fr?' · Score '+fr.score:''}</span>`;
   h+=`</div>`;
-  if(mb){
-    const mbCol=mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)';
-    h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">`;
-    h+=`<span style="font-size:var(--lg);font-weight:700;color:${mbCol};">${mb.score>0?'+':''}${mb.score}/${mb.max}</span>`;
-    h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Macro Overlay</span>`;
+  h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">`;
+  if(fr){
+    const comps=fr.components||{};
+    h+=`<div style="display:flex;gap:6px;font-size:var(--xs);font-weight:700;">`;
+    h+=`<span style="color:${c.c};">H4 ${(comps.h4?.score||5).toFixed(0)}</span>`;
+    const mbC=mb?(mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)'):'var(--muted)';
+    h+=`<span style="color:${mbC};">M ${(comps.macro?.score||5).toFixed(0)}</span>`;
+    const aiC=ai?(ai.score>=7?'var(--buy)':ai.score<=4?'var(--sell)':'var(--amber)'):'var(--muted)';
+    h+=`<span style="color:${aiC};">AI ${(comps.ai?.score||5).toFixed(0)}</span>`;
     h+=`</div>`;
+    h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">3-Source Combined</span>`;
   } else {
-    h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span style="font-size:var(--sm);color:var(--muted);">Macro pending</span></div>`;
+    h+=`<span style="font-size:var(--sm);color:var(--muted);">Pending full data</span>`;
   }
   h+=`</div>`;
+  h+=`</div>`;
 
-  if(macroContradicts){
-    h+=`<div style="display:flex;align-items:center;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">⚠ Macro contradicts structural regime</span></div>`;
-  } else if(h4r&&h4r.regime&&h4r.regime!==r.regime){
-    h+=`<div style="display:flex;align-items:center;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">Regime Divergence D1↔H4</span></div>`;
+  if(spreading){
+    h+=`<div style="display:flex;align-items:center;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">⚠ Sources disagree — regime uncertain (spread ${spread})</span></div>`;
   }
 
   // ── Section 1: Tactical Macro Overlay
@@ -721,21 +732,16 @@ function openRegimeSheet(){
     h+=`<div style="padding:4px var(--pad);font-size:var(--xs);color:var(--muted);">Updated: ${updStr}</div>`;
   }
 
-  // ── Section 2: D1 Structural Signals
-  h+=`<div class="sh-hdr">D1 Structural</div>`;
+  // ── Section 2: H4 Structural Signals (price action)
+  h+=`<div class="sh-hdr">H4 Structural</div>`;
   const d1rows=[["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],["Risk basket",s.risk_basket],["Gold",s.gold_direction||"—"],["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],["Dispersion",s.dispersion]];
   h+=d1rows.map(row=>{if(!row)return'';const[k,v]=row;if(v===null||v===undefined)return'';const vStr=String(v),n=parseFloat(vStr),col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
 
-  // ── Section 3: H4 Structural Signals
-  if(h4r&&h4r.signals){
-    const h4c=RC[h4r.regime]||RC['Mixed'];
-    h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;"><span>H4 Structural</span><span style="color:${h4c.c};">${h4r.regime} · ${(h4r.confidence||'').toUpperCase()}</span></div>`;
-    const h4s=h4r.signals;
-    [["Safe-haven div",h4s.sh_divergence],["USD proxy",h4s.usd_proxy],["Risk basket",h4s.risk_basket],["Dispersion",h4s.dispersion]].forEach(([k,v])=>{
-      if(v===null||v===undefined)return;
-      const vStr=String(v),n=parseFloat(vStr),col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';
-      h+=`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;
-    });
+  // ── Section 3: AI Sentiment
+  if(ai){
+    const aiC=ai.score>=7?'var(--buy)':ai.score<=4?'var(--sell)':'var(--amber)';
+    h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;"><span>AI News Sentiment</span><span style="color:${aiC};">${ai.score}/10 — ${ai.label||''}</span></div>`;
+    if(ai.rationale)h+=`<div style="padding:7px var(--pad);font-size:var(--sm);color:var(--muted);line-height:1.5;">${ai.rationale}</div>`;
   }
 
   // ── Section 4: Cross-Asset grid
@@ -745,22 +751,28 @@ function openRegimeSheet(){
   openSheet('Regime',h);
 }
 function renderRegime(r){
-  const el=document.getElementById('regime-strip');if(!el||!r||!r.regime)return;
-  const c=RC[r.regime]||RC['Mixed'],s=r.signals||{};
-  const mb=r.macro_bias||null;
-  const dir=r.direction||'Stable';
+  const el=document.getElementById('regime-strip');if(!el||!r)return;
+  const fr=r.final_regime||null;
+  const h4r=r.h4||null;
+  // Use final_regime as primary if available, else fall back to h4 regime
+  const primary=fr||h4r||r;
+  const regName=primary.regime||r.regime||'—';
+  const conf=(primary.confidence||'').toUpperCase();
+  const dir=fr?fr.direction:(r.direction||'Stable');
   const dirArr=dir==='Strengthening'?'↑':dir==='Deteriorating'?'↓':'→';
-  const h4r=r.h4,h4c=h4r?RC[h4r.regime]||RC['Mixed']:null;
-  const macroContradicts=mb&&((r.regime==='Risk-On'&&mb.score<0)||(r.regime==='Risk-Off'&&mb.score>0));
+  const c=RC[regName]||RC['Mixed'];
+  const mb=r.macro_bias||null;
+  const ai=r.ai_sentiment||null;
+  const h4c=h4r?RC[h4r.regime]||RC['Mixed']:null;
   const macroCol=mb?(mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)'):'var(--muted)';
-  const usdV=parseFloat(s.usd_proxy)||0,shV=parseFloat(s.sh_divergence)||0;
+  const aiCol=ai?(ai.score>=7?'var(--buy)':ai.score<=4?'var(--sell)':'var(--amber)'):'var(--muted)';
   const sep='<span style="color:var(--border2);padding:0 2px;">│</span>';
   const items=[
-    {lbl:'D1 Rgm',val:r.regime+' '+dirArr,col:macroContradicts?'var(--amber)':c.c},
-    {lbl:'H4 Rgm',val:h4r?regAbbr(h4r.regime):'—',col:h4c?h4c.c:'var(--muted)'},
+    {lbl:'Regime',val:regAbbr(regName)+' '+conf[0]+(conf[1]||'')+' '+dirArr,col:c.c},
+    {lbl:'H4',val:h4r?regAbbr(h4r.regime):'—',col:h4c?h4c.c:'var(--muted)'},
     {lbl:'Macro',val:mb?mb.score+'/'+mb.max:'—',col:macroCol},
-    {lbl:'USD',val:usdV!==0?usdV.toFixed(1):'—',col:usdV>0?'var(--buy)':usdV<0?'var(--sell)':'var(--muted)'},
-    {lbl:'SH Div',val:shV!==0?shV.toFixed(0):'—',col:shV>15?'var(--sell)':shV<-15?'var(--buy)':'var(--muted)'},
+    {lbl:'AI',val:ai?ai.score+'/10':'—',col:aiCol},
+    {lbl:'Score',val:fr?fr.score.toFixed(1):'—',col:c.c},
   ];
   el.innerHTML=`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${c.b};border-radius:var(--r-sm);padding:8px 6px;">${items.map((x,i)=>`${i>0?sep:''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--sm);font-weight:700;color:${x.col};">${x.val}</span><span style="font-size:var(--xs);color:var(--muted);margin-top:2px;">${x.lbl}</span></div>`).join('')}</div>`;
 }
