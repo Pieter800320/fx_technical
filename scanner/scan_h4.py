@@ -21,7 +21,6 @@ from scanner.score import score_pair, is_extended
 from scanner.correlate import compute_correlation
 from scanner.cooldown import is_on_cooldown, record_alert
 from scanner.regime import classify_regime
-from scanner.csm import compute_currency_strength_h4
 from alerts.news import get_alert_context
 from alerts.log import log_alert
 
@@ -259,20 +258,7 @@ def main():
     print("\n  Computing H4 market regime...")
     try:
         csm_data   = load_scores(os.path.join(DATA_DIR, "csm.json"))
-        # H4 CSM — H4x0.8 + H1x0.2, saved under h4_rankings key
-        try:
-            h1_raw  = load_scores(os.path.join(DATA_DIR, "h1_scores.json"))
-            h1_dfs  = {p: pd.DataFrame(b) for p, b in h1_raw.get("_ohlcv", {}).items() if b}
-            h4_dfs  = {p: pd.DataFrame(b) for p, b in h4_ohlcv.items() if b}
-            h4_csm  = compute_currency_strength_h4(h4_dfs, h1_dfs)
-            csm_data["h4_rankings"]   = h4_csm["rankings"]
-            csm_data["h4_confidence"] = h4_csm["confidence"]
-            with open(os.path.join(DATA_DIR, "csm.json"), "w") as _f:
-                json.dump(csm_data, _f, indent=2)
-            print(f"  H4 CSM: {list(h4_csm['rankings'].items())[:3]}")
-        except Exception as _e:
-            print(f"  H4 CSM skipped: {_e}")
-        h4_regime  = classify_regime(csm_data, h4_results)
+        h4_regime  = classify_regime(csm_data, h4_results)  # H4 structural
         # Patch only the h4 key — preserve the D1 regime written by scan_d1.py
         existing   = load_scores(REGIME_FILE)
         existing["h4"] = {
@@ -281,6 +267,17 @@ def main():
             "signals":    h4_regime["signals"],
             "updated":    now.isoformat(),
         }
+        # Recompute final_regime with updated H4 structural
+        try:
+            mb = existing.get("macro_bias")
+            ai_sent = existing.get("ai_sentiment")
+            final_reg = compute_final_regime(existing["h4"], mb, ai_sent)
+            existing["final_regime"] = final_reg
+            direction = final_reg["direction"]
+            print(f"  Final regime: {final_reg['regime']} {final_reg['confidence']} "
+                  f"(score={final_reg['score']}) {direction}")
+        except Exception as _fe:
+            print(f"  Final regime skipped: {_fe}")
         with open(REGIME_FILE, "w") as f:
             json.dump(existing, f, indent=2)
         print(f"  H4 Regime: {h4_regime['regime']} ({h4_regime['confidence']})")
