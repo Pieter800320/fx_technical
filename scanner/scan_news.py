@@ -43,9 +43,12 @@ RSS_FEEDS = [
 STOOQ_INSTRUMENTS = [
     ("vix",    "^vix",   "VIX",     True),
     ("us10y",  "^tnx",   "US 10Y",  False),
+    ("us2y",   "^irx",   "US 2Y",   False),
     ("wti",    "cl.f",   "WTI Oil", False),
     ("gold",   "xauusd", "Gold",    False),
+    ("silver", "si=f",   "Silver",  False),
     ("spx",    "^spx",   "S&P 500", False),
+    ("dxy",    "dx-y.nyb","DXY",    False),
     ("btc",    "btcusd", "Bitcoin", False),
     ("copper", "hg.f",   "Copper",  False),
 ]
@@ -68,13 +71,16 @@ def fetch_stooq(symbol):
     Symbol mapping: internal Stooq-style keys → Yahoo Finance tickers.
     """
     yf_map = {
-        "^vix":   "^VIX",
-        "^tnx":   "^TNX",
-        "cl.f":   "CL=F",
-        "xauusd": "GC=F",
-        "^spx":   "^GSPC",
-        "btcusd": "BTC-USD",
-        "hg.f":   "HG=F",
+        "^vix":    "^VIX",
+        "^tnx":    "^TNX",
+        "^irx":    "^IRX",
+        "cl.f":    "CL=F",
+        "xauusd":  "GC=F",
+        "si=f":    "SI=F",
+        "^spx":    "^GSPC",
+        "dx-y.nyb":"DX-Y.NYB",
+        "btcusd":  "BTC-USD",
+        "hg.f":    "HG=F",
     }
     yf_symbol = yf_map.get(symbol.lower(), symbol)
     url = (
@@ -219,24 +225,7 @@ def build_tech_text(h4, d1, csm, regime):
     if sorted_r:
         top = " ".join(f"{c}({v:.0f})" for c, v in sorted_r[:3])
         bot = " ".join(f"{c}({v:.0f})" for c, v in sorted_r[-3:])
-        lines.append(f"D1 CSM Strongest: {top} | Weakest: {bot}")
-
-    # H4 CSM — short-window momentum (H4x0.8 + H1x0.2, ~20h lookback)
-    h4_ranks = csm.get("h4_rankings") or {}
-    if h4_ranks:
-        h4_sorted = sorted(h4_ranks.items(), key=lambda x: x[1], reverse=True)
-        h4_top = " ".join(f"{c}({v:.0f})" for c, v in h4_sorted[:3])
-        h4_bot = " ".join(f"{c}({v:.0f})" for c, v in h4_sorted[-3:])
-        lines.append(f"H4 CSM Strongest: {h4_top} | Weakest: {h4_bot}")
-        # Flag currencies where H4 momentum diverges significantly from D1
-        diverg = []
-        for c, h4v in h4_ranks.items():
-            d1v = ranks.get(c, 50)
-            if abs(h4v - d1v) >= 20:
-                direction = "accelerating" if h4v > d1v else "fading"
-                diverg.append(f"{c} {direction}({h4v:.0f}vs{d1v:.0f})")
-        if diverg:
-            lines.append(f"H4/D1 CSM Divergence: {' | '.join(diverg)}")
+        lines.append(f"Strongest: {top} | Weakest: {bot}")
 
     sigs = []
     for pair in PAIRS:
