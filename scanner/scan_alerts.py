@@ -45,7 +45,28 @@ def lj(path):
 def sj(path, data):
     with open(path,"w") as f: json.dump(data, f, indent=2)
 
-def compute_setup(pair, h1, h4, d1, csm_rankings, edge_scores, regime_str):
+
+def get_rate_diff_bps(pair, rates):
+    """Extract rate differential in bps from rates.json for a pair."""
+    if not rates:
+        return 0
+    base, quote = pair.split("/")
+    # rates.json can be {USD:{rate:5.5,bank:Fed}, ...} or {rates:[{currency,rate,bank}]}
+    rate_map = {}
+    if isinstance(rates, dict) and "rates" in rates:
+        for r in rates["rates"]:
+            if r.get("currency"):
+                rate_map[r["currency"]] = r.get("rate", 0)
+    else:
+        for ccy, v in rates.items():
+            if isinstance(v, dict) and "rate" in v:
+                rate_map[ccy] = v["rate"]
+    b_rate = rate_map.get(base, 0)
+    q_rate = rate_map.get(quote, 0)
+    return round((b_rate - q_rate) * 100)  # bps
+
+
+def compute_setup(pair, h1, h4, d1, csm_rankings, edge_scores, regime_str, rates=None):
     """
     6-component orthogonal Setup score. Mirrors computeQAI() in Index.html exactly.
     ADX is a hard gate (< 20 → cap 45), not a scoring component.
@@ -98,12 +119,18 @@ def compute_setup(pair, h1, h4, d1, csm_rankings, edge_scores, regime_str):
         reg_score=5
 
     # 5. RATE DIFFERENTIAL (10%)
-    rate_score=5  # default — rates.json not loaded in alert scanner
+    rate_score=5  # computed below from rates.json
 
     # 6. EDGE — AI cross-source coherence (7%)
     edge_key=pair.replace("/","")
     edge_raw=edge_scores.get(edge_key)
     edge_score=edge_raw if edge_raw is not None else 5
+
+    # Real rate differential
+    if rates:
+        diff_bps = get_rate_diff_bps(pair, rates)
+        diff_in_dir = diff_bps if is_bull else -diff_bps if is_bear else abs(diff_bps)
+        rate_score = 10 if diff_in_dir>=200 else 7 if diff_in_dir>=50 else 5 if diff_in_dir>=-50 else 3 if diff_in_dir>=-200 else 1
 
     # Weighted sum
     weights={"align":.30,"entry":.20,"csm":.17,"regime":.14,"rate":.06,"edge":.13}
@@ -151,6 +178,7 @@ def send_telegram(text):
 def main(trigger_tf="H4"):
     print(f"=== Alert Scanner — {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC (trigger: {trigger_tf}) ===")
     h1=lj(H1_FILE); h4=lj(H4_FILE); d1=lj(D1_FILE)
+    rates=lj(os.path.join(DATA_DIR,"rates.json"))
     csm=lj(CSM_FILE); reg=lj(REG_FILE); nb=lj(NB_FILE)
     csm_rankings=csm.get("rankings",{})
     regime_str=reg.get("regime","Mixed")
@@ -169,7 +197,7 @@ def main(trigger_tf="H4"):
         if adx<ADX_MIN: continue
         if not h4d.get("filter_ok",True): continue
         if h4d.get("conflict",False): continue
-        setup=compute_setup(pair,h1,h4,d1,csm_rankings,edge_scores,regime_str)
+        setup=compute_setup(pair,h1,h4,d1,csm_rankings,edge_scores,regime_str,rates)
         if setup<SETUP_MIN: continue
         edge=edge_scores.get(pair.replace("/",""))
         if edge is None or edge<EDGE_MIN: continue
