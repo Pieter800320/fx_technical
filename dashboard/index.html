@@ -690,7 +690,8 @@ function openRegimeSheet(){
   let h=`<div class="sh-kpi">`;
   h+=`<div style="display:flex;flex-direction:column;gap:2px;">`;
   h+=`<span style="font-size:var(--lg);font-weight:700;color:${c.c};">${regName} <span style="color:${dirCol};">${dirArr}</span></span>`;
-  h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">${conf} · ${dir}${fr?' · Score '+fr.score:''}</span>`;
+  const confShort=conf==='HIGH'?'High':conf==='MEDIUM'?'Med':conf==='LOW'?'Low':conf;
+  h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">${confShort} · ${dir}${fr?' · Score '+fr.score:''}</span>`;
   h+=`</div>`;
   h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">`;
   if(fr){
@@ -712,6 +713,8 @@ function openRegimeSheet(){
   if(spreading){
     h+=`<div style="display:flex;align-items:center;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">⚠ Sources disagree — regime uncertain (spread ${spread})</span></div>`;
   }
+  // H4 structural signals for the sheet body
+  const s=h4r&&h4r.signals?h4r.signals:{};
 
   // ── Section 1: Tactical Macro Overlay
   if(mb&&mb.components&&mb.components.length){
@@ -734,7 +737,7 @@ function openRegimeSheet(){
 
   // ── Section 2: H4 Structural Signals (price action)
   h+=`<div class="sh-hdr">H4 Structural</div>`;
-  const d1rows=[["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],["Risk basket",s.risk_basket],["Gold",s.gold_direction||"—"],["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],["Dispersion",s.dispersion]];
+  const d1rows=[["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],["Risk basket",s.risk_basket],["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],["Dispersion",s.dispersion]];
   h+=d1rows.map(row=>{if(!row)return'';const[k,v]=row;if(v===null||v===undefined)return'';const vStr=String(v),n=parseFloat(vStr),col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
 
   // ── Section 3: AI Sentiment
@@ -768,7 +771,7 @@ function renderRegime(r){
   const aiCol=ai?(ai.score>=7?'var(--buy)':ai.score<=4?'var(--sell)':'var(--amber)'):'var(--muted)';
   const sep='<span style="color:var(--border2);padding:0 2px;">│</span>';
   const items=[
-    {lbl:'Regime',val:regAbbr(regName)+' '+conf[0]+(conf[1]||'')+' '+dirArr,col:c.c},
+    {lbl:'Regime',val:regAbbr(regName)+' '+(conf==='HIGH'?'Hi':conf==='MEDIUM'?'Med':conf==='LOW'?'Lo':'')+' '+dirArr,col:c.c},
     {lbl:'H4',val:h4r?regAbbr(h4r.regime):'—',col:h4c?h4c.c:'var(--muted)'},
     {lbl:'Macro',val:mb?mb.score+'/'+mb.max:'—',col:macroCol},
     {lbl:'AI',val:ai?ai.score+'/10':'—',col:aiCol},
