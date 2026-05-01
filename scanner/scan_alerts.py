@@ -45,45 +45,85 @@ def lj(path):
 def sj(path, data):
     with open(path,"w") as f: json.dump(data, f, indent=2)
 
-def compute_setup(pair, h1, h4, d1, csm_rankings, conv_pairs, regime_str):
+def compute_setup(pair, h1, h4, d1, csm_rankings, edge_scores, regime_str):
+    """
+    6-component orthogonal Setup score. Mirrors computeQAI() in Index.html exactly.
+    ADX is a hard gate (< 20 → cap 45), not a scoring component.
+    """
     h1d=h1.get(pair,{}); h4d=h4.get(pair,{}); d1d=d1.get(pair,{})
     base,quote=pair.split("/")
     d1_dir=d1d.get("direction","neutral")
-    is_bull=d1_dir=="bull"; is_bear=d1_dir=="bear"
-    d1_label=d1d.get("label","")
-    d1_score=3 if d1_dir=="neutral" else (10 if "Strong" in d1_label else 7 if ("Buy" in d1_label or "Sell" in d1_label) else 4)
-    h4_dir=h4d.get("direction","neutral"); h4_label=h4d.get("label","")
-    if h4_dir==d1_dir and d1_dir!="neutral": h4_score=10 if "Strong" in h4_label else 7
-    elif h4_dir=="neutral": h4_score=4
-    else: h4_score=0
+    h4_dir=h4d.get("direction","neutral")
     h1_dir=h1d.get("direction","neutral")
-    h1_score=10 if h1_dir==d1_dir and d1_dir!="neutral" else 6 if h1_dir=="neutral" else 1
+    is_bull=d1_dir=="bull"; is_bear=d1_dir=="bear"
+
+    # 1. TF ALIGNMENT (30%)
+    if d1_dir=="neutral":
+        align_score=2
+    else:
+        h4m=h4_dir==d1_dir; h4n=h4_dir=="neutral"
+        h1m=h1_dir==d1_dir; h1n=h1_dir=="neutral"
+        d1s="Strong" in d1d.get("label","")
+        h4s="Strong" in h4d.get("label","")
+        if h4m and h1m:        align_score=10 if (d1s or h4s) else 9
+        elif h4m and h1n:      align_score=7
+        elif h4m and not h1m and not h1n: align_score=5
+        elif h4n and h1m:      align_score=5
+        elif h4n and h1n:      align_score=3
+        else:                  align_score=1
+
+    # 2. ENTRY POSITION (20%) — reset×0.6 + ATR×0.4
     reset_raw=h4d.get("reset_score")
-    reset_score=5 if reset_raw is None else (2 if reset_raw<=20 else 4 if reset_raw<=35 else 7 if reset_raw<=50 else 10)
-    adx_v=(h4d.get("raw") or {}).get("adx")
-    adx_score=5 if adx_v is None else (10 if adx_v>=25 else 7 if adx_v>=20 else 4 if adx_v>=15 else 1)
+    reset_comp=5 if reset_raw is None else (2 if reset_raw<=20 else 4 if reset_raw<=35 else 7 if reset_raw<=50 else 10)
     atr_pct=d1d.get("atr_percentile")
-    atr_score=5 if atr_pct is None else (10 if 20<=atr_pct<=70 else 7 if atr_pct<20 else 3)
+    atr_comp=5 if atr_pct is None else (10 if 20<=atr_pct<=70 else 7 if atr_pct<20 else 3)
+    entry_score=round(reset_comp*0.6+atr_comp*0.4)
+
+    # 3. CSM DIVERGENCE (18%)
     csm_base=csm_rankings.get(base,50); csm_quote=csm_rankings.get(quote,50)
     csm_div=(csm_base-csm_quote) if is_bull else (csm_quote-csm_base) if is_bear else abs(csm_base-csm_quote)
     csm_score=10 if csm_div>=30 else 7 if csm_div>=15 else 5 if csm_div>=5 else 3 if csm_div>=-5 else 1
-    conv_raw=conv_pairs.get(pair); conv_score=5
-    if conv_raw is not None:
-        cd=conv_raw if is_bull else -conv_raw if is_bear else abs(conv_raw)
-        conv_score=10 if cd>=60 else 8 if cd>=40 else 6 if cd>=20 else 5 if cd>=0 else 3 if cd>=-20 else 1
-    reg_score=5
-    if regime_str=="Risk-On": reg_score=9 if is_bull else 5
-    elif regime_str=="Risk-Off": reg_score=9 if is_bear else 5
-    elif regime_str=="Ranging": reg_score=4
-    weights={"d1":.23,"h4":.17,"h1":.09,"reset":.11,"adx":.05,"atr":.03,"csm":.18,"regime":.09,"rate":.05}
-    scores={"d1":d1_score,"h4":h4_score,"h1":h1_score,"reset":reset_score,"adx":adx_score,"atr":atr_score,"csm":csm_score,"regime":reg_score,"rate":5}
+
+    # 4. REGIME FIT (15%)
+    risk_bases={"AUD","NZD","CAD"}; safe_havens={"CHF","JPY"}
+    is_risk=base in risk_bases or (quote in risk_bases and base not in safe_havens)
+    is_safe=base in safe_havens or quote in safe_havens
+    if regime_str=="Risk-On":
+        reg_score=10 if (is_bull and is_risk) else 8 if is_bull else 2 if (is_bear and is_safe) else 4 if is_bear else 5
+    elif regime_str=="Risk-Off":
+        reg_score=10 if (is_bear and is_safe) else 8 if is_bear else 2 if (is_bull and is_risk) else 4 if is_bull else 5
+    elif regime_str=="Ranging":
+        reg_score=4
+    else:
+        reg_score=5
+
+    # 5. RATE DIFFERENTIAL (10%)
+    rate_score=5  # default — rates.json not loaded in alert scanner
+
+    # 6. EDGE — AI cross-source coherence (7%)
+    edge_key=pair.replace("/","")
+    edge_raw=edge_scores.get(edge_key)
+    edge_score=edge_raw if edge_raw is not None else 5
+
+    # Weighted sum
+    weights={"align":.30,"entry":.20,"csm":.17,"regime":.14,"rate":.06,"edge":.13}
+    scores={"align":align_score,"entry":entry_score,"csm":csm_score,"regime":reg_score,"rate":rate_score,"edge":edge_score}
     raw=round(sum(scores[k]*weights[k] for k in weights)*10)
-    riskBases={"AUD","NZD","CAD"}; safeHavens={"CHF","JPY"}
-    is_risk=base in riskBases or (quote in riskBases and base not in safeHavens)
-    is_safe=base in safeHavens or quote in safeHavens
+
+    # ADX hard gate
+    adx_v=(h4d.get("raw") or {}).get("adx")
     capped=raw
-    if regime_str=="Risk-Off" and is_bull: capped=min(raw,45) if is_risk else min(raw,75) if is_safe else min(raw,55)
-    elif regime_str=="Risk-On" and is_bear: capped=min(raw,45) if is_safe else min(raw,75) if is_risk else min(raw,55)
+    if adx_v is not None and adx_v<20:
+        capped=min(capped,45)
+
+    # Regime cap
+    if regime_str=="Risk-Off" and is_bull:
+        lim=40 if is_risk else 70 if is_safe else 50
+        capped=min(capped,lim)
+    elif regime_str=="Risk-On" and is_bear:
+        lim=40 if is_safe else 70 if is_risk else 50
+        capped=min(capped,lim)
+
     return min(capped,100)
 
 def load_cooldown():
@@ -113,7 +153,6 @@ def main(trigger_tf="H4"):
     h1=lj(H1_FILE); h4=lj(H4_FILE); d1=lj(D1_FILE)
     csm=lj(CSM_FILE); reg=lj(REG_FILE); nb=lj(NB_FILE)
     csm_rankings=csm.get("rankings",{})
-    conv_pairs={}
     regime_str=reg.get("regime","Mixed")
     edge_scores=nb.get("edge_scores",{})
     cd=load_cooldown()
@@ -130,7 +169,7 @@ def main(trigger_tf="H4"):
         if adx<ADX_MIN: continue
         if not h4d.get("filter_ok",True): continue
         if h4d.get("conflict",False): continue
-        setup=compute_setup(pair,h1,h4,d1,csm_rankings,conv_pairs,regime_str)
+        setup=compute_setup(pair,h1,h4,d1,csm_rankings,edge_scores,regime_str)
         if setup<SETUP_MIN: continue
         edge=edge_scores.get(pair.replace("/",""))
         if edge is None or edge<EDGE_MIN: continue
