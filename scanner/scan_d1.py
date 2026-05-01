@@ -164,9 +164,10 @@ def main():
     }
     if "h4" in existing_regime:
         regime_doc["h4"] = existing_regime["h4"]
-    # Preserve macro_bias written by scan_news.py — never overwrite it
-    if "macro_bias" in existing_regime:
-        regime_doc["macro_bias"] = existing_regime["macro_bias"]
+    # Preserve keys written by scan_news.py and scan_h4.py
+    for key in ("macro_bias", "final_regime", "ai_sentiment"):
+        if key in existing_regime:
+            regime_doc[key] = existing_regime[key]
     with open(REGIME_OUTPUT, "w") as f:
         json.dump(regime_doc, f, indent=2)
 
