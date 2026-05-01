@@ -52,8 +52,7 @@ STOOQ_INSTRUMENTS = [
 
 PAIRS = [
     "EUR/USD","GBP/USD","USD/JPY","USD/CHF",
-    "AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY",
-    "AUD/JPY","NZD/JPY","CAD/JPY",
+    "AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","XAU/USD",
 ]
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Forex1212/1.0)"}
@@ -220,7 +219,24 @@ def build_tech_text(h4, d1, csm, regime):
     if sorted_r:
         top = " ".join(f"{c}({v:.0f})" for c, v in sorted_r[:3])
         bot = " ".join(f"{c}({v:.0f})" for c, v in sorted_r[-3:])
-        lines.append(f"Strongest: {top} | Weakest: {bot}")
+        lines.append(f"D1 CSM Strongest: {top} | Weakest: {bot}")
+
+    # H4 CSM — short-window momentum (H4x0.8 + H1x0.2, ~20h lookback)
+    h4_ranks = csm.get("h4_rankings") or {}
+    if h4_ranks:
+        h4_sorted = sorted(h4_ranks.items(), key=lambda x: x[1], reverse=True)
+        h4_top = " ".join(f"{c}({v:.0f})" for c, v in h4_sorted[:3])
+        h4_bot = " ".join(f"{c}({v:.0f})" for c, v in h4_sorted[-3:])
+        lines.append(f"H4 CSM Strongest: {h4_top} | Weakest: {h4_bot}")
+        # Flag currencies where H4 momentum diverges significantly from D1
+        diverg = []
+        for c, h4v in h4_ranks.items():
+            d1v = ranks.get(c, 50)
+            if abs(h4v - d1v) >= 20:
+                direction = "accelerating" if h4v > d1v else "fading"
+                diverg.append(f"{c} {direction}({h4v:.0f}vs{d1v:.0f})")
+        if diverg:
+            lines.append(f"H4/D1 CSM Divergence: {' | '.join(diverg)}")
 
     sigs = []
     for pair in PAIRS:
