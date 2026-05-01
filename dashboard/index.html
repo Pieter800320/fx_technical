@@ -495,7 +495,7 @@ function buildNewsSheetContent(){
   if(nb&&nb.narrative){
     h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;align-items:center;"><span>Market Analysis · ${updStr} · ${headline_count} headlines</span><span id="sheet-news-countdown" style="font-size:var(--xs);color:var(--muted);font-weight:700;"></span></div>`;
   // Start countdown in sheet
-  (function tick(){const el=document.getElementById('sheet-news-countdown');if(!el)return;const now=new Date();const tot=now.getUTCHours()*3600+now.getUTCMinutes()*60+now.getUTCSeconds();const fires=[5,9,13,17].map(x=>x*3600);const next=fires.find(t=>t>tot)||(fires[0]+86400);const d=next-tot;const pad=n=>String(n).padStart(2,'0');el.textContent='Next: '+pad(Math.floor(d/3600))+':'+pad(Math.floor((d%3600)/60))+':'+pad(d%60);setTimeout(tick,1000);})();
+  setTimeout(function tick(){const el=document.getElementById('sheet-news-countdown');if(!el)return;const now=new Date();const tot=now.getUTCHours()*3600+now.getUTCMinutes()*60+now.getUTCSeconds();const fires=[5,9,13,17].map(x=>x*3600);const next=fires.find(t=>t>tot)||(fires[0]+86400);const d=next-tot;const pad=n=>String(n).padStart(2,'0');el.textContent='Next: '+pad(Math.floor(d/3600))+':'+pad(Math.floor((d%3600)/60))+':'+pad(d%60);setTimeout(tick,1000);},200);
     h+=renderStructuredNarrative(nb.narrative);
   } else if(!nb||nb.status==='unavailable'){
     h+=`<div class="sh-hdr">Market Analysis</div>`;
@@ -763,8 +763,8 @@ function getOhlcv(pair,tf){
 function computeEMA(vals,period){if(!vals.length)return[];const k=2/(period+1);const r=[vals[0]];for(let i=1;i<vals.length;i++)r.push(vals[i]*k+r[i-1]*(1-k));return r;}
 function computeMACD(ohlcv,fast=12,slow=26,sig=9){if(!ohlcv||ohlcv.length<slow+sig)return[];const closes=ohlcv.map(d=>d.close);const ema12=computeEMA(closes,fast),ema26=computeEMA(closes,slow);const macdLine=ema12.map((v,i)=>v-ema26[i]);const macdTrimmed=macdLine.slice(slow-1);const signalLine=computeEMA(macdTrimmed,sig);const out=[];for(let i=0;i<signalLine.length;i++){const oi=i+(slow-1);const mac=macdLine[oi],si=signalLine[i];out.push({time:ohlcv[oi].time,macd:mac,signal:si,histogram:mac-si});}return out;}
 function computeBB(ohlcv,period=20,mult=2){if(!ohlcv||ohlcv.length<period)return[];const closes=ohlcv.map(d=>d.close);const out=[];for(let i=period-1;i<closes.length;i++){const slice=closes.slice(i-period+1,i+1);const mean=slice.reduce((a,b)=>a+b,0)/period;const std=Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/period);out.push({time:ohlcv[i].time,upper:mean+mult*std,middle:mean,lower:mean-mult*std});}return out;}
-function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');startCandleTimer();updateCloseTradeBtn();requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
-function closeChart(){const el=document.getElementById('screen-chart');el.style.display='none';if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtMacdInst){try{chtMacdInst.remove();}catch(e){}chtMacdInst=null;}}
+function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');chtShowMacd=false;const priceEl=document.getElementById('cht-price'),macdEl=document.getElementById('cht-macd');if(priceEl)priceEl.style.display='block';if(macdEl)macdEl.style.display='none';document.getElementById('ib-ema200').className='ind-btn'+(indState.ema200?' on':'');document.getElementById('ib-ema50').className='ind-btn'+(indState.ema50?' on':'');document.getElementById('ib-bb').className='ind-btn'+(indState.bb?' on':'');document.getElementById('ib-macd').className='ind-btn';startCandleTimer();updateCloseTradeBtn();requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
+function closeChart(){const el=document.getElementById('screen-chart');el.style.display='none';chtShowMacd=false;if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtMacdInst){try{chtMacdInst.remove();}catch(e){}chtMacdInst=null;}}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>{document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf);});startCandleTimer();if(chtShowMacd)renderChtMacd();else renderChtPrice();}
 function toggleMACD(){chtShowMacd=!chtShowMacd;document.getElementById('ib-macd').classList.toggle('macd-on',chtShowMacd);const priceEl=document.getElementById('cht-price'),macdEl=document.getElementById('cht-macd');priceEl.style.display=chtShowMacd?'none':'block';macdEl.style.display=chtShowMacd?'block':'none';requestAnimationFrame(()=>requestAnimationFrame(()=>chtShowMacd?renderChtMacd():renderChtPrice()));}
 function toggleInd(key){indState[key]=!indState[key];localStorage.setItem(IND_KEY,JSON.stringify(indState));document.getElementById('ib-'+key).classList.toggle('on',indState[key]);if(!chtShowMacd)renderChtPrice();}
@@ -925,7 +925,7 @@ function buildSingleBar(t,currentPrice){
   const leftP=isBuy?sl:tp,rightP=isBuy?tp:sl;
   const range=rightP-leftP;
   if(range<=0)return'<div class="d-bar-item"></div>';
-  const entryPct=((entry-leftP)/range*100).toFixed(1);
+  const entryPctRaw=(entry-leftP)/range*100;const entryPct=Math.min(Math.max(entryPctRaw,1.5),98.5).toFixed(1);
   let fillHtml='';
   if(currentPrice!==null){
     const currPct=Math.min(Math.max((currentPrice-leftP)/range*100,0),100);
@@ -1167,7 +1167,7 @@ async function init(){
   const parseTS=s=>{if(!s)return new Date(s);const c=s.endsWith('Z')||s.includes('+')?s:s+'Z';return new Date(c);};
   if(ts.length)document.getElementById("last-updated").textContent="Updated "+parseTS(ts[ts.length-1]).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief,alertCooldown};
-  renderRegime(regime);renderCSM(csm,conviction);renderSignalStrip(selectedPair);renderIndStrip(selectedPair);updateDrum();checkLevelAlerts();migrateOldTrades();checkTrades();renderLog();
+  renderRegime(regime);renderCSM(csm,conviction);renderSignalStrip(selectedPair);renderIndStrip(selectedPair);checkLevelAlerts();migrateOldTrades();checkTrades();renderLog();updateDrum();
 }
 init();setInterval(init,5*60*1000);
 
