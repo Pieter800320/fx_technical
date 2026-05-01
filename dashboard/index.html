@@ -1039,26 +1039,64 @@ function buildSingleBar(t,currentPrice){
   const isBuy=t.direction==='BUY';
   const sl=t.sl,tp=t.tp,entry=t.entry;
   if(!sl||!tp||!entry)return'<div class="d-bar-item"></div>';
-  const leftP=isBuy?sl:tp,rightP=isBuy?tp:sl;
-  const range=rightP-leftP;
-  if(range<=0)return'<div class="d-bar-item"></div>';
-  const entryPctRaw=(entry-leftP)/range*100;const entryPct=Math.min(Math.max(entryPctRaw,1.5),98.5).toFixed(1);
+
+  // Layout: BUY → left=TP(profit), right=SL(loss)
+  //         SELL → left=SL(loss), right=TP(profit)
+  // Entry position from left = profit_distance / total_range
+  const slDist=Math.abs(entry-sl);
+  const tpDist=Math.abs(tp-entry);
+  const totalRange=slDist+tpDist;
+  if(totalRange<=0)return'<div class="d-bar-item"></div>';
+
+  // For BUY: profit is left, so entryPct from left = tpDist/total (how far TP is from entry)
+  // For SELL: profit is right, so entryPct from left = slDist/total (how far SL is from entry)
+  const entryPctRaw=isBuy?(tpDist/totalRange*100):(slDist/totalRange*100);
+  const entryPct=Math.min(Math.max(entryPctRaw,2),98);
+
+  // Fill: measure progress toward profit or loss
   let fillHtml='';
   if(currentPrice!==null){
-    const currPct=Math.min(Math.max((currentPrice-leftP)/range*100,0),100);
-    const ePct=(entry-leftP)/range*100;
-    if(Math.abs(currPct-ePct)>0.5){
-      const isRight=currPct>ePct;
-      const inProfit=isBuy?isRight:!isRight;
-      const fLeft=Math.min(currPct,ePct),fW=Math.abs(currPct-ePct);
-      const fCol=inProfit?'rgba(0,204,51,0.65)':'rgba(248,81,73,0.65)';
-      fillHtml=`<div style="position:absolute;left:${fLeft.toFixed(1)}%;top:0;bottom:0;width:${fW.toFixed(1)}%;background:${fCol};"></div>`;
+    let progress=0,inProfit=false;
+    if(isBuy){
+      // BUY: profit when price > entry, loss when price < entry
+      if(currentPrice>entry){
+        inProfit=true;
+        progress=Math.min((currentPrice-entry)/tpDist,1);
+        // Green fills left from entry (toward TP)
+        const fW=(progress*entryPct).toFixed(1);
+        const fLeft=(entryPct-parseFloat(fW)).toFixed(1);
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:#006622;"></div>`;
+      } else if(currentPrice<entry){
+        inProfit=false;
+        progress=Math.min((entry-currentPrice)/slDist,1);
+        // Red fills right from entry (toward SL)
+        const fW=(progress*(100-entryPct)).toFixed(1);
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:#661100;"></div>`;
+      }
+    } else {
+      // SELL: profit when price < entry, loss when price > entry
+      if(currentPrice<entry){
+        inProfit=true;
+        progress=Math.min((entry-currentPrice)/tpDist,1);
+        // Green fills right from entry (toward TP)
+        const fW=(progress*(100-entryPct)).toFixed(1);
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:#006622;"></div>`;
+      } else if(currentPrice>entry){
+        inProfit=false;
+        progress=Math.min((currentPrice-entry)/slDist,1);
+        // Red fills left from entry (toward SL)
+        const fW=(progress*entryPct).toFixed(1);
+        const fLeft=(entryPct-parseFloat(fW)).toFixed(1);
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:#661100;"></div>`;
+      }
     }
   }
+
   const pending=t.status==='pending';
-  const bc=pending?'rgba(227,179,65,0.5)':'rgba(0,204,51,0.3)';
-  const ec=pending?'var(--amber)':'#00ff55';
-  return`<div class="d-bar-item" style="border-color:${bc};">${fillHtml}<div style="position:absolute;left:${entryPct}%;top:0;bottom:0;width:2px;background:${ec};transform:translateX(-50%);"></div></div>`;
+  const bc=pending?'rgba(227,179,65,0.4)':'rgba(0,204,51,0.25)';
+  // Entry line: thin, light, same tone as border
+  const entryLine=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:1px;background:rgba(0,204,51,0.3);transform:translateX(-50%);"></div>`;
+  return`<div class="d-bar-item" style="border-color:${bc};">${fillHtml}${entryLine}</div>`;
 }
 function buildDrumBarZone(pair){
   const trades=tradesLoad().filter(t=>t.pair===pair&&(t.status==='open'||t.status==='pending'));
