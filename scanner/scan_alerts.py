@@ -45,10 +45,7 @@ def lj(path):
 def sj(path, data):
     with open(path,"w") as f: json.dump(data, f, indent=2)
 
-def compute_setup(pair, h1, h4, d1, csm_rankings, regime_str):
-    """Compute Setup% for a pair. Must match frontend computeQAI() exactly.
-    Conviction removed; weights redistributed across 9 components.
-    """
+def compute_setup(pair, h1, h4, d1, csm_rankings, conv_pairs, regime_str):
     h1d=h1.get(pair,{}); h4d=h4.get(pair,{}); d1d=d1.get(pair,{})
     base,quote=pair.split("/")
     d1_dir=d1d.get("direction","neutral")
@@ -62,7 +59,7 @@ def compute_setup(pair, h1, h4, d1, csm_rankings, regime_str):
     h1_dir=h1d.get("direction","neutral")
     h1_score=10 if h1_dir==d1_dir and d1_dir!="neutral" else 6 if h1_dir=="neutral" else 1
     reset_raw=h4d.get("reset_score")
-    reset_score=5 if reset_raw is None else (10 if reset_raw<=20 else 7 if reset_raw<=35 else 5 if reset_raw<=50 else 2)
+    reset_score=5 if reset_raw is None else (2 if reset_raw<=20 else 4 if reset_raw<=35 else 7 if reset_raw<=50 else 10)
     adx_v=(h4d.get("raw") or {}).get("adx")
     adx_score=5 if adx_v is None else (10 if adx_v>=25 else 7 if adx_v>=20 else 4 if adx_v>=15 else 1)
     atr_pct=d1d.get("atr_percentile")
@@ -70,11 +67,14 @@ def compute_setup(pair, h1, h4, d1, csm_rankings, regime_str):
     csm_base=csm_rankings.get(base,50); csm_quote=csm_rankings.get(quote,50)
     csm_div=(csm_base-csm_quote) if is_bull else (csm_quote-csm_base) if is_bear else abs(csm_base-csm_quote)
     csm_score=10 if csm_div>=30 else 7 if csm_div>=15 else 5 if csm_div>=5 else 3 if csm_div>=-5 else 1
+    conv_raw=conv_pairs.get(pair); conv_score=5
+    if conv_raw is not None:
+        cd=conv_raw if is_bull else -conv_raw if is_bear else abs(conv_raw)
+        conv_score=10 if cd>=60 else 8 if cd>=40 else 6 if cd>=20 else 5 if cd>=0 else 3 if cd>=-20 else 1
     reg_score=5
     if regime_str=="Risk-On": reg_score=9 if is_bull else 5
     elif regime_str=="Risk-Off": reg_score=9 if is_bear else 5
     elif regime_str=="Ranging": reg_score=4
-    # Weights match frontend computeQAI() exactly (conviction removed, total=1.00)
     weights={"d1":.23,"h4":.17,"h1":.09,"reset":.11,"adx":.05,"atr":.03,"csm":.18,"regime":.09,"rate":.05}
     scores={"d1":d1_score,"h4":h4_score,"h1":h1_score,"reset":reset_score,"adx":adx_score,"atr":atr_score,"csm":csm_score,"regime":reg_score,"rate":5}
     raw=round(sum(scores[k]*weights[k] for k in weights)*10)
@@ -113,6 +113,7 @@ def main(trigger_tf="H4"):
     h1=lj(H1_FILE); h4=lj(H4_FILE); d1=lj(D1_FILE)
     csm=lj(CSM_FILE); reg=lj(REG_FILE); nb=lj(NB_FILE)
     csm_rankings=csm.get("rankings",{})
+    conv_pairs={}
     regime_str=reg.get("regime","Mixed")
     edge_scores=nb.get("edge_scores",{})
     cd=load_cooldown()
@@ -129,7 +130,7 @@ def main(trigger_tf="H4"):
         if adx<ADX_MIN: continue
         if not h4d.get("filter_ok",True): continue
         if h4d.get("conflict",False): continue
-        setup=compute_setup(pair,h1,h4,d1,csm_rankings,regime_str)
+        setup=compute_setup(pair,h1,h4,d1,csm_rankings,conv_pairs,regime_str)
         if setup<SETUP_MIN: continue
         edge=edge_scores.get(pair.replace("/",""))
         if edge is None or edge<EDGE_MIN: continue
