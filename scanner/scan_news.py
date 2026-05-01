@@ -43,12 +43,9 @@ RSS_FEEDS = [
 STOOQ_INSTRUMENTS = [
     ("vix",    "^vix",   "VIX",     True),
     ("us10y",  "^tnx",   "US 10Y",  False),
-    ("us2y",   "^irx",   "US 2Y",   False),
     ("wti",    "cl.f",   "WTI Oil", False),
     ("gold",   "xauusd", "Gold",    False),
-    ("silver", "si=f",   "Silver",  False),
     ("spx",    "^spx",   "S&P 500", False),
-    ("dxy",    "dx-y.nyb","DXY",    False),
     ("btc",    "btcusd", "Bitcoin", False),
     ("copper", "hg.f",   "Copper",  False),
 ]
@@ -71,16 +68,13 @@ def fetch_stooq(symbol):
     Symbol mapping: internal Stooq-style keys → Yahoo Finance tickers.
     """
     yf_map = {
-        "^vix":    "^VIX",
-        "^tnx":    "^TNX",
-        "^irx":    "^IRX",
-        "cl.f":    "CL=F",
-        "xauusd":  "GC=F",
-        "si=f":    "SI=F",
-        "^spx":    "^GSPC",
-        "dx-y.nyb":"DX-Y.NYB",
-        "btcusd":  "BTC-USD",
-        "hg.f":    "HG=F",
+        "^vix":   "^VIX",
+        "^tnx":   "^TNX",
+        "cl.f":   "CL=F",
+        "xauusd": "GC=F",
+        "^spx":   "^GSPC",
+        "btcusd": "BTC-USD",
+        "hg.f":   "HG=F",
     }
     yf_symbol = yf_map.get(symbol.lower(), symbol)
     url = (
@@ -199,6 +193,72 @@ def load_tech():
     return lj("h4_scores.json"), lj("d1_scores.json"), lj("csm.json"), lj("regime.json"), lj("correlation.json")
 
 
+
+def compute_macro_bias(macro):
+    """
+    Tactical macro overlay — 6 inputs, each scored +1/0/-1.
+    Positive = risk-on pressure, Negative = risk-off pressure.
+    """
+    components = []
+    total = 0
+    max_possible = 0
+
+    def _score(key, label, value_fmt, pos_thr, neg_thr, invert=False):
+        nonlocal total, max_possible
+        d = macro.get(key)
+        if not d:
+            return
+        max_possible += 1
+        chg = d["change_pct"]
+        if invert:
+            s = -1 if chg > pos_thr else 1 if chg < neg_thr else 0
+        else:
+            s = 1 if chg > pos_thr else -1 if chg < neg_thr else 0
+        total += s
+        components.append({
+            "key": key, "label": label,
+            "value": value_fmt(d["value"]),
+            "change_pct": round(chg, 2),
+            "score": s,
+            "direction": "rising" if chg > 0 else "falling" if chg < 0 else "flat",
+        })
+
+    # VIX rising = risk-off (-1)
+    _score("vix",    "VIX",     lambda v: f"{v:.1f}",          3.0,  -3.0, invert=True)
+    # DXY rising = USD bid = risk-off pressure (-1)
+    _score("dxy",    "DXY",     lambda v: f"{v:.2f}",          0.3,  -0.3, invert=True)
+    # US 2Y rising = tightening = risk-off (-1)
+    _score("us2y",   "US 2Y",   lambda v: f"{v:.2f}%",         1.5,  -1.5, invert=True)
+    # Gold rising = uncertainty = risk-off (-1)
+    _score("gold",   "Gold",    lambda v: f"${round(v):,}",    0.5,  -0.5, invert=True)
+    # S&P rising = risk-on (+1)
+    _score("spx",    "S&P 500", lambda v: str(round(v)),        0.3,  -0.3, invert=False)
+    # Copper rising = growth/risk-on (+1)
+    _score("copper", "Copper",  lambda v: f"${v:.2f}",         0.5,  -0.5, invert=False)
+
+    if max_possible == 0:
+        return None
+
+    if total >= 3:
+        interp = "Risk-On Confirmed"
+    elif total >= 1:
+        interp = "Risk-On Leaning"
+    elif total == 0:
+        interp = "Neutral / Mixed"
+    elif total >= -2:
+        interp = "Risk-Off Leaning"
+    else:
+        interp = "Risk-Off Confirmed"
+
+    return {
+        "score":          total,
+        "max":            max_possible,
+        "interpretation": interp,
+        "components":     components,
+        "updated":        datetime.now(timezone.utc).isoformat(),
+    }
+
+
 def build_tech_text(h4, d1, csm, regime):
     lines   = []
     reg     = regime.get("regime", "Unknown")
@@ -240,6 +300,20 @@ def build_tech_text(h4, d1, csm, regime):
             continue
         sigs.append(f"{pair.replace('/', '')}: D1={d1l} H4={h4l}({sc:+d})")
     lines.append("Signals: " + (" | ".join(sigs) if sigs else "none above threshold"))
+
+    # Macro overlay — if available from regime.json
+    mb = regime.get("macro_bias")
+    if mb:
+        lines.append(
+            f"Macro Overlay: {mb['score']:+d}/{mb['max']} → {mb['interpretation']}"
+        )
+        for c in mb.get("components", []):
+            arr = "▲" if c["change_pct"] > 0 else "▼" if c["change_pct"] < 0 else "→"
+            lines.append(
+                f"  {c['label']}: {c['value']} {arr} {abs(c['change_pct']):.1f}% "
+                f"(signal: {c['score']:+d})"
+            )
+
     return "\n".join(lines)
 
 
@@ -457,8 +531,27 @@ def main():
     all_items = deduplicate(all_items)[:40]
     print(f"  Total headlines after dedup: {len(all_items)}")
 
-    # 3. Technical data
+    # 3. Technical data + macro bias
     h4, d1, csm, regime, corr = load_tech()
+
+    # Compute tactical macro overlay and write to regime.json
+    macro_bias = compute_macro_bias(macro)
+    if macro_bias:
+        try:
+            regime_path = BASE_DIR / "data" / "regime.json"
+            reg_doc = {}
+            if regime_path.exists():
+                with open(regime_path) as _f:
+                    reg_doc = json.load(_f)
+            reg_doc["macro_bias"] = macro_bias
+            with open(regime_path, "w") as _f:
+                json.dump(reg_doc, _f, indent=2)
+            regime["macro_bias"] = macro_bias
+            score_str = f"{macro_bias['score']:+d}/{macro_bias['max']}"
+            print(f"  Macro bias: {score_str} → {macro_bias['interpretation']}")
+        except Exception as _e:
+            print(f"  Macro bias write failed: {_e}")
+
     tech_text = build_tech_text(h4, d1, csm, regime)
     corr_text = build_corr_text(corr)
 
