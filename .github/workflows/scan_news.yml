@@ -2,7 +2,7 @@ name: News Brief
 
 on:
   schedule:
-    - cron: "0 5,9,13,17 * * *"  # every day, 4x daily
+    - cron: "0 5,9,13,17 * * *"   # 7/11/15/19 Germany summer time (CEST=UTC+2)
   workflow_dispatch:
 
 permissions:
@@ -28,7 +28,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           cp data/news_brief.json dashboard/news_brief.json
-          git add data/news_brief.json dashboard/news_brief.json
+          cp data/regime.json dashboard/regime.json || true
+          git add data/news_brief.json dashboard/news_brief.json data/regime.json dashboard/regime.json
           git diff --cached --quiet || git commit -m "chore: news brief $(date -u +%Y-%m-%dT%H:%M)"
           git pull origin main --no-rebase
           git push
