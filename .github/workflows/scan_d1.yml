@@ -42,7 +42,7 @@ jobs:
           cp data/rates.json      dashboard/ || true
           git add data/ dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: D1 scan $(date -u +%Y-%m-%dT%H:%M)"
-          git pull origin main --no-rebase
+          git pull origin main --no-rebase -X ours
           git push
   deploy_dashboard:
     needs: scan_d1
