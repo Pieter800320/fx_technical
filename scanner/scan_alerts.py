@@ -178,7 +178,7 @@ def send_telegram(text):
 def main(trigger_tf="H4"):
     print(f"=== Alert Scanner — {datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC (trigger: {trigger_tf}) ===")
     h1=lj(H1_FILE); h4=lj(H4_FILE); d1=lj(D1_FILE)
-    rates=lj(os.path.join(DATA_DIR,"rates.json"))
+    rates=lj(BASE / "rates.json")
     csm=lj(CSM_FILE); reg=lj(REG_FILE); nb=lj(NB_FILE)
     csm_rankings=csm.get("rankings",{})
     regime_str=reg.get("regime","Mixed")
