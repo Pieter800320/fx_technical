@@ -155,29 +155,16 @@ def main():
     # vol_ratio removed from output (regime.py no longer computes it)
     # Preserve h4 key written by scan_h4.py so D1 write does not clobber it.
     existing_regime = load_json(REGIME_OUTPUT)
-
-    # Direction: compare D1 structural regime to H4 leading regime
-    _regime_rank = {"Risk-On": 3, "Mixed": 2, "Ranging": 1, "Risk-Off": 0}
-    h4_stored = existing_regime.get("h4", {})
-    h4_reg_name = h4_stored.get("regime", "") if h4_stored else ""
-    d1_rank = _regime_rank.get(regime_result["regime"], 1)
-    h4_rank = _regime_rank.get(h4_reg_name, d1_rank)
-    if h4_rank > d1_rank:   direction = "Strengthening"
-    elif h4_rank < d1_rank: direction = "Deteriorating"
-    else:                   direction = "Stable"
-    print(f"  Direction: {direction} (D1={regime_result['regime']} H4={h4_reg_name or '—'})")
-
     regime_doc = {
         "regime":      regime_result["regime"],
         "confidence":  regime_result["confidence"],
         "data_source": regime_result["data_source"],
         "signals":     regime_result["signals"],
-        "direction":   direction,
         "updated":     now.isoformat(),
     }
     if "h4" in existing_regime:
         regime_doc["h4"] = existing_regime["h4"]
-    # Preserve macro_bias written by scan_news.py
+    # Preserve macro_bias written by scan_news.py — never overwrite it
     if "macro_bias" in existing_regime:
         regime_doc["macro_bias"] = existing_regime["macro_bias"]
     with open(REGIME_OUTPUT, "w") as f:
