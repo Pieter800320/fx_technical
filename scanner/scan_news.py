@@ -41,10 +41,13 @@ RSS_FEEDS = [
 
 # (json_key, stooq_symbol, display_label, invert_color)
 STOOQ_INSTRUMENTS = [
-    ("vix",    "^vix",   "VIX",     True),
+    ("vix",    "^vix",    "VIX",     True),
+    ("dxy",    "dx-y.nyb","DXY",     False),
     ("us10y",  "^tnx",   "US 10Y",  False),
+    ("us2y",   "^irx",   "US 2Y",   False),
     ("wti",    "cl.f",   "WTI Oil", False),
     ("gold",   "xauusd", "Gold",    False),
+    ("silver", "si=f",   "Silver",  False),
     ("spx",    "^spx",   "S&P 500", False),
     ("btc",    "btcusd", "Bitcoin", False),
     ("copper", "hg.f",   "Copper",  False),
@@ -52,7 +55,8 @@ STOOQ_INSTRUMENTS = [
 
 PAIRS = [
     "EUR/USD","GBP/USD","USD/JPY","USD/CHF",
-    "AUD/USD","USD/CAD","NZD/USD","EUR/JPY","GBP/JPY","XAU/USD",
+    "AUD/USD","USD/CAD","NZD/USD","EUR/JPY",
+    "GBP/JPY","AUD/JPY","NZD/JPY","CAD/JPY",
 ]
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (compatible; Forex1212/1.0)"}
@@ -68,13 +72,16 @@ def fetch_stooq(symbol):
     Symbol mapping: internal Stooq-style keys → Yahoo Finance tickers.
     """
     yf_map = {
-        "^vix":   "^VIX",
-        "^tnx":   "^TNX",
-        "cl.f":   "CL=F",
-        "xauusd": "GC=F",
-        "^spx":   "^GSPC",
-        "btcusd": "BTC-USD",
-        "hg.f":   "HG=F",
+        "^vix":    "^VIX",
+        "dx-y.nyb":"DX-Y.NYB",
+        "^tnx":    "^TNX",
+        "^irx":    "^IRX",
+        "cl.f":    "CL=F",
+        "xauusd":  "GC=F",
+        "si=f":    "SI=F",
+        "^spx":    "^GSPC",
+        "btcusd":  "BTC-USD",
+        "hg.f":    "HG=F",
     }
     yf_symbol = yf_map.get(symbol.lower(), symbol)
     url = (
@@ -195,10 +202,8 @@ def load_tech():
 
 
 def compute_macro_bias(macro):
-    """
-    Tactical macro overlay — 6 inputs, each scored +1/0/-1.
-    Positive = risk-on pressure, Negative = risk-off pressure.
-    """
+    """Tactical macro overlay — scored inputs each +1/0/-1.
+    Positive = risk-on, Negative = risk-off."""
     components = []
     total = 0
     max_possible = 0
@@ -210,10 +215,7 @@ def compute_macro_bias(macro):
             return
         max_possible += 1
         chg = d["change_pct"]
-        if invert:
-            s = -1 if chg > pos_thr else 1 if chg < neg_thr else 0
-        else:
-            s = 1 if chg > pos_thr else -1 if chg < neg_thr else 0
+        s = (-1 if chg > pos_thr else 1 if chg < neg_thr else 0) if invert else             (1 if chg > pos_thr else -1 if chg < neg_thr else 0)
         total += s
         components.append({
             "key": key, "label": label,
@@ -223,39 +225,27 @@ def compute_macro_bias(macro):
             "direction": "rising" if chg > 0 else "falling" if chg < 0 else "flat",
         })
 
-    # VIX rising = risk-off (-1)
-    _score("vix",    "VIX",     lambda v: f"{v:.1f}",          3.0,  -3.0, invert=True)
-    # DXY rising = USD bid = risk-off pressure (-1)
-    _score("dxy",    "DXY",     lambda v: f"{v:.2f}",          0.3,  -0.3, invert=True)
-    # US 2Y rising = tightening = risk-off (-1)
-    _score("us2y",   "US 2Y",   lambda v: f"{v:.2f}%",         1.5,  -1.5, invert=True)
-    # Gold rising = uncertainty = risk-off (-1)
-    _score("gold",   "Gold",    lambda v: f"${round(v):,}",    0.5,  -0.5, invert=True)
-    # S&P rising = risk-on (+1)
-    _score("spx",    "S&P 500", lambda v: str(round(v)),        0.3,  -0.3, invert=False)
-    # Copper rising = growth/risk-on (+1)
-    _score("copper", "Copper",  lambda v: f"${v:.2f}",         0.5,  -0.5, invert=False)
+    _score("vix",    "VIX",     lambda v: f"{v:.1f}",           3.0,  -3.0, invert=True)
+    _score("dxy",    "DXY",     lambda v: f"{v:.2f}",           0.3,  -0.3, invert=True)
+    _score("us2y",   "US 2Y",   lambda v: f"{v:.2f}%",          1.5,  -1.5, invert=True)
+    _score("gold",   "Gold",    lambda v: f"${round(v):,}",     0.5,  -0.5, invert=True)
+    _score("spx",    "S&P 500", lambda v: str(round(v)),         0.3,  -0.3, invert=False)
+    _score("copper", "Copper",  lambda v: f"${v:.2f}",          0.5,  -0.5, invert=False)
 
     if max_possible == 0:
         return None
 
-    if total >= 3:
-        interp = "Risk-On Confirmed"
-    elif total >= 1:
-        interp = "Risk-On Leaning"
-    elif total == 0:
-        interp = "Neutral / Mixed"
-    elif total >= -2:
-        interp = "Risk-Off Leaning"
-    else:
-        interp = "Risk-Off Confirmed"
+    if total >= 3:      interp = "Risk-On Confirmed"
+    elif total >= 1:    interp = "Risk-On Leaning"
+    elif total == 0:    interp = "Neutral / Mixed"
+    elif total >= -2:   interp = "Risk-Off Leaning"
+    else:               interp = "Risk-Off Confirmed"
 
     return {
-        "score":          total,
-        "max":            max_possible,
+        "score": total, "max": max_possible,
         "interpretation": interp,
-        "components":     components,
-        "updated":        datetime.now(timezone.utc).isoformat(),
+        "components": components,
+        "updated": datetime.now(timezone.utc).isoformat(),
     }
 
 
@@ -301,18 +291,29 @@ def build_tech_text(h4, d1, csm, regime):
         sigs.append(f"{pair.replace('/', '')}: D1={d1l} H4={h4l}({sc:+d})")
     lines.append("Signals: " + (" | ".join(sigs) if sigs else "none above threshold"))
 
-    # Macro overlay — if available from regime.json
+    # H4 CSM
+    h4_ranks = csm.get("h4_rankings") or {}
+    if h4_ranks:
+        h4_sorted = sorted(h4_ranks.items(), key=lambda x: x[1], reverse=True)
+        h4_top = " ".join(f"{c}({v:.0f})" for c, v in h4_sorted[:3])
+        h4_bot = " ".join(f"{c}({v:.0f})" for c, v in h4_sorted[-3:])
+        lines.append(f"H4 CSM Strongest: {h4_top} | Weakest: {h4_bot}")
+        diverg = []
+        for c, h4v in h4_ranks.items():
+            d1v = ranks.get(c, 50) if ranks else 50
+            if abs(h4v - d1v) >= 20:
+                direction = "accelerating" if h4v > d1v else "fading"
+                diverg.append(f"{c} {direction}({h4v:.0f}vs{d1v:.0f})")
+        if diverg:
+            lines.append(f"H4/D1 CSM Divergence: {' | '.join(diverg)}")
+
+    # Macro overlay
     mb = regime.get("macro_bias")
     if mb:
-        lines.append(
-            f"Macro Overlay: {mb['score']:+d}/{mb['max']} → {mb['interpretation']}"
-        )
+        lines.append(f"Macro Overlay: {mb['score']:+d}/{mb['max']} -> {mb['interpretation']}")
         for c in mb.get("components", []):
-            arr = "▲" if c["change_pct"] > 0 else "▼" if c["change_pct"] < 0 else "→"
-            lines.append(
-                f"  {c['label']}: {c['value']} {arr} {abs(c['change_pct']):.1f}% "
-                f"(signal: {c['score']:+d})"
-            )
+            arr = "up" if c["change_pct"] > 0 else "down" if c["change_pct"] < 0 else "flat"
+            lines.append(f"  {c['label']}: {c['value']} {arr} {abs(c['change_pct']):.1f}% (signal: {c['score']:+d})")
 
     return "\n".join(lines)
 
@@ -534,7 +535,6 @@ def main():
     # 3. Technical data + macro bias
     h4, d1, csm, regime, corr = load_tech()
 
-    # Compute tactical macro overlay and write to regime.json
     macro_bias = compute_macro_bias(macro)
     if macro_bias:
         try:
@@ -548,7 +548,7 @@ def main():
                 json.dump(reg_doc, _f, indent=2)
             regime["macro_bias"] = macro_bias
             score_str = f"{macro_bias['score']:+d}/{macro_bias['max']}"
-            print(f"  Macro bias: {score_str} → {macro_bias['interpretation']}")
+            print(f"  Macro bias: {score_str} -> {macro_bias['interpretation']}")
         except Exception as _e:
             print(f"  Macro bias write failed: {_e}")
 
