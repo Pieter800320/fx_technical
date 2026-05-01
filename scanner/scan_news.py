@@ -35,6 +35,11 @@ try:
 except ImportError:
     anthropic = None
 
+try:
+    from scanner.regime import compute_final_regime
+except ImportError:
+    compute_final_regime = None
+
 # ── Config ────────────────────────────────────────────────────────────────────
 BASE_DIR = Path(__file__).parent.parent
 
@@ -521,6 +526,40 @@ def call_edge_scores(macro, themes_data, tech_text, corr_text):
     return scores
 
 
+
+def call_regime_sentiment(macro_text, themes_data):
+    """
+    Haiku call: score current market risk appetite 1-10 from news + macro.
+    1 = strongly risk-off, 5 = neutral, 10 = strongly risk-on.
+    Deliberately ignores price action (that is H4 structural's job).
+    """
+    themes = themes_data.get("themes", [])
+    t_text = "\n".join(f"- {t['theme']} [{t['direction'].upper()}]" for t in themes[:6])
+    usd_bias = themes_data.get("usd_bias", "neutral")
+    risk_sent = themes_data.get("risk_sentiment", "neutral")
+
+    prompt = (
+        "You are a macro FX risk analyst. Based ONLY on news themes and macro instrument data "
+        "(not price action), score current market risk appetite on a scale 1-10.\n\n"
+        "Scale: 1=max risk-off, 5=neutral, 10=max risk-on\n\n"
+        f"MACRO:\n{macro_text}\n\n"
+        f"NEWS THEMES (USD bias={usd_bias}, risk={risk_sent}):\n{t_text}\n\n"
+        "Respond ONLY with valid JSON, no markdown:\n"
+        '{"score":7,"label":"Risk-On Leaning","rationale":"One sentence max."}'
+    )
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    resp = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=100,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw = resp.content[0].text.strip()
+    data = json.loads(_strip_json(raw))
+    data["score"] = max(1, min(10, int(data.get("score", 5))))
+    print(f"  [AI regime] {data['score']}/10 — {data.get('label','')}")
+    return data
+
+
 # ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     print(f"=== News Brief - {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M')} UTC ===")
@@ -602,6 +641,40 @@ def main():
                 result["edge_scores"] = call_edge_scores(macro, result, tech_text, corr_text)
             except Exception as e:
                 print(f"  Claude edge error: {e}")
+
+            # AI regime sentiment — independent of price, news-only
+            ai_sentiment = None
+            try:
+                macro_lines = []
+                for key, _, label, _ in STOOQ_INSTRUMENTS:
+                    d = macro.get(key)
+                    if d:
+                        arr = "up" if d["change_pct"] > 0 else "down"
+                        macro_lines.append(f"{label}: {fmt_val(d['value'])} ({arr} {abs(d['change_pct']):.2f}%)")
+                ai_sentiment = call_regime_sentiment("\n".join(macro_lines), result)
+            except Exception as e:
+                print(f"  AI regime sentiment error: {e}")
+
+            # Compute + write final regime
+            if compute_final_regime:
+                try:
+                    h4_reg = regime.get("h4") or {}
+                    mb = regime.get("macro_bias")
+                    final_reg = compute_final_regime(h4_reg, mb, ai_sentiment)
+                    regime_path = BASE_DIR / "data" / "regime.json"
+                    reg_doc = {}
+                    if regime_path.exists():
+                        with open(regime_path) as _f:
+                            reg_doc = json.load(_f)
+                    reg_doc["final_regime"] = final_reg
+                    if ai_sentiment:
+                        reg_doc["ai_sentiment"] = ai_sentiment
+                    with open(regime_path, "w") as _f:
+                        json.dump(reg_doc, _f, indent=2)
+                    print(f"  Final regime: {final_reg['regime']} {final_reg['confidence']} (score={final_reg['score']})")
+                except Exception as e:
+                    print(f"  Final regime error: {e}")
+
     else:
         print("  Skipping Claude calls (no headlines or no API key)")
 
