@@ -145,12 +145,19 @@ def main():
         json.dump(d1_results, f, indent=2)
 
     with open(CSM_OUTPUT, "w") as f:
-        json.dump({
-            "rankings":   csm_result["rankings"],
-            "confidence": csm_result["confidence"],
-            "breakdown":  csm_result.get("breakdown", {}),
-            "updated":    now.isoformat(),
-        }, f, indent=2)
+            # Preserve h4_rankings written by scan_h4.py
+            existing_csm = {}
+            try:
+                with open(CSM_OUTPUT) as _ef: existing_csm = json.load(_ef)
+            except: pass
+            json.dump({
+                "rankings":      csm_result["rankings"],
+                "confidence":    csm_result["confidence"],
+                "breakdown":     csm_result.get("breakdown", {}),
+                "updated":       now.isoformat(),
+                "h4_rankings":   existing_csm.get("h4_rankings", {}),
+                "h4_confidence": existing_csm.get("h4_confidence", {}),
+            }, f, indent=2)
 
     # vol_ratio removed from output (regime.py no longer computes it)
     # Preserve h4 key written by scan_h4.py so D1 write does not clobber it.
