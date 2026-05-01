@@ -12,6 +12,7 @@ html,body{height:100%;overflow:hidden;}
 body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:var(--sm);display:flex;flex-direction:column;}
 .screen{display:none;flex-direction:column;flex:1;min-height:0;}.screen.active{display:flex;}
 .scroll-body{overflow-y:auto;flex:1;padding-bottom:60px;}
+#ptr-indicator{display:flex;align-items:center;justify-content:center;height:0;overflow:hidden;transition:height .2s;background:var(--surface);color:var(--muted);font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.07em;flex-shrink:0;}
 #bnav{position:fixed;bottom:0;left:0;right:0;height:52px;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100;}
 .nb{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;border:none;background:transparent;}
 .nb.active{color:var(--accent);}
@@ -144,9 +145,10 @@ tr:last-child td{border-bottom:none;}
 </head>
 <body>
 <div id="screen-main" class="screen active">
-  <div class="hdr"><h1>Forex1212</h1><div class="hdr-right"><span id="last-updated">Loading…</span><button class="refresh-btn" onclick="init()">↺</button></div></div>
+  <div class="hdr"><h1>Forex1212</h1><div class="hdr-right"><span id="last-updated">Loading…</span><span id="news-countdown" style="font-size:var(--xs);color:var(--muted);"></span></div></div>
   <div class="scroll-body">
-    <div id="drum-wrap"><div id="drum-fade-top"></div><div id="drum-center-line"></div><div id="drum-scroll"></div><div id="drum-fade-bot"></div></div>
+    <div id="ptr-indicator">↺ Release to refresh</div>
+  <div id="drum-wrap"><div id="drum-fade-top"></div><div id="drum-center-line"></div><div id="drum-scroll"></div><div id="drum-fade-bot"></div></div>
     <div id="sig-strip">
       <button class="ssp" id="ssp-d1" onclick="openSignalSheet('d1')"><span class="ssp-tf">D1</span><div class="ssp-pill pill-N" id="ssp-d1-pill">—</div><span class="ssp-score" id="ssp-d1-score"></span></button>
       <button class="ssp" id="ssp-h4" onclick="openSignalSheet('h4')"><span class="ssp-tf">H4</span><div class="ssp-pill pill-N" id="ssp-h4-pill">—</div><span class="ssp-score" id="ssp-h4-score"></span></button>
@@ -671,13 +673,13 @@ function renderCSM(csm,conviction){
   if(!csm||!csm.rankings){el.innerHTML='<div class="loading">No data.</div>';return;}
   const[selBase,selQuote]=selectedPair.split('/');
   const isH4=csmMode==='h4';
-  const rankings=isH4&&csm.h4_rankings?csm.h4_rankings:csm.rankings;
+  const h4r=csm.h4_rankings&&Object.keys(csm.h4_rankings).length?csm.h4_rankings:null;
+  if(isH4&&!h4r){el.innerHTML='<div class="loading">H4 CSM pending — runs after next H4 scan.</div>';return;}
+  const rankings=isH4?h4r:csm.rankings;
   const fillClass=isH4?'csm-fill-h4':'csm-fill';
   el.innerHTML=Object.entries(rankings).map(([ccy,val])=>{
     const isActive=(ccy===selBase||ccy===selQuote);
-    const d1Val=csm.rankings[ccy]||0;
-    const diverg='';
-    return`<div class="csm-row" data-ccy="${ccy}" style="background:${isActive?'rgba(56,139,253,.05)':'transparent'};" onclick="openSheet('${ccy} — Breakdown',buildCSMSheet('${ccy}'))"><div class="csm-active-dot" style="background:${isActive?'var(--accent)':'transparent'};"></div><span class="csm-lbl">${ccy}</span><div class="csm-track"><div class="${fillClass}" style="width:${val}%"></div></div><span class="csm-val">${val.toFixed(1)}</span>${diverg}</div>`;
+    return`<div class="csm-row" data-ccy="${ccy}" style="background:${isActive?'rgba(56,139,253,.05)':'transparent'};" onclick="openSheet('${ccy} — Breakdown',buildCSMSheet('${ccy}'))"><div class="csm-active-dot" style="background:${isActive?'var(--accent)':'transparent'};"></div><span class="csm-lbl">${ccy}</span><div class="csm-track"><div class="${fillClass}" style="width:${val}%"></div></div><span class="csm-val">${val.toFixed(1)}</span></div>`;
   }).join('');
 }
 function getCorrVal(p1,p2){if(!D.corr||!D.corr.pairs||!D.corr.matrix)return null;const i=D.corr.pairs.indexOf(p1.replace('/',''));const j=D.corr.pairs.indexOf(p2.replace('/',''));if(i<0||j<0)return null;return D.corr.matrix[i][j];}
@@ -1148,6 +1150,47 @@ async function init(){
   renderRegime(regime);renderCSM(csm,conviction);renderSignalStrip(selectedPair);renderIndStrip(selectedPair);updateDrum();checkLevelAlerts();migrateOldTrades();checkTrades();renderLog();
 }
 init();setInterval(init,5*60*1000);
+
+// ── News scan countdown — fires at 06/10/14/18 UTC
+function updateNewsCountdown(){
+  const el=document.getElementById('news-countdown');if(!el)return;
+  const now=new Date();
+  const h=now.getUTCHours(),m=now.getUTCMinutes(),s=now.getUTCSeconds();
+  const totalSecs=h*3600+m*60+s;
+  const fireTimes=[6,10,14,18].map(x=>x*3600);
+  const next=fireTimes.find(t=>t>totalSecs)||(fireTimes[0]+86400);
+  const diff=next-totalSecs;
+  const hh=Math.floor(diff/3600),mm=Math.floor((diff%3600)/60),ss=diff%60;
+  const pad=n=>String(n).padStart(2,'0');
+  el.textContent='News '+pad(hh)+':'+pad(mm)+':'+pad(ss);
+}
+updateNewsCountdown();setInterval(updateNewsCountdown,1000);
+
+// ── Pull-to-refresh
+(function(){
+  const screen=document.getElementById('screen-main');
+  let startY=0,pulling=false,threshold=72;
+  const ind=document.getElementById('ptr-indicator');
+  screen.addEventListener('touchstart',e=>{
+    const sb=screen.querySelector('.scroll-body');
+    if(sb&&sb.scrollTop===0){startY=e.touches[0].clientY;pulling=true;}
+  },{passive:true});
+  screen.addEventListener('touchmove',e=>{
+    if(!pulling)return;
+    const dy=e.touches[0].clientY-startY;
+    if(dy>0&&dy<threshold*1.5){
+      ind.style.height=Math.min(dy,threshold)+'px';
+      ind.textContent=dy>=threshold?'↺ Release to refresh':'↓ Pull to refresh';
+    }
+  },{passive:true});
+  screen.addEventListener('touchend',e=>{
+    if(!pulling)return;
+    pulling=false;
+    const h=parseInt(ind.style.height)||0;
+    ind.style.height='0';
+    if(h>=threshold){ind.style.height='36px';ind.textContent='Refreshing…';init().then(()=>{ind.style.height='0';});}
+  });
+})();
 </script>
 </body>
 </html>
