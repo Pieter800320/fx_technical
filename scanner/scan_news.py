@@ -1,22 +1,27 @@
 """
 scan_news.py — Forex1212 News Brief + Market Narrative
 Sources : FXStreet, ForexLive, Nasdaq FX (RSS — last 4 h)
-Macro   : Stooq.com (VIX, US10Y, WTI, Gold, S&P500, BTC, Copper)
+Macro   : Yahoo Finance v8 API (VIX, DXY, US10Y, US2Y, WTI, Gold, Silver, S&P500, BTC, Copper)
 Tech    : h4_scores.json, d1_scores.json, csm.json, regime.json
-Output  : data/news_brief.json
+Output  : data/news_brief.json, data/regime.json (macro_bias key)
 
 JSON fields
-  status        "ok" | "unavailable"
-  macro         {vix, us10y, wti, gold, spx, btc, copper}
-  narrative     structured FX prose (5 sections, plain text)
-  themes        [{theme, currencies, direction, confidence}]
-  usd_bias      "bullish"|"bearish"|"neutral"
+  status         "ok" | "unavailable"
+  macro          {vix, dxy, us10y, us2y, wti, gold, silver, spx, btc, copper}
+  narrative      structured FX prose (5 sections, plain text)
+  themes         [{theme, currencies, direction, confidence}]
+  usd_bias       "bullish"|"bearish"|"neutral"
   risk_sentiment "risk-on"|"risk-off"|"neutral"
   key_observation one-sentence insight
-  watch         one watch point
-  updated       ISO timestamp
+  watch          one watch point
+  updated        ISO timestamp
   headline_count int
-  edge_scores   {EURUSD:7, ...}
+  edge_scores    {EURUSD:7, ...}
+
+AI pipeline
+  Themes    : claude-haiku  (structured extraction — fast, cheap)
+  Narrative : claude-sonnet (reasoning + synthesis)
+  Edge      : claude-haiku  (scoring — structured output)
 """
 
 import json, os, re, urllib.request
