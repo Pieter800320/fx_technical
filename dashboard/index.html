@@ -367,49 +367,97 @@ function openSignalSheet(tf){
   openSheet(selectedPair.replace('/','')+' — '+label,buildSignalSheetContent(data,selectedPair,label));
 }
 
-// ── QAI — conviction removed, weights redistributed
+// ── Setup score — 6-component orthogonal architecture
+// Components are genuinely independent — no double-counting
+// ADX is a hard gate (≥20), not a scoring component
 function computeQAI(pair){
   const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
   const regime=D.regime&&D.regime.regime?D.regime.regime:'Unknown';
   const csm=D.csm&&D.csm.rankings||{};
   const[base,quote]=pair.split('/');
   const d1dir=d1d?d1d.direction:'neutral';
+  const h4dir=h4d?h4d.direction:'neutral';
+  const h1dir=h1d?h1d.direction:'neutral';
   const isBull=d1dir==='bull',isBear=d1dir==='bear';
-  const d1Score=d1dir==='neutral'?3:(()=>{const l=d1d?d1d.label||'':'';return l.includes('Strong')?10:l.includes('Buy')||l.includes('Sell')?7:4;})();
-  let h4Score=3;if(h4d){if(h4d.direction===d1dir&&d1dir!=='neutral')h4Score=h4d.label&&h4d.label.includes('Strong')?10:7;else if(h4d.direction==='neutral')h4Score=4;else h4Score=0;}
-  let h1Score=4;if(h1d){if(h1d.direction===d1dir&&d1dir!=='neutral')h1Score=10;else if(h1d.direction==='neutral')h1Score=6;else h1Score=1;}
+
+  // 1. TF ALIGNMENT (30%) — unified, no double-counting
+  let alignScore=2;
+  if(d1dir!=='neutral'){
+    const h4m=h4dir===d1dir,h4n=h4dir==='neutral';
+    const h1m=h1dir===d1dir,h1n=h1dir==='neutral';
+    const d1s=d1d&&(d1d.label||'').includes('Strong');
+    const h4s=h4d&&(h4d.label||'').includes('Strong');
+    if(h4m&&h1m)alignScore=(d1s||h4s)?10:9;
+    else if(h4m&&h1n)alignScore=7;
+    else if(h4m&&!h1m&&!h1n)alignScore=5;
+    else if(h4n&&h1m)alignScore=5;
+    else if(h4n&&h1n)alignScore=3;
+    else alignScore=1;
+  }
+
+  // 2. ENTRY POSITION (20%) — reset + ATR combined, coiling vs extension
   const resetRaw=h4d&&h4d.reset_score!==undefined?h4d.reset_score:null;
-  const resetScore=resetRaw===null?5:resetRaw<=20?2:resetRaw<=35?4:resetRaw<=50?7:10;
-  const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
-  const adxScore=adxV===null?5:adxV>=25?10:adxV>=20?7:adxV>=15?4:1;
+  const resetComp=resetRaw===null?5:resetRaw<=20?2:resetRaw<=35?4:resetRaw<=50?7:10;
   const atrPct=d1d&&d1d.atr_percentile!==undefined?d1d.atr_percentile:null;
-  const atrScore=atrPct===null?5:atrPct>=20&&atrPct<=70?10:atrPct<20?7:3;
+  const atrComp=atrPct===null?5:atrPct>=20&&atrPct<=70?10:atrPct<20?7:3;
+  const entryScore=Math.round(resetComp*0.6+atrComp*0.4);
+
+  // 3. CSM DIVERGENCE (18%) — base vs quote strength in trade direction
   const csmBase=csm[base]||50,csmQuote=csm[quote]||50;
   const csmDiv=isBull?csmBase-csmQuote:isBear?csmQuote-csmBase:Math.abs(csmBase-csmQuote);
   const csmScore=csmDiv>=30?10:csmDiv>=15?7:csmDiv>=5?5:csmDiv>=-5?3:1;
-  let regScore=5;if(regime==='Risk-On')regScore=isBull?9:isBear?5:5;else if(regime==='Risk-Off')regScore=isBear?9:isBull?5:5;else if(regime==='Ranging')regScore=4;
-  const rd=computeRateDiff(pair);
-  let rateScore=5;if(rd){const diffInDir=isBull?rd.diff:isBear?-rd.diff:Math.abs(rd.diff);rateScore=diffInDir>=200&&rd.direction!=='narrowing'?10:diffInDir>=50?7:diffInDir>=-50?5:diffInDir<-200?1:3;}
-  const comps={d1:d1Score,h4:h4Score,h1:h1Score,reset:resetScore,adx:adxScore,atr:atrScore,csm:csmScore,regime:regScore,rate:rateScore};
-  const weights={d1:.23,h4:.17,h1:.09,reset:.11,adx:.05,atr:.03,csm:.18,regime:.09,rate:.05};
-  const raw=Math.round(Object.keys(weights).reduce((s,k)=>s+comps[k]*weights[k],0)*10);
+
+  // 4. REGIME FIT (15%) — macro context supports direction
   const riskBases=['AUD','NZD','CAD'],safeHavens=['CHF','JPY'];
   const isRiskPair=riskBases.includes(base)||(riskBases.includes(quote)&&!safeHavens.includes(base));
   const isSafeHavenPair=safeHavens.includes(base)||safeHavens.includes(quote);
-  let capped=raw,capApplied=false;
-  if(regime==='Risk-Off'&&isBull){capped=isRiskPair?Math.min(raw,45):isSafeHavenPair?Math.min(raw,75):Math.min(raw,55);capApplied=capped<raw;}
-  else if(regime==='Risk-On'&&isBear){capped=isSafeHavenPair?Math.min(raw,45):isRiskPair?Math.min(raw,75):Math.min(raw,55);capApplied=capped<raw;}
+  let regScore=5;
+  if(regime==='Risk-On'){regScore=isBull&&isRiskPair?10:isBull?8:isBear&&isSafeHavenPair?2:isBear?4:5;}
+  else if(regime==='Risk-Off'){regScore=isBear&&isSafeHavenPair?10:isBear?8:isBull&&isRiskPair?2:isBull?4:5;}
+  else if(regime==='Ranging'){regScore=4;}
+
+  // 5. RATE DIFFERENTIAL (10%) — fundamental tailwind/headwind
+  const rd=computeRateDiff(pair);
+  let rateScore=5;
+  if(rd){const diffInDir=isBull?rd.diff:isBear?-rd.diff:Math.abs(rd.diff);
+    rateScore=diffInDir>=200?10:diffInDir>=50?7:diffInDir>=-50?5:diffInDir>=-200?3:1;}
+
+  // 6. EDGE — AI cross-source coherence (7%)
+  const edgeRaw=getEdgeScore(pair);
+  const edgeScore=edgeRaw!==null?edgeRaw:5;
+
+  // Weighted sum
+  const comps={align:alignScore,entry:entryScore,csm:csmScore,regime:regScore,rate:rateScore,edge:edgeScore};
+  const weights={align:.30,entry:.20,csm:.17,regime:.14,rate:.06,edge:.13};
+  const raw=Math.round(Object.keys(weights).reduce((s,k)=>s+comps[k]*weights[k],0)*10);
+
+  // ADX hard gate — < 20 caps score at 45 (below alert threshold)
+  const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
+  let capped=raw;
+  if(adxV!==null&&adxV<20)capped=Math.min(capped,45);
+
+  // Regime cap — counter-regime trades penalised
+  let capApplied=false;
+  if(regime==='Risk-Off'&&isBull){const lim=isRiskPair?40:isSafeHavenPair?70:50;if(capped>lim){capped=lim;capApplied=true;}}
+  else if(regime==='Risk-On'&&isBear){const lim=isSafeHavenPair?40:isRiskPair?70:50;if(capped>lim){capped=lim;capApplied=true;}}
   capped=Math.min(capped,100);
+
   const col=capped>=70?'var(--buy)':capped>=55?'var(--amber)':capped>=40?'rgba(248,140,0,.9)':'var(--sell)';
-  return{score:capped,dir:d1dir,col,comps,weights,capApplied,regime};
+  return{score:capped,dir:d1dir,col,comps,weights,capApplied,regime,adxGated:adxV!==null&&adxV<20};
 }
 function openQAISheet(){
   const pair=selectedPair,qai=computeQAI(pair);
-  const labels={d1:'D1 Signal',h4:'H4 Signal',h1:'H1 Signal',reset:'Reset Score',adx:'ADX',atr:'ATR %ile',csm:'CSM Divergence',regime:'Regime',rate:'Rate Diff'};
-  const wts={d1:23,h4:17,h1:9,reset:11,adx:5,atr:3,csm:18,regime:9,rate:5};
-  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Setup Alignment</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
-  h+=Object.keys(labels).map(k=>{const v=qai.comps[k],pct=v*10;const col=pct>=70?'var(--buy)':pct>=40?'var(--amber)':'var(--sell)';return`<div class="sh-comp"><span class="sh-comp-lbl">${labels[k]}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${v}/10</span><span class="sh-comp-wt">${wts[k]}%</span></div>`;}).join('');
-  if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} regime</span></div>`;
+  const labels={align:'TF Alignment',entry:'Entry Position',csm:'CSM Divergence',regime:'Regime Fit',rate:'Rate Differential',edge:'Edge (AI)'};
+  const wts={align:30,entry:20,csm:17,regime:14,rate:6,edge:13};
+  const descs={align:'D1+H4+H1 unified direction',entry:'Reset×0.6 + ATR×0.4',csm:'Base vs quote strength',regime:'Macro context fit',rate:'Interest rate tailwind',edge:'Cross-source coherence'};
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Setup Score</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
+  h+=Object.keys(labels).map(k=>{
+    const v=qai.comps[k],pct=v*10;
+    const col=pct>=70?'var(--buy)':pct>=40?'var(--amber)':'var(--sell)';
+    return`<div class="sh-comp"><span class="sh-comp-lbl" style="width:112px;">${labels[k]}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${v}/10</span><span class="sh-comp-wt">${wts[k]}%</span></div>`;
+  }).join('');
+  if(qai.adxGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--sell);">⚠ ADX Gate</span><span class="sh-dv" style="color:var(--sell);">ADX &lt;20 — capped at 45%</span></div>`;
+  if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Regime Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} — counter-regime</span></div>`;
   openSheet('Setup',h,pair.replace('/',''));
 }
 function computeRateDiff(pair){
