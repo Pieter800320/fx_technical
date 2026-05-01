@@ -480,17 +480,22 @@ function renderSignalStrip(pair){
 }
 function regAbbr(r){return r==='Risk-On'?'R-On':r==='Risk-Off'?'R-Off':r==='Ranging'?'Rang':r==='Mixed'?'Mix':'—';}
 function renderIndStrip(pair){
-  // H4 Regime — leading indicator, most actionable
+  // H4 Regime — combined reading with direction arrow
   const d1reg=D.regime&&D.regime.regime?D.regime.regime:'—';
   const h4regData=D.regime&&D.regime.h4,h4reg=h4regData&&h4regData.regime?h4regData.regime:'—';
-  const h4RC=RC[h4reg]||RC['Mixed'];
+  const direction=D.regime&&D.regime.direction||'Stable';
+  const mb=D.regime&&D.regime.macro_bias||null;
+  // Combined colour: if macro contradicts D1, amber; else D1 colour
+  const d1RC=RC[d1reg]||RC['Mixed'];
+  const macroContradicts=mb&&((d1reg==='Risk-On'&&mb.score<0)||(d1reg==='Risk-Off'&&mb.score>0));
+  const stripCol=macroContradicts?'var(--amber)':d1RC.c;
+  const dirArr=direction==='Strengthening'?'↑':direction==='Deteriorating'?'↓':'→';
   const h4RegEl=document.getElementById('ic-h4reg-val');
   if(h4RegEl){
-    h4RegEl.textContent=regAbbr(h4reg);
-    h4RegEl.style.color=h4RC?h4RC.c:'var(--muted)';
-    const diverging=d1reg!=='—'&&h4reg!=='—'&&d1reg!==h4reg;
+    h4RegEl.textContent=regAbbr(d1reg)+' '+dirArr;
+    h4RegEl.style.color=stripCol;
     const h4el=document.getElementById('ic-h4-reg');
-    if(h4el){h4el.style.outline='none';h4el.title=diverging?'D1/H4 divergence':'';}
+    if(h4el){h4el.style.outline='none';h4el.title=direction;}
   }
   // D1 %
   const h1d=D.h1&&D.h1[pair],nowClose=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
@@ -666,32 +671,96 @@ function buildLiveContent(){
 function openRegimeSheet(){
   const r=D.regime;if(!r||!r.regime)return;
   const c=RC[r.regime]||RC['Mixed'],s=r.signals||{},h4r=r.h4;
-  const diverging=h4r&&h4r.regime&&h4r.regime!==r.regime;
-  let h=`<div class="sh-kpi"><div style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:var(--lg);font-weight:700;color:${c.c};">${r.regime}</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">D1 · ${(r.confidence||'').toUpperCase()}</span></div>`;
-  if(h4r&&h4r.regime){const h4c=RC[h4r.regime]||RC['Mixed'];h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span style="font-size:var(--lg);font-weight:700;color:${h4c.c};">${h4r.regime}</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">H4 · ${(h4r.confidence||'').toUpperCase()}</span></div>`;}
-  else{h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span style="font-size:var(--sm);color:var(--muted);">H4 pending</span></div>`;}
+  const mb=r.macro_bias||null;
+  const dir=r.direction||'Stable';
+  const dirArr=dir==='Strengthening'?'↑':dir==='Deteriorating'?'↓':'→';
+  const dirCol=dir==='Strengthening'?'var(--buy)':dir==='Deteriorating'?'var(--sell)':'var(--muted)';
+  const macroContradicts=mb&&((r.regime==='Risk-On'&&mb.score<0)||(r.regime==='Risk-Off'&&mb.score>0));
+  const finalCol=macroContradicts?'var(--amber)':c.c;
+
+  // ── KPI: Combined reading
+  let h=`<div class="sh-kpi">`;
+  h+=`<div style="display:flex;flex-direction:column;gap:2px;">`;
+  h+=`<span style="font-size:var(--lg);font-weight:700;color:${finalCol};">${r.regime} <span style="color:${dirCol};">${dirArr}</span></span>`;
+  h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">D1 ${(r.confidence||'').toUpperCase()} · ${dir}</span>`;
   h+=`</div>`;
-  if(diverging){h+=`<div style="display:flex;align-items:center;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">Regime Divergence</span></div>`;}
-  // Cross-Asset macro grid — natural home for VIX/US10Y/Gold etc.
+  if(mb){
+    const mbCol=mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)';
+    h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">`;
+    h+=`<span style="font-size:var(--lg);font-weight:700;color:${mbCol};">${mb.score>0?'+':''}${mb.score}/${mb.max}</span>`;
+    h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">Macro Overlay</span>`;
+    h+=`</div>`;
+  } else {
+    h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span style="font-size:var(--sm);color:var(--muted);">Macro pending</span></div>`;
+  }
+  h+=`</div>`;
+
+  if(macroContradicts){
+    h+=`<div style="display:flex;align-items:center;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">⚠ Macro contradicts structural regime</span></div>`;
+  } else if(h4r&&h4r.regime&&h4r.regime!==r.regime){
+    h+=`<div style="display:flex;align-items:center;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">Regime Divergence D1↔H4</span></div>`;
+  }
+
+  // ── Section 1: Tactical Macro Overlay
+  if(mb&&mb.components&&mb.components.length){
+    h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;"><span>Tactical Macro Overlay</span><span style="color:${mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)'};">${mb.score>0?'+':''}${mb.score}/${mb.max} — ${mb.interpretation}</span></div>`;
+    mb.components.forEach(comp=>{
+      const arr=comp.change_pct>0?'▲':comp.change_pct<0?'▼':'→';
+      const scoreCol=comp.score>0?'var(--buy)':comp.score<0?'var(--sell)':'var(--muted)';
+      const scoreStr=comp.score>0?'+1':comp.score<0?'-1':'0';
+      const chgCol=comp.change_pct>0?'var(--buy)':comp.change_pct<0?'var(--sell)':'var(--muted)';
+      h+=`<div style="display:flex;align-items:center;padding:6px var(--pad);border-bottom:1px solid var(--border2);gap:6px;">`;
+      h+=`<span style="font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;width:60px;flex-shrink:0;">${comp.label}</span>`;
+      h+=`<span style="font-size:var(--sm);font-weight:700;color:var(--text);flex:1;">${comp.value}</span>`;
+      h+=`<span style="font-size:var(--sm);color:${chgCol};">${arr} ${Math.abs(comp.change_pct).toFixed(2)}%</span>`;
+      h+=`<span style="font-size:var(--sm);font-weight:700;color:${scoreCol};width:20px;text-align:right;">${scoreStr}</span>`;
+      h+=`</div>`;
+    });
+    const updStr=mb.updated?new Date(mb.updated).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+' UTC':'—';
+    h+=`<div style="padding:4px var(--pad);font-size:var(--xs);color:var(--muted);">Updated: ${updStr}</div>`;
+  }
+
+  // ── Section 2: D1 Structural Signals
+  h+=`<div class="sh-hdr">D1 Structural</div>`;
+  const d1rows=[["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],["Risk basket",s.risk_basket],["Gold",s.gold_direction||"—"],["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],["Dispersion",s.dispersion]];
+  h+=d1rows.map(row=>{if(!row)return'';const[k,v]=row;if(v===null||v===undefined)return'';const vStr=String(v),n=parseFloat(vStr),col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
+
+  // ── Section 3: H4 Structural Signals
+  if(h4r&&h4r.signals){
+    const h4c=RC[h4r.regime]||RC['Mixed'];
+    h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;"><span>H4 Structural</span><span style="color:${h4c.c};">${h4r.regime} · ${(h4r.confidence||'').toUpperCase()}</span></div>`;
+    const h4s=h4r.signals;
+    [["Safe-haven div",h4s.sh_divergence],["USD proxy",h4s.usd_proxy],["Risk basket",h4s.risk_basket],["Dispersion",h4s.dispersion]].forEach(([k,v])=>{
+      if(v===null||v===undefined)return;
+      const vStr=String(v),n=parseFloat(vStr),col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';
+      h+=`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;
+    });
+  }
+
+  // ── Section 4: Cross-Asset grid
   const macro=D.newsBrief&&D.newsBrief.macro||{};
   if(Object.keys(macro).length){h+=`<div class="sh-hdr">Cross-Asset</div>`;h+=buildMacroGrid(macro);}
-  h+=`<div class="sh-hdr">D1 Signals</div>`;
-  const rows=[["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],["Risk basket",s.risk_basket],["Gold",s.gold_direction||"—"],["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],["Dispersion",s.dispersion],["Vol ratio",r.vol_ratio]];
-  h+=rows.map(row=>{if(!row)return'';const[k,v]=row;if(v===null||v===undefined)return'';const vStr=String(v),n=parseFloat(vStr),col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
-  if(h4r&&h4r.signals){
-    h+=`<div class="sh-hdr">H4 Signals</div>`;
-    const h4s=h4r.signals;
-    const h4rows=[["Safe-haven div",h4s.sh_divergence],["USD proxy",h4s.usd_proxy],["Risk basket",h4s.risk_basket],["Dispersion",h4s.dispersion]];
-    h+=h4rows.map(row=>{if(!row)return'';const[k,v]=row;if(v===null||v===undefined)return'';const vStr=String(v),n=parseFloat(vStr),col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
-  }
+
   openSheet('Regime',h);
 }
 function renderRegime(r){
   const el=document.getElementById('regime-strip');if(!el||!r||!r.regime)return;
   const c=RC[r.regime]||RC['Mixed'],s=r.signals||{};
-  const usdV=parseFloat(s.usd_proxy)||0,shV=parseFloat(s.sh_divergence)||0,dispV=parseFloat(s.dispersion)||0;
-  const items=[{lbl:'Regime',val:r.regime,col:c.c},{lbl:'Conf',val:(r.confidence||'—').toUpperCase(),col:c.c},{lbl:'USD',val:usdV!==0?usdV.toFixed(1):'—',col:usdV>0?'var(--buy)':usdV<0?'var(--sell)':'var(--muted)'},{lbl:'SH Div',val:shV!==0?shV.toFixed(0):'—',col:shV>15?'var(--sell)':shV<-15?'var(--buy)':'var(--muted)'},{lbl:'Disp',val:dispV?dispV.toFixed(0):'—',col:dispV>60?'var(--buy)':dispV>30?'var(--amber)':'var(--muted)'}];
+  const mb=r.macro_bias||null;
+  const dir=r.direction||'Stable';
+  const dirArr=dir==='Strengthening'?'↑':dir==='Deteriorating'?'↓':'→';
+  const h4r=r.h4,h4c=h4r?RC[h4r.regime]||RC['Mixed']:null;
+  const macroContradicts=mb&&((r.regime==='Risk-On'&&mb.score<0)||(r.regime==='Risk-Off'&&mb.score>0));
+  const macroCol=mb?(mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)'):'var(--muted)';
+  const usdV=parseFloat(s.usd_proxy)||0,shV=parseFloat(s.sh_divergence)||0;
   const sep='<span style="color:var(--border2);padding:0 2px;">│</span>';
+  const items=[
+    {lbl:'D1 Rgm',val:r.regime+' '+dirArr,col:macroContradicts?'var(--amber)':c.c},
+    {lbl:'H4 Rgm',val:h4r?regAbbr(h4r.regime):'—',col:h4c?h4c.c:'var(--muted)'},
+    {lbl:'Macro',val:mb?mb.score+'/'+mb.max:'—',col:macroCol},
+    {lbl:'USD',val:usdV!==0?usdV.toFixed(1):'—',col:usdV>0?'var(--buy)':usdV<0?'var(--sell)':'var(--muted)'},
+    {lbl:'SH Div',val:shV!==0?shV.toFixed(0):'—',col:shV>15?'var(--sell)':shV<-15?'var(--buy)':'var(--muted)'},
+  ];
   el.innerHTML=`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${c.b};border-radius:var(--r-sm);padding:8px 6px;">${items.map((x,i)=>`${i>0?sep:''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--sm);font-weight:700;color:${x.col};">${x.val}</span><span style="font-size:var(--xs);color:var(--muted);margin-top:2px;">${x.lbl}</span></div>`).join('')}</div>`;
 }
 // ── CSM SHEET — FIX 4: conviction composite removed, COT data kept, section renamed
