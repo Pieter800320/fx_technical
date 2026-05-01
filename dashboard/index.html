@@ -480,22 +480,23 @@ function renderSignalStrip(pair){
 }
 function regAbbr(r){return r==='Risk-On'?'R-On':r==='Risk-Off'?'R-Off':r==='Ranging'?'Rang':r==='Mixed'?'Mix':'—';}
 function renderIndStrip(pair){
-  // H4 Regime — combined reading with direction arrow
+  // H4 Regime cell — shows H4 leading regime with direction arrow
   const d1reg=D.regime&&D.regime.regime?D.regime.regime:'—';
   const h4regData=D.regime&&D.regime.h4,h4reg=h4regData&&h4regData.regime?h4regData.regime:'—';
   const direction=D.regime&&D.regime.direction||'Stable';
   const mb=D.regime&&D.regime.macro_bias||null;
-  // Combined colour: if macro contradicts D1, amber; else D1 colour
-  const d1RC=RC[d1reg]||RC['Mixed'];
+  const h4RC=RC[h4reg]||RC['Mixed'];
   const macroContradicts=mb&&((d1reg==='Risk-On'&&mb.score<0)||(d1reg==='Risk-Off'&&mb.score>0));
-  const stripCol=macroContradicts?'var(--amber)':d1RC.c;
   const dirArr=direction==='Strengthening'?'↑':direction==='Deteriorating'?'↓':'→';
+  // Amber if H4 diverges from D1 OR macro contradicts
+  const diverging=h4reg!=='—'&&d1reg!=='—'&&h4reg!==d1reg;
+  const stripCol=diverging||macroContradicts?'var(--amber)':h4RC.c;
   const h4RegEl=document.getElementById('ic-h4reg-val');
   if(h4RegEl){
-    h4RegEl.textContent=regAbbr(d1reg)+' '+dirArr;
+    h4RegEl.textContent=regAbbr(h4reg)+' '+dirArr;
     h4RegEl.style.color=stripCol;
     const h4el=document.getElementById('ic-h4-reg');
-    if(h4el){h4el.style.outline='none';h4el.title=direction;}
+    if(h4el){h4el.style.outline='none';h4el.title=diverging?'D1/H4 divergence':direction;}
   }
   // D1 %
   const h1d=D.h1&&D.h1[pair],nowClose=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
@@ -1065,13 +1066,13 @@ function buildSingleBar(t,currentPrice){
         // Green fills left from entry (toward TP)
         const fW=(progress*entryPct).toFixed(1);
         const fLeft=(entryPct-parseFloat(fW)).toFixed(1);
-        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:#006622;"></div>`;
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:rgba(63,185,80,0.35);"></div>`;
       } else if(currentPrice<entry){
         inProfit=false;
         progress=Math.min((entry-currentPrice)/slDist,1);
         // Red fills right from entry (toward SL)
         const fW=(progress*(100-entryPct)).toFixed(1);
-        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:#661100;"></div>`;
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:rgba(248,81,73,0.35);"></div>`;
       }
     } else {
       // SELL: profit when price < entry, loss when price > entry
@@ -1080,14 +1081,14 @@ function buildSingleBar(t,currentPrice){
         progress=Math.min((entry-currentPrice)/tpDist,1);
         // Green fills right from entry (toward TP)
         const fW=(progress*(100-entryPct)).toFixed(1);
-        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:#006622;"></div>`;
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:rgba(63,185,80,0.35);"></div>`;
       } else if(currentPrice>entry){
         inProfit=false;
         progress=Math.min((currentPrice-entry)/slDist,1);
         // Red fills left from entry (toward SL)
         const fW=(progress*entryPct).toFixed(1);
         const fLeft=(entryPct-parseFloat(fW)).toFixed(1);
-        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:#661100;"></div>`;
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:rgba(248,81,73,0.35);"></div>`;
       }
     }
   }
