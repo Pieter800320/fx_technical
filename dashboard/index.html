@@ -480,24 +480,18 @@ function renderSignalStrip(pair){
 }
 function regAbbr(r){return r==='Risk-On'?'R-On':r==='Risk-Off'?'R-Off':r==='Ranging'?'Rang':r==='Mixed'?'Mix':'—';}
 function renderIndStrip(pair){
-  // H4 Regime cell — shows H4 leading regime with direction arrow
-  const d1reg=D.regime&&D.regime.regime?D.regime.regime:'—';
+  // H4 Regime cell — shows H4 regime in its natural colour, no amber
   const h4regData=D.regime&&D.regime.h4,h4reg=h4regData&&h4regData.regime?h4regData.regime:'—';
   const fr=D.regime&&D.regime.final_regime||null;
   const direction=fr?fr.direction:(D.regime&&D.regime.direction||'Stable');
-  const mb=D.regime&&D.regime.macro_bias||null;
   const h4RC=RC[h4reg]||RC['Mixed'];
-  const macroContradicts=mb&&((d1reg==='Risk-On'&&mb.score<0)||(d1reg==='Risk-Off'&&mb.score>0));
   const dirArr=direction==='Strengthening'?'↑':direction==='Deteriorating'?'↓':'→';
-  // Amber if H4 diverges from D1 OR macro contradicts
-  const diverging=h4reg!=='—'&&d1reg!=='—'&&h4reg!==d1reg;
-  const stripCol=diverging||macroContradicts?'var(--amber)':h4RC.c;
   const h4RegEl=document.getElementById('ic-h4reg-val');
   if(h4RegEl){
     h4RegEl.textContent=regAbbr(h4reg)+' '+dirArr;
-    h4RegEl.style.color=stripCol;
+    h4RegEl.style.color=h4RC.c;
     const h4el=document.getElementById('ic-h4-reg');
-    if(h4el){h4el.style.outline='none';h4el.title=diverging?'D1/H4 divergence':direction;}
+    if(h4el){h4el.style.outline='none';h4el.title=direction;}
   }
   // D1 %
   const h1d=D.h1&&D.h1[pair],nowClose=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
@@ -675,7 +669,7 @@ function openRegimeSheet(){
   const fr=r.final_regime||null;
   const h4r=r.h4||null;
   const mb=r.macro_bias||null;
-  const ai=r.ai_sentiment||null;
+  const ai=r.ai_sentiment||(fr&&fr.components&&fr.components.ai?{score:fr.components.ai.score,label:fr.components.ai.label,rationale:fr.components.ai.rationale}:null);
   const primary=fr||h4r||r;
   const regName=primary.regime||(r.regime||'—');
   const c=RC[regName]||RC['Mixed'];
@@ -691,7 +685,7 @@ function openRegimeSheet(){
   h+=`<div style="display:flex;flex-direction:column;gap:2px;">`;
   h+=`<span style="font-size:var(--lg);font-weight:700;color:${c.c};">${regName} <span style="color:${dirCol};">${dirArr}</span></span>`;
   const confShort=conf==='HIGH'?'High':conf==='MEDIUM'?'Med':conf==='LOW'?'Low':conf;
-  h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">${confShort} · ${dir}${fr?' · Score '+fr.score:''}</span>`;
+  h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">${confShort} Conf${fr?' · '+fr.score+'/10':''} · ${dir}</span>`;
   h+=`</div>`;
   h+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">`;
   if(fr){
@@ -770,12 +764,12 @@ function renderRegime(r){
   const macroCol=mb?(mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)'):'var(--muted)';
   const aiCol=ai?(ai.score>=7?'var(--buy)':ai.score<=4?'var(--sell)':'var(--amber)'):'var(--muted)';
   const sep='<span style="color:var(--border2);padding:0 2px;">│</span>';
+  const confShortR=conf==='HIGH'?'Hi':conf==='MEDIUM'?'Med':conf==='LOW'?'Lo':'';
   const items=[
-    {lbl:'Regime',val:regAbbr(regName)+' '+(conf==='HIGH'?'Hi':conf==='MEDIUM'?'Med':conf==='LOW'?'Lo':'')+' '+dirArr,col:c.c},
-    {lbl:'H4',val:h4r?regAbbr(h4r.regime):'—',col:h4c?h4c.c:'var(--muted)'},
+    {lbl:'Regime',val:regAbbr(regName)+' '+confShortR+' '+dirArr,col:c.c},
     {lbl:'Macro',val:mb?mb.score+'/'+mb.max:'—',col:macroCol},
     {lbl:'AI',val:ai?ai.score+'/10':'—',col:aiCol},
-    {lbl:'Score',val:fr?fr.score.toFixed(1):'—',col:c.c},
+    {lbl:'Score',val:fr?fr.score.toFixed(1):mb?(mb.score>=3?'R-On':mb.score<=-3?'R-Off':'Mix'):'—',col:fr?c.c:mb?macroCol:'var(--muted)'},
   ];
   el.innerHTML=`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${c.b};border-radius:var(--r-sm);padding:8px 6px;">${items.map((x,i)=>`${i>0?sep:''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--sm);font-weight:700;color:${x.col};">${x.val}</span><span style="font-size:var(--xs);color:var(--muted);margin-top:2px;">${x.lbl}</span></div>`).join('')}</div>`;
 }
