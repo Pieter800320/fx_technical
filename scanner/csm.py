@@ -127,3 +127,63 @@ def compute_currency_strength(d1_ohlcv, h4_ohlcv=None):
             breakdown[quote].append({"pair": display, "score": round(float(-combined), 3), "bull": bool(combined < 0)})
 
     return {"rankings": ranked, "confidence": conf_scores, "breakdown": breakdown}
+
+
+# ── H4 CSM — short-window momentum CSM (H4×0.8 + H1×0.2)
+# Captures intraday momentum shifts before they register on D1.
+# Weighted heavily toward H4, with H1 as early-warning layer.
+H4_LOOKBACK  = 5   # 5 H4 bars = 20 hours
+H4_CSM_W     = 0.8
+H1_CSM_W     = 0.2
+
+
+def compute_currency_strength_h4(h4_ohlcv, h1_ohlcv=None):
+    """
+    H4-dominant currency strength model.
+    Uses a shorter lookback (5 H4 bars ≈ 20h) to capture turning points
+    before they appear on D1. H1 adds a leading-edge signal.
+    Returns dict with same structure as compute_currency_strength().
+    """
+    def _adj_return_h4(df, lookback=H4_LOOKBACK):
+        if df is None or len(df) < lookback + ATR_PERIOD + 1:
+            return None
+        close = df["close"].astype(float)
+        ret   = (close.iloc[-1] - close.iloc[-(lookback + 1)]) / close.iloc[-(lookback + 1)] * 100
+        atr   = _atr(df)
+        return ret / atr if atr != 0 else None
+
+    raw_scores = {c: [] for c in CURRENCIES}
+    confidence = {c: [] for c in CURRENCIES}
+
+    for pair in STRENGTH_PAIRS:
+        base, quote = pair.split("/")
+        h4_ret = _adj_return_h4(h4_ohlcv.get(pair) if h4_ohlcv else None)
+        h1_ret = _adj_return_h4(h1_ohlcv.get(pair) if h1_ohlcv else None, lookback=8)
+        if h4_ret is None:
+            continue
+        combined = H4_CSM_W * h4_ret + H1_CSM_W * h1_ret if h1_ret is not None else h4_ret
+        if base in raw_scores:
+            raw_scores[base].append(combined)
+            confidence[base].append(1 if combined > 0 else -1)
+        if quote in raw_scores:
+            raw_scores[quote].append(-combined)
+            confidence[quote].append(1 if combined < 0 else -1)
+
+    averages  = {c: float(np.mean(v)) if v else 0.0 for c, v in raw_scores.items()}
+    values    = list(averages.values())
+    min_v, max_v = min(values), max(values)
+    spread    = max_v - min_v if max_v != min_v else 1.0
+    normalized = {c: round((v - min_v) / spread * 100, 1) for c, v in averages.items()}
+    ranked    = dict(sorted(normalized.items(), key=lambda x: x[1], reverse=True))
+
+    conf_scores = {}
+    for c in CURRENCIES:
+        votes = confidence[c]
+        if not votes:
+            conf_scores[c] = 0.0
+        else:
+            majority = 1 if sum(votes) >= 0 else -1
+            agreeing = sum(1 for v in votes if v == majority)
+            conf_scores[c] = round(agreeing / len(votes), 2)
+
+    return {"rankings": ranked, "confidence": conf_scores}
