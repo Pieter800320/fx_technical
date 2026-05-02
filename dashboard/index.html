@@ -180,15 +180,17 @@ tr:last-child td{border-bottom:none;}
 <div id="screen-journal" class="screen">
   <div class="hdr"><h1>Log</h1><button class="btn btn-muted" onclick="exportCSV()" style="padding:3px 10px;">Export CSV</button></div>
   <div class="scroll-body">
-    <div style="padding:var(--pad);border-bottom:1px solid var(--border);background:var(--surface);">
-      <div class="perf-grid" style="margin-bottom:8px;">
-        <div class="scard"><div class="sv" id="st-total">-</div><div class="sl2">Total</div></div>
-        <div class="scard"><div class="sv" id="st-wr">-</div><div class="sl2">Win Rate</div></div>
-        <div class="scard"><div class="sv" id="st-ar">-</div><div class="sl2">Avg R</div></div>
-        <div class="scard"><div class="sv" id="st-ex">-</div><div class="sl2">Expect.</div></div>
+    <div style="border-bottom:1px solid var(--border);">
+      <div style="display:flex;background:#0d1117;border-bottom:1px solid var(--border2);">
+        <div class="ic"><span class="ic-val" id="st-total">—</span><span class="ic-lbl">Total</span></div>
+        <div class="ic"><span class="ic-val" id="st-wr">—</span><span class="ic-lbl">Win Rate</span></div>
+        <div class="ic"><span class="ic-val" id="st-ar">—</span><span class="ic-lbl">Avg R</span></div>
+        <div class="ic"><span class="ic-val" id="st-ex">—</span><span class="ic-lbl">Expect.</span></div>
       </div>
-      <div id="log-patterns" style="margin-bottom:8px;"></div>
-      <button class="btn" onclick="openClosedTradesSheet()" style="width:100%;justify-content:center;">View Closed Trades</button>
+      <div id="log-patterns" style="background:#0d1117;"></div>
+      <div style="padding:var(--pad);background:#0d1117;">
+        <button class="btn" onclick="openClosedTradesSheet()" style="width:100%;justify-content:center;">View Closed Trades</button>
+      </div>
     </div>
     <div class="slbl">Open &amp; Pending</div>
     <div id="log-open" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);"></div>
@@ -1395,26 +1397,23 @@ function renderLog(){
       const cell=(label,trades,minN=1)=>{
         const w=wr2(trades);
         const col=w===null?'var(--muted)':w>=60?'var(--buy)':w>=45?'var(--amber)':'var(--sell)';
-        const txt=trades.length<minN?'—':(w+'%');
-        const sub=trades.length<minN?'—':(trades.length+'t');
-        return`<div class="scard" style="flex:1;"><div class="sv" style="color:${col};">${txt}</div><div class="sl2">${label}</div><div style="font-size:var(--xs);color:var(--muted);margin-top:1px;">${sub}</div></div>`;
+        const val=trades.length<minN?'—':w+'%';
+        const sub=trades.length<minN?'—':trades.length+'t';
+        return`<div class="ic"><span class="ic-val" style="color:${col};">${val}</span><span class="ic-lbl">${label} · ${sub}</span></div>`;
       };
       const sep='';
       let h='';
-      // Setup% row
-      h+=`<div class="sl2" style="padding:0 0 4px;">Win Rate by Setup%</div>`;
-      h+=`<div class="perf-grid" style="margin-bottom:10px;">${cell('<60%',s_lo)}${cell('60-75%',s_mid)}${cell('>75%',s_hi)}</div>`;
-      // Edge row
-      h+=`<div class="sl2" style="padding:0 0 4px;">Win Rate by Edge</div>`;
-      h+=`<div class="perf-grid" style="margin-bottom:10px;">${cell('<6',e_lo)}${cell('6-7',e_mid)}${cell('8-10',e_hi)}</div>`;
-      // Best/worst pairs
+      h+=`<div style="display:flex;border-bottom:1px solid var(--border2);">${cell('<60%',s_lo)}${cell('60-75%',s_mid)}${cell('>75%',s_hi)}</div>`;
+      h+=`<div style="display:flex;${pairStats&&pairStats.length?'border-bottom:1px solid var(--border2);':''}">${cell('Edge <6',e_lo)}${cell('Edge 6-7',e_mid)}${cell('Edge 8-10',e_hi)}</div>`;
       const pairWr={};
       cls2.forEach(t=>{if(!pairWr[t.pair])pairWr[t.pair]=[];pairWr[t.pair].push(t);});
       const pairStats=Object.entries(pairWr).filter(([,v])=>v.length>=2).map(([p,v])=>({p:p.replace('/',''),wr:wr2(v),n:v.length})).sort((a,b)=>b.wr-a.wr);
       if(pairStats.length){
         const best=pairStats[0],worst=pairStats[pairStats.length-1];
-        h+=`<div class="perf-grid"><div class="scard" style="flex:1;"><div class="sv sg">${best.p}</div><div class="sl2">Best Pair ${best.wr}% (${best.n})</div></div>`;
-        h+=`<div class="scard" style="flex:1;"><div class="sv sr">${worst.p}</div><div class="sl2">Worst Pair ${worst.wr}% (${worst.n})</div></div></div>`;
+        h+=`<div style="display:flex;">`;
+        h+=`<div class="ic"><span class="ic-val" style="color:var(--buy);">${best.p}</span><span class="ic-lbl">Best · ${best.wr}% (${best.n})</span></div>`;
+        h+=`<div class="ic"><span class="ic-val" style="color:var(--sell);">${worst.p}</span><span class="ic-lbl">Worst · ${worst.wr}% (${worst.n})</span></div>`;
+        h+=`</div>`;
       }
       pEl.innerHTML=h;
     }
@@ -1431,10 +1430,10 @@ function renderLog(){
   const lR=cls.filter(t=>t.result!=='win'&&calcR(t.entry,t.sl,t.tp)).map(t=>calcR(t.entry,t.sl,t.tp));
   const wf=(wr||0)/100,aw=wR.length?wR.reduce((a,b)=>a+b,0)/wR.length:0,al=lR.length?lR.reduce((a,b)=>a+b,0)/lR.length:0;
   const exp=cls.length?((wf*aw-(1-wf)*al).toFixed(2)):null;
-  const st=document.getElementById('st-total');if(st)st.textContent=all.length||'-';
-  const sw=document.getElementById('st-wr');if(sw){sw.textContent=wr!==null?wr+'%':'-';sw.className='sv '+(wr>=50?'sg':wr!==null?'sr':'');}
-  const sr=document.getElementById('st-ar');if(sr){sr.textContent=avgR!==null?avgR+'R':'-';sr.className='sv '+(avgR===null?'':avgR>=0?'sg':'sr');}
-  const se=document.getElementById('st-ex');if(se){se.textContent=exp!==null?exp+'R':'-';se.className='sv '+(exp===null?'':exp>=0?'sg':'sr');}
+  const st=document.getElementById('st-total');if(st)st.textContent=all.length||'—';
+  const sw=document.getElementById('st-wr');if(sw){sw.textContent=wr!==null?wr+'%':'—';sw.style.color=wr===null?'':wr>=50?'var(--buy)':'var(--sell)';}
+  const sr=document.getElementById('st-ar');if(sr){sr.textContent=avgR!==null?avgR+'R':'—';sr.style.color=avgR===null?'':avgR>=0?'var(--buy)':'var(--sell)';}
+  const se=document.getElementById('st-ex');if(se){se.textContent=exp!==null?exp+'R':'—';se.style.color=exp===null?'':exp>=0?'var(--buy)':'var(--sell)';}
 }
 
 function exportCSV(){
