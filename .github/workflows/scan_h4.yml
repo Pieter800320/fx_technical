@@ -41,7 +41,8 @@ jobs:
           cp data/alerts.json     dashboard/ || true
           cp data/regime.json     dashboard/ || true
           cp data/correlation.json dashboard/ || true
-          git add data/h4_scores.json state/cooldown.json data/alerts.json data/regime.json data/correlation.json data/alert_cooldown.json dashboard/ || true
+          cp data/csm.json        dashboard/ || true
+          git add data/h4_scores.json data/csm.json state/cooldown.json data/alerts.json data/regime.json data/correlation.json data/alert_cooldown.json dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: H4 scan $(date -u +%Y-%m-%dT%H:%M)"
           git pull origin main --no-rebase -X ours
           git push
