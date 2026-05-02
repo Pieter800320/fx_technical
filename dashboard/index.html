@@ -935,20 +935,48 @@ function buildDrumRows(){
   });
 }
 let drumRows=[];
+const DRUM_COPIES=3;
 function updateDrum(){
   const drum=document.getElementById('drum-scroll');if(!drum)return;
-  drumRows=buildDrumRows();const PAD=2;
-  const blanks=n=>Array(n).fill(`<div class="drum-row" style="opacity:0;pointer-events:none;"></div>`).join('');
-  drum.innerHTML=blanks(PAD)+drumRows.map((r,i)=>`<div class="drum-row${r.corrClass||''}" data-idx="${i}" data-pair="${r.pair}">${r.html}</div>`).join('')+blanks(PAD);
+  drumRows=buildDrumRows();
+  const ROW_H=44,N=drumRows.length;
+  let html='';
+  for(let copy=0;copy<DRUM_COPIES;copy++){
+    drumRows.forEach((r,i)=>{
+      const isLast=i===N-1&&copy<DRUM_COPIES-1;
+      const sepStyle=isLast?'border-bottom:1px solid rgba(0,204,51,.35);':'';
+      html+=`<div class="drum-row${r.corrClass||''}" data-idx="${i}" data-pair="${r.pair}" style="${sepStyle}">${r.html}</div>`;
+    });
+  }
+  drum.innerHTML=html;
+  // scrollTop to put row (N+idx) at center: row_center = (N+idx)*ROW_H+22, viewport_center = scrollTop+88
+  // => scrollTop = (N+idx)*ROW_H + 22 - 88 = (N+idx)*ROW_H - 66
   const idx=drumRows.findIndex(r=>r.pair===selectedPair);
-  drum.scrollTop=(idx>=0?idx:0)*44+22;
+  drum.scrollTop=(N+(idx>=0?idx:0))*ROW_H-66;
   updateDrumHighlight();
-  drum.onscroll=()=>updateDrumHighlight();
-  drum.querySelectorAll('.drum-row[data-pair]').forEach(row=>{row.onclick=()=>{const pair=row.dataset.pair;if(pair){drum.scrollTop=parseInt(row.dataset.idx)*44+22;onPairSelect(pair);}};});
+  drum.onscroll=()=>{
+    // Silent snap: if drifted into first or third copy, jump by N rows
+    if(drum.scrollTop<ROW_H)drum.scrollTop+=N*ROW_H;
+    else if(drum.scrollTop>=(2*N)*ROW_H)drum.scrollTop-=N*ROW_H;
+    updateDrumHighlight();
+  };
+  drum.querySelectorAll('.drum-row[data-pair]').forEach(row=>{
+    row.onclick=()=>{
+      const pair=row.dataset.pair;
+      if(pair){
+        const i=parseInt(row.dataset.idx);
+        const cur=drum.scrollTop;
+        const targets=[0,1,2].map(c=>(c*N+i)*ROW_H-66);
+        drum.scrollTop=targets.reduce((a,b)=>Math.abs(b-cur)<Math.abs(a-cur)?b:a);
+        onPairSelect(pair);
+      }
+    };
+  });
 }
 function updateDrumHighlight(){
   const drum=document.getElementById('drum-scroll');if(!drum)return;
-  const PAD=2,centerIdx=Math.round((drum.scrollTop-22)/44)+PAD;
+  const ROW_H=44;
+  const centerIdx=Math.round((drum.scrollTop+66)/ROW_H);
   drum.querySelectorAll('.drum-row').forEach((el,i)=>{
     const dist=Math.abs(i-centerIdx);
     el.style.opacity=dist===0?1:dist===1?.72:dist===2?.38:.14;
@@ -1159,13 +1187,13 @@ function buildSingleBar(t,currentPrice){
         // Green fills left from entry (toward TP)
         const fW=(progress*entryPct).toFixed(1);
         const fLeft=(entryPct-parseFloat(fW)).toFixed(1);
-        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:rgba(63,185,80,0.35);"></div>`;
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:rgba(63,185,80,0.35);border-radius:2px 0 0 2px;"></div>`;
       } else if(currentPrice<entry){
         inProfit=false;
         progress=Math.min((entry-currentPrice)/slDist,1);
         // Red fills right from entry (toward SL)
         const fW=(progress*(100-entryPct)).toFixed(1);
-        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:rgba(248,81,73,0.35);"></div>`;
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:rgba(248,81,73,0.35);border-radius:0 2px 2px 0;"></div>`;
       }
     } else {
       // SELL: profit when price < entry, loss when price > entry
@@ -1174,14 +1202,14 @@ function buildSingleBar(t,currentPrice){
         progress=Math.min((entry-currentPrice)/tpDist,1);
         // Green fills right from entry (toward TP)
         const fW=(progress*(100-entryPct)).toFixed(1);
-        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:rgba(63,185,80,0.35);"></div>`;
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${entryPct.toFixed(1)}%;top:0;bottom:0;width:${fW}%;background:rgba(63,185,80,0.35);border-radius:0 2px 2px 0;"></div>`;
       } else if(currentPrice>entry){
         inProfit=false;
         progress=Math.min((currentPrice-entry)/slDist,1);
         // Red fills left from entry (toward SL)
         const fW=(progress*entryPct).toFixed(1);
         const fLeft=(entryPct-parseFloat(fW)).toFixed(1);
-        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:rgba(248,81,73,0.35);"></div>`;
+        if(parseFloat(fW)>0.5)fillHtml=`<div style="position:absolute;left:${fLeft}%;top:0;bottom:0;width:${fW}%;background:rgba(248,81,73,0.35);border-radius:2px 0 0 2px;"></div>`;
       }
     }
   }
