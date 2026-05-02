@@ -392,7 +392,7 @@ function openSignalSheet(tf){
 function computeQAI(pair){
   const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
   const regime=D.regime&&D.regime.regime?D.regime.regime:'Unknown';
-  const csm=D.csm&&D.csm.rankings||{};
+  const csm=D.csm&&D.csm.h4_rankings&&Object.keys(D.csm.h4_rankings).length?D.csm.h4_rankings:D.csm&&D.csm.rankings||{};
   const[base,quote]=pair.split('/');
   const d1dir=d1d?d1d.direction:'neutral';
   const h4dir=h4d?h4d.direction:'neutral';
@@ -427,13 +427,16 @@ function computeQAI(pair){
   const csmScore=csmDiv>=30?10:csmDiv>=15?7:csmDiv>=5?5:csmDiv>=-5?3:1;
 
   // 4. REGIME FIT (15%) — macro context supports direction
-  const riskBases=['AUD','NZD','CAD'],safeHavens=['CHF','JPY'];
+  const riskBases=['AUD','NZD','CAD'],safeHavens=['CHF','JPY'],growthCcys=['EUR','GBP'];
   const isRiskPair=riskBases.includes(base)||(riskBases.includes(quote)&&!safeHavens.includes(base));
   const isSafeHavenPair=safeHavens.includes(base)||safeHavens.includes(quote);
+  const isGrowthPair=growthCcys.includes(base)||growthCcys.includes(quote);
   let regScore=5;
-  if(regime==='Risk-On'){regScore=isBull&&isRiskPair?10:isBull?8:isBear&&isSafeHavenPair?2:isBear?4:5;}
-  else if(regime==='Risk-Off'){regScore=isBear&&isSafeHavenPair?10:isBear?8:isBull&&isRiskPair?2:isBull?4:5;}
-  else if(regime==='Ranging'){regScore=4;}
+  if(regime==='Risk-On'){
+    regScore=isBull&&isRiskPair?10:isBull&&isGrowthPair?8:isBull?6:isBear&&isSafeHavenPair?2:isBear&&isRiskPair?3:isBear?4:5;
+  }else if(regime==='Risk-Off'){
+    regScore=isBear&&isSafeHavenPair?10:isBear&&isGrowthPair?7:isBear?6:isBull&&isRiskPair?2:isBull&&isGrowthPair?3:isBull?4:5;
+  }else if(regime==='Ranging'){regScore=4;}
 
   // 5. RATE DIFFERENTIAL (10%) — fundamental tailwind/headwind
   const rd=computeRateDiff(pair);
@@ -879,7 +882,7 @@ function getCorrVal(p1,p2){if(!D.corr||!D.corr.pairs||!D.corr.matrix)return null
 function getEdgeScore(pair){const es=D.newsBrief&&D.newsBrief.edge_scores;if(!es)return null;const key=pair.replace('/','');return es[key]!==undefined?es[key]:null;}
 function buildDrumRows(){
   const ranked=PAIRS.map(pair=>{
-    const h4d=D.h4&&D.h4[pair],setup=computeQAI(pair).score,edge=getEdgeScore(pair)||0;
+    const h4d=D.h4&&D.h4[pair],setup=computeQAI(pair).score,edge=getEdgeScore(pair)??5;
     const combined=setup*0.6+edge*4,adx=h4d&&h4d.raw?h4d.raw.adx||0:0;
     return{pair,combined,adx,setup,edge};
   }).sort((a,b)=>b.combined-a.combined||b.adx-a.adx);
@@ -1351,7 +1354,7 @@ function renderLog(){
         const rr=calcR(t.entry,t.sl,t.tp);
         const sc=t.status==='open'?'var(--buy)':'var(--amber)';
         const dec=t.pair.includes('JPY')?3:5;
-        return`<tr><td><b>${t.pair.replace('/','')}</b></td><td style="color:${t.direction==='BUY'?'var(--buy)':'var(--sell)'};font-weight:700">${t.direction}</td><td style="color:${sc};font-size:var(--xs);font-weight:700;">${t.status.toUpperCase()}</td><td>${t.entry?t.entry.toFixed?.(dec)||t.entry:'—'}</td><td>${t.sl?t.sl.toFixed?.(dec)||t.sl:'—'}</td><td>${t.tp?t.tp.toFixed?.(dec)||t.tp:'—'}</td><td>${rr?rr+'R':'—'}</td><td><button class="btn btn-muted" onclick="openEnterTradeSheet(${t.id})" style="padding:2px 8px;">✎</button></td><td><button class="btn btn-red" onclick="closeTradeManual(${t.id})" style="padding:2px 8px;">✕</button></td></tr>`;
+        return`<tr style="background:${t.status==='pending'?'rgba(227,179,65,.05)':'transparent'};"><td><b>${t.pair.replace('/','')}</b></td><td style="color:${t.direction==='BUY'?'var(--buy)':'var(--sell)'};font-weight:700">${t.direction}</td><td style="color:${sc};font-size:var(--xs);font-weight:700;">${t.status.toUpperCase()}</td><td>${t.entry?t.entry.toFixed?.(dec)||t.entry:'—'}</td><td>${t.sl?t.sl.toFixed?.(dec)||t.sl:'—'}</td><td>${t.tp?t.tp.toFixed?.(dec)||t.tp:'—'}</td><td>${rr?rr+'R':'—'}</td><td><button class="btn btn-muted" onclick="openEnterTradeSheet(${t.id})" style="padding:2px 8px;">✎</button></td><td><button class="btn btn-red" onclick="closeTradeManual(${t.id})" style="padding:2px 8px;">✕</button></td></tr>`;
       }).join('')+'</tbody></table></div>';
     }
   }
@@ -1380,7 +1383,7 @@ function renderLog(){
   if(pEl){
     const cls2=trades.filter(t=>t.status==='closed'&&t.result&&t.result!=='manual');
     if(cls2.length<3){
-      pEl.innerHTML='<span style="font-size:var(--xs);color:var(--muted);">Need at least 3 closed trades for pattern analysis.</span>';
+      pEl.innerHTML='';
     } else {
       const wr2=(t)=>{
         const w=t.filter(x=>x.result==='win').length;
