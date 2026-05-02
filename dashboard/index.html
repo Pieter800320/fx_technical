@@ -34,23 +34,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #sheet-close-btn{background:transparent;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--muted);font-size:var(--xs);padding:3px 8px;cursor:pointer;}
 #sheet-body{overflow-y:auto;flex:1;}
 #drum-wrap{background:#020e02;border:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;}
-#drum-scroll{height:176px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;margin:0 14px;}
+#drum-scroll{height:140px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;margin:0 14px;}
 #drum-scroll::-webkit-scrollbar{display:none;}
-.drum-row{height:44px;scroll-snap-align:center;display:grid;grid-template-rows:30px 12px;padding:0 12px;font-family:'VT323',monospace;font-size:24px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;width:100%;box-sizing:border-box;border-left:none;}
+.drum-row{height:35px;scroll-snap-align:center;display:grid;grid-template-rows:24px 10px;padding:0 12px;font-family:'VT323',monospace;font-size:24px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;width:100%;box-sizing:border-box;border-left:none;}
 .drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.4);}
-.drum-row.d-corr{background:rgba(227,179,65,.04);}
+.drum-row.d-corr{}
 #drum-wall-l{position:absolute;top:0;left:0;width:14px;height:100%;background:linear-gradient(to right,#141a14,#0d150d);border-right:1px solid rgba(0,204,51,.18);z-index:3;}
 #drum-wall-r{position:absolute;top:0;right:0;width:14px;height:100%;background:linear-gradient(to left,#141a14,#0d150d);border-left:1px solid rgba(0,204,51,.18);z-index:3;}
-.d-top{display:table;table-layout:fixed;width:100%;height:30px;}
-.d-pair{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:33.33%;}
-.d-setup{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:33.33%;}
-.d-edge{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:33.33%;}
+.d-top{display:table;table-layout:fixed;width:100%;height:24px;}
+.d-pair{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:25%;}
+.d-setup{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:25%;}
+.d-edge{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:25%;}
+.d-sess{display:table-cell;text-align:center;vertical-align:middle;font-size:18px;font-family:'VT323',monospace;width:25%;color:#007a29;}
 .d-arr{display:none;}
-.d-bar-zone{display:flex;align-items:center;gap:3px;width:100%;height:12px;}
-.d-bar-item{position:relative;height:12px;background:rgba(0,204,51,.07);border:1px solid rgba(0,204,51,.25);border-radius:1px;overflow:hidden;flex:1;min-width:0;}
+.d-bar-zone{display:flex;align-items:center;gap:3px;width:100%;height:10px;}
+.d-bar-item{position:relative;height:10px;background:rgba(0,204,51,.07);border:1px solid rgba(0,204,51,.25);border-radius:1px;overflow:hidden;flex:1;min-width:0;}
 #drum-fade-top{position:absolute;top:0;left:14px;right:14px;height:60px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
 #drum-fade-bot{position:absolute;bottom:0;left:14px;right:14px;height:60px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
-#drum-center-line{position:absolute;top:50%;left:14px;right:14px;height:44px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
+#drum-center-line{position:absolute;top:50%;left:14px;right:14px;height:35px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
 #sig-strip{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
 .ssp{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;cursor:pointer;border:none;background:transparent;position:relative;}
 .ssp:not(:last-child){border-right:1px solid var(--border);}
@@ -276,6 +277,15 @@ const PAIRS=["EUR/USD","GBP/USD","USD/JPY","USD/CHF","AUD/USD","USD/CAD","NZD/US
 const GH_RAW="https://raw.githubusercontent.com/Pieter800320/fx_technical/main/data";
 const SIGS={EMA200:"EMA 200",EMA50:"EMA 50",RSI:"RSI>50",MACD:"MACD",DMI:"DMI+/-",Structure:"Structure"};
 const SESS={Sydney:[22,7],Tokyo:[23,8],London:[7,16],"New York":[12,21]};
+const SESS_ABBR={Sydney:'SY',Tokyo:'TK',London:'LN','New York':'NY'};
+const PAIR_SESS={
+  'EUR/USD':['LN','NY'],'GBP/USD':['LN','NY'],'USD/JPY':['TK','NY'],
+  'USD/CHF':['LN','NY'],'AUD/USD':['SY','TK','NY'],'USD/CAD':['NY'],
+  'NZD/USD':['SY','TK','NY'],'EUR/JPY':['LN','TK'],'GBP/JPY':['LN','TK'],
+  'AUD/JPY':['SY','TK'],'NZD/JPY':['SY','TK'],'CAD/JPY':['TK','NY']
+};
+function getActiveSessions(){if(closed())return[];const h=new Date().getUTCHours();return Object.entries(SESS).filter(([,[s,e]])=>s>e?(h>=s||h<e):(h>=s&&h<e)).map(([n])=>SESS_ABBR[n]);}
+function getSessionLabel(){const a=getActiveSessions();return a.length?a.join('/'):'—';}
 const RC={"Risk-Off":{c:"#f85149",b:"#b62324"},"Risk-On":{c:"#3fb950",b:"#238636"},"Ranging":{c:"#8b949e",b:"#30363d"},"Mixed":{c:"#e3b341",b:"#e3b341"}};
 const BANKS={USD:'Fed',EUR:'ECB',GBP:'BOE',JPY:'BOJ',CHF:'SNB',AUD:'RBA',CAD:'BOC',NZD:'RBNZ'};
 const CCYS=['USD','EUR','GBP','JPY','CHF','AUD','CAD','NZD'];
@@ -429,13 +439,19 @@ function computeQAI(pair){
   if(rd){const diffInDir=isBull?rd.diff:isBear?-rd.diff:Math.abs(rd.diff);
     rateScore=diffInDir>=200?10:diffInDir>=50?7:diffInDir>=-50?5:diffInDir>=-200?3:1;}
 
-  // 6. EDGE — AI cross-source coherence (7%)
+  // 6. EDGE — AI cross-source coherence
   const edgeRaw=getEdgeScore(pair);
   const edgeScore=edgeRaw!==null?edgeRaw:5;
 
+  // 7. SESSION FIT — is current session optimal for this pair?
+  const activeSess=getActiveSessions();
+  const pairSess=PAIR_SESS[pair]||[];
+  const sessMatch=activeSess.some(s=>pairSess.includes(s));
+  const sessScore=closed()?3:activeSess.length===0?3:sessMatch?10:2;
+
   // Weighted sum
-  const comps={align:alignScore,entry:entryScore,csm:csmScore,regime:regScore,rate:rateScore,edge:edgeScore};
-  const weights={align:.30,entry:.20,csm:.17,regime:.14,rate:.06,edge:.13};
+  const comps={align:alignScore,entry:entryScore,csm:csmScore,regime:regScore,rate:rateScore,edge:edgeScore,session:sessScore};
+  const weights={align:.28,entry:.18,csm:.16,regime:.13,rate:.05,edge:.12,session:.08};
   const raw=Math.round(Object.keys(weights).reduce((s,k)=>s+comps[k]*weights[k],0)*10);
 
   // ADX hard gate — < 20 caps score at 45 (below alert threshold)
@@ -454,9 +470,9 @@ function computeQAI(pair){
 }
 function openQAISheet(){
   const pair=selectedPair,qai=computeQAI(pair);
-  const labels={align:'TF Alignment',entry:'Entry Position',csm:'CSM Divergence',regime:'Regime Fit',rate:'Rate Differential',edge:'Edge (AI)'};
+  const labels={align:'TF Alignment',entry:'Entry Position',csm:'CSM Divergence',regime:'Regime Fit',rate:'Rate Differential',edge:'Edge (AI)',session:'Session Fit'};
   const wts={align:30,entry:20,csm:17,regime:14,rate:6,edge:13};
-  const descs={align:'D1+H4+H1 unified direction',entry:'Reset×0.6 + ATR×0.4',csm:'Base vs quote strength',regime:'Macro context fit',rate:'Interest rate tailwind',edge:'Cross-source coherence'};
+  const descs={align:'D1+H4+H1 unified direction',entry:'Reset×0.6 + ATR×0.4',csm:'Base vs quote strength',regime:'Macro context fit',rate:'Interest rate tailwind',edge:'Cross-source coherence',session:'Active session match'};
   let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Setup Score</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
   h+=Object.keys(labels).map(k=>{
     const v=qai.comps[k],pct=v*10;
@@ -897,11 +913,16 @@ function buildDrumRows(){
     }
     const barZone=buildDrumBarZone(pair);
     const corrClass=corrFlagged.has(pair)?' d-corr':'';
+    const sessLabel=getSessionLabel();
+    const activeSess=getActiveSessions();
+    const pairSess=PAIR_SESS[pair]||[];
+    const sessMatch=!closed()&&activeSess.some(s=>pairSess.includes(s));
+    const sessStyle=sessMatch?'':'color:#007a29;';
     const topLine=
       `<span class="d-pair">${pair.replace('/','')}</span>`+
       `<span class="d-setup">${setup.score>0?setup.score+'%':'—'}</span>`+
       `<span class="d-edge">${edgeStr}</span>`+
-      `<span class="d-arr" style="${arrStyle}">${arrChar}</span>`;
+      `<span class="d-sess" style="${sessStyle}">${sessLabel}</span>`;
     return{pair,corrClass,html:
       `<div class="d-top">${topLine}</div>`+
       barZone
@@ -915,14 +936,14 @@ function updateDrum(){
   const blanks=n=>Array(n).fill(`<div class="drum-row" style="opacity:0;pointer-events:none;"></div>`).join('');
   drum.innerHTML=blanks(PAD)+drumRows.map((r,i)=>`<div class="drum-row${r.corrClass||''}" data-idx="${i}" data-pair="${r.pair}">${r.html}</div>`).join('')+blanks(PAD);
   const idx=drumRows.findIndex(r=>r.pair===selectedPair);
-  drum.scrollTop=(idx>=0?idx:0)*44+22;
+  drum.scrollTop=(idx>=0?idx:0)*35+17;
   updateDrumHighlight();
   drum.onscroll=()=>updateDrumHighlight();
-  drum.querySelectorAll('.drum-row[data-pair]').forEach(row=>{row.onclick=()=>{const pair=row.dataset.pair;if(pair){drum.scrollTop=parseInt(row.dataset.idx)*44+22;onPairSelect(pair);}};});
+  drum.querySelectorAll('.drum-row[data-pair]').forEach(row=>{row.onclick=()=>{const pair=row.dataset.pair;if(pair){drum.scrollTop=parseInt(row.dataset.idx)*35+17;onPairSelect(pair);}};});
 }
 function updateDrumHighlight(){
   const drum=document.getElementById('drum-scroll');if(!drum)return;
-  const PAD=2,centerIdx=Math.round((drum.scrollTop-22)/44)+PAD;
+  const PAD=2,centerIdx=Math.round((drum.scrollTop-17)/35)+PAD;
   drum.querySelectorAll('.drum-row').forEach((el,i)=>{
     const dist=Math.abs(i-centerIdx);
     el.style.opacity=dist===0?1:dist===1?.72:dist===2?.38:.14;
