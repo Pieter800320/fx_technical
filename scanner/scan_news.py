@@ -24,11 +24,12 @@ AI pipeline
   Edge      : claude-haiku  (scoring — structured output)
 """
 
-import json, os, re, urllib.request
+import json, os, re, sys, urllib.request
 from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 import xml.etree.ElementTree as ET
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 try:
     import anthropic
