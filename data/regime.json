@@ -14,17 +14,17 @@
   "updated": "2026-05-02T03:47:05.571175",
   "h4": {
     "regime": "Risk-On",
-    "confidence": "Medium",
+    "confidence": "High",
     "signals": {
-      "sh_divergence": -1.6,
+      "sh_divergence": -14.0,
       "usd_proxy": -1.75,
       "risk_basket": -0.17,
       "trend_ratio": 1.0,
       "dispersion": 100.0,
       "risk_off_votes": 0,
-      "risk_on_votes": 4
+      "risk_on_votes": 6
     },
-    "updated": "2026-05-02T06:21:55.224787"
+    "updated": "2026-05-02T06:32:09.350208"
   },
   "macro_bias": {
     "score": 0,
@@ -81,5 +81,31 @@
       }
     ],
     "updated": "2026-05-02T06:18:19.499886+00:00"
+  },
+  "final_regime": {
+    "regime": "Mixed",
+    "confidence": "Low",
+    "score": 7.0,
+    "direction": "Strengthening",
+    "components": {
+      "h4": {
+        "score": 10,
+        "label": "Risk-On",
+        "confidence": "High"
+      },
+      "macro": {
+        "score": 5.0,
+        "raw": 0,
+        "max": 6,
+        "interpretation": "Neutral / Mixed"
+      },
+      "ai": {
+        "score": 5,
+        "label": "Pending",
+        "rationale": ""
+      },
+      "final_score": 7.0
+    },
+    "spread": 5.0
   }
 }
