@@ -34,21 +34,23 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #sheet-close-btn{background:transparent;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--muted);font-size:var(--xs);padding:3px 8px;cursor:pointer;}
 #sheet-body{overflow-y:auto;flex:1;}
 #drum-wrap{background:#020e02;border-bottom:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;}
-#drum-scroll{height:260px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;}
+#drum-scroll{height:175px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;margin:0 14px;}
 #drum-scroll::-webkit-scrollbar{display:none;}
-.drum-row{height:52px;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 8px 3px 11px;font-family:'VT323',monospace;font-size:19px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;gap:2px;width:100%;border-left:3px solid transparent;}
+.drum-row{height:35px;scroll-snap-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:2px 8px 2px 11px;font-family:'VT323',monospace;font-size:24px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;gap:1px;width:100%;border-left:3px solid transparent;}
 .drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.4);}
 .drum-row.d-corr{border-left-color:var(--amber);}
+#drum-wall-l{position:absolute;top:0;left:0;width:14px;height:100%;background:linear-gradient(to right,#141a14,#0d150d);border-right:2px solid #2a3a2a;z-index:3;}
+#drum-wall-r{position:absolute;top:0;right:0;width:14px;height:100%;background:linear-gradient(to left,#141a14,#0d150d);border-left:2px solid #2a3a2a;z-index:3;}
 .d-top{display:flex;align-items:center;justify-content:center;gap:0;width:100%;}
-.d-pair{display:inline-block;width:58px;text-align:left;font-size:19px;}
-.d-setup{display:inline-block;width:36px;text-align:right;font-size:19px;}
-.d-edge{display:inline-block;width:18px;text-align:right;font-size:19px;margin-left:8px;}
+.d-pair{display:inline-block;width:58px;text-align:left;font-size:24px;}
+.d-setup{display:inline-block;width:36px;text-align:right;font-size:24px;}
+.d-edge{display:inline-block;width:18px;text-align:right;font-size:24px;margin-left:8px;}
 .d-arr{display:inline-block;width:22px;text-align:center;font-size:19px;line-height:1;margin-left:4px;}
 .d-bar-zone{display:flex;align-items:center;gap:3px;width:100%;height:10px;}
 .d-bar-item{position:relative;height:10px;background:rgba(0,204,51,.07);border:1px solid rgba(0,204,51,.25);border-radius:1px;overflow:hidden;flex:1;min-width:0;}
-#drum-fade-top{position:absolute;top:0;left:0;right:0;height:90px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
-#drum-fade-bot{position:absolute;bottom:0;left:0;right:0;height:90px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
-#drum-center-line{position:absolute;top:50%;left:0;right:0;height:52px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
+#drum-fade-top{position:absolute;top:0;left:14px;right:14px;height:60px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
+#drum-fade-bot{position:absolute;bottom:0;left:14px;right:14px;height:60px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
+#drum-center-line{position:absolute;top:50%;left:14px;right:14px;height:35px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
 #sig-strip{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
 .ssp{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;cursor:pointer;border:none;background:transparent;position:relative;}
 .ssp:not(:last-child){border-right:1px solid var(--border);}
@@ -147,7 +149,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr"><h1>Forex1212</h1><div class="hdr-right"><span id="last-updated">Loading…</span></div></div>
   <div class="scroll-body">
     <div id="ptr-indicator">↺ Release to refresh</div>
-  <div id="drum-wrap"><div id="drum-fade-top"></div><div id="drum-center-line"></div><div id="drum-scroll"></div><div id="drum-fade-bot"></div></div>
+  <div id="drum-wrap"><div id="drum-wall-l"></div><div id="drum-wall-r"></div><div id="drum-fade-top"></div><div id="drum-center-line"></div><div id="drum-scroll"></div><div id="drum-fade-bot"></div></div>
     <div id="sig-strip">
       <button class="ssp" id="ssp-d1" onclick="openSignalSheet('d1')"><span class="ssp-tf">D1</span><div class="ssp-pill pill-N" id="ssp-d1-pill">—</div><span class="ssp-score" id="ssp-d1-score"></span></button>
       <button class="ssp" id="ssp-h4" onclick="openSignalSheet('h4')"><span class="ssp-tf">H4</span><div class="ssp-pill pill-N" id="ssp-h4-pill">—</div><span class="ssp-score" id="ssp-h4-score"></span></button>
@@ -184,30 +186,32 @@ tr:last-child td{border-bottom:none;}
         <div class="scard"><div class="sv" id="st-ar">-</div><div class="sl2">Avg R</div></div>
         <div class="scard"><div class="sv" id="st-ex">-</div><div class="sl2">Expect.</div></div>
       </div>
+      <button class="btn btn-muted" onclick="openClosedTradesSheet()" style="width:100%;margin-top:4px;">View Closed Trades</button>
     </div>
     <div class="slbl">Open &amp; Pending</div>
     <div id="log-open" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);"></div>
     <div class="slbl">Pattern Analysis</div>
     <div id="log-patterns" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);padding:var(--pad);"></div>
-    <div class="slbl">Closed Trades</div>
-    <div id="log-closed" style="max-height:380px;overflow-y:auto;border-top:1px solid var(--border);border-bottom:1px solid var(--border);"></div>
+    <div id="log-closed" style="display:none;"></div>
   </div>
 </div>
 <div id="screen-correlation" class="screen">
   <div class="hdr"><h1>Correlation</h1></div>
-  <div class="scroll-body" style="padding:var(--pad);">
-    <div class="fg" style="margin-bottom:10px;"><label>Pair</label><select id="corr-pair-select" onchange="corrSelectedPair=this.value;renderCorr(D.corr)" style="background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:7px 10px;font-size:var(--md);width:100%;"></select></div>
-    <div id="corr-chart-wrap"><div class="loading">Loads after next H4 scan.</div></div>
+  <div class="scroll-body">
+    <div style="padding:var(--pad);border-bottom:1px solid var(--border);background:var(--surface);">
+      <div class="slbl" style="padding:0 0 6px;">Base Pair</div>
+      <select id="corr-pair-select" onchange="corrSelectedPair=this.value;renderCorr(D.corr)" style="background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:7px 10px;font-size:var(--md);width:100%;"></select>
+    </div>
+    <div id="corr-chart-wrap" style="padding:var(--pad);"><div class="loading">Loads after next H4 scan.</div></div>
   </div>
 </div>
 <div id="screen-rates" class="screen">
   <div class="hdr"><h1>Rates</h1></div>
   <div class="scroll-body">
-    <div class="slbl">Rate Differentials</div>
-    <div id="rates-diff-grid" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);"></div>
-    <div class="slbl">Current Policy Rates</div>
-    <div id="rates-table-grid" style="border-top:1px solid var(--border);border-bottom:1px solid var(--border);"></div>
-    <div id="rates-updated" style="padding:5px var(--pad);font-size:var(--xs);color:var(--muted);"></div>
+    <div style="padding:var(--pad);border-bottom:1px solid var(--border);background:var(--surface);">
+      <button class="btn btn-muted" onclick="openRatesDataSheet()" style="width:100%;margin-bottom:8px;">View Differentials &amp; Policy Rates</button>
+      <div id="rates-updated" style="font-size:var(--xs);color:var(--muted);text-align:center;"></div>
+    </div>
     <div style="padding:var(--pad);border-bottom:1px solid var(--border);">
       <div class="slbl" style="padding:0 0 12px;">Update Rates</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;" id="rates-form-grid"></div>
@@ -218,6 +222,10 @@ tr:last-child td{border-bottom:none;}
         <div style="font-size:var(--xs);color:var(--muted);margin-top:4px;">Stored in browser only. Needs repo write permission.</div>
       </div>
     </div>
+    <div id="rates-diff-grid" style="display:none;"></div>
+    <div id="rates-table-grid" style="display:none;"></div>
+  </div>
+</div>
   </div>
 </div>
 <div id="screen-chart">
@@ -664,6 +672,41 @@ function buildLiveContent(){
   return`<div style="display:flex;padding:5px var(--pad) 4px;border-bottom:1px solid var(--border2);"><span style="width:62px;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">Pair</span><span style="flex:1;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">Last</span><span style="min-width:56px;text-align:right;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">D1 %</span><span style="min-width:48px;text-align:right;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;border-left:1px solid var(--border2);padding-left:8px;">D5 %</span></div>`+rows.map(r=>`<div style="display:flex;align-items:center;padding:7px var(--pad);border-bottom:1px solid var(--border2);"><span style="width:62px;font-size:var(--md);font-weight:700;">${r.pair.replace('/','')}</span><span style="flex:1;font-size:var(--xs);color:var(--muted);">${r.nowClose.toFixed(r.dec)}</span><span style="font-size:${r.isMover?'var(--md)':'var(--sm)'};font-weight:700;color:${r.col};min-width:56px;text-align:right;">${r.diff>=0?'+':'-'}${Math.abs(r.pct).toFixed(2)}%</span><span style="font-size:var(--xs);font-weight:600;color:${r.w1Pct===null?'var(--muted)':r.w1Pct>=0?'var(--buy)':'var(--sell)'};min-width:48px;text-align:right;border-left:1px solid var(--border2);padding-left:8px;">${r.w1Pct!==null?fmt2(r.w1Pct):'—'}</span></div>`).join('');
 }
 // ── REGIME SHEET — FIX 4: macro grid added as Cross-Asset section
+function openClosedTradesSheet(){
+  const trades=tradesLoad();
+  const closed=trades.filter(t=>t.status==='closed').slice().reverse();
+  let h='';
+  if(!closed.length){
+    h='<div class="loading">No closed trades yet</div>';
+  }else{
+    h='<div style="overflow-x:auto;"><table><thead><tr><th>Date</th><th>Pair</th><th>Dir</th><th>Result</th><th>R</th><th>Setup</th><th>Edge</th><th>D1</th><th>H4</th><th>Notes</th><th>Edit</th><th>Del</th></tr></thead><tbody>'+
+    closed.map(t=>{
+      const rr=calcR(t.entry,t.sl,t.tp);
+      const rc=t.result==='win'?'var(--buy)':t.result==='loss'?'var(--sell)':'var(--amber)';
+      const rl=t.result==='win'?'WIN':t.result==='loss'?'LOSS':'CLOSED';
+      const qs=t.setup_score||0;
+      const qc=qs>=70?'var(--buy)':qs>=55?'var(--amber)':qs>=40?'rgba(248,140,0,.9)':qs>0?'var(--sell)':'var(--muted)';
+      const eg=t.edge_score;
+      const ec=eg>=8?'var(--buy)':eg>=6?'var(--amber)':eg?'var(--sell)':'var(--muted)';
+      const dateStr=(t.closed||t.date||'').toString().slice(0,10);
+      return`<tr><td style="font-size:var(--xs)">${dateStr}</td><td><b>${t.pair.replace('/','')}</b></td><td style="color:${t.direction==='BUY'?'var(--buy)':'var(--sell)'};font-weight:700">${t.direction}</td><td style="color:${rc};font-weight:700;">${rl}</td><td>${rr?rr+'R':'—'}</td><td style="color:${qc}">${qs?qs+'%':'—'}</td><td style="color:${ec}">${eg?eg+'/10':'—'}</td><td style="font-size:var(--xs)">${t.d1_label||'—'}</td><td style="font-size:var(--xs)">${t.h4_label||'—'}</td><td style="max-width:80px;overflow:hidden;text-overflow:ellipsis;font-size:var(--xs);color:var(--muted)">${t.notes||''}</td><td><button class="btn btn-muted" onclick="openEditNotes(${t.id})" style="padding:2px 8px;">✎</button></td><td><button class="btn btn-red" onclick="delClosedTrade(${t.id})" style="padding:2px 8px;">✕</button></td></tr>`;
+    }).join('')+'</tbody></table></div>';
+  }
+  openSheet('Closed Trades',h,closed.length+' trades');
+}
+function openRatesDataSheet(){
+  renderRatesDiffGrid();renderRatesTableGrid();
+  const diffEl=document.getElementById('rates-diff-grid');
+  const tblEl=document.getElementById('rates-table-grid');
+  const upEl=document.getElementById('rates-updated');
+  let h='';
+  h+='<div class="sh-hdr">Rate Differentials</div>';
+  h+=(diffEl?diffEl.innerHTML:'');
+  h+='<div class="sh-hdr">Current Policy Rates</div>';
+  h+=(tblEl?tblEl.innerHTML:'');
+  if(upEl&&upEl.textContent)h+=`<div style="padding:5px var(--pad);font-size:var(--xs);color:var(--muted);">${upEl.textContent}</div>`;
+  openSheet('Rates Data',h);
+}
 function openRegimeSheet(){
   const r=D.regime;if(!r)return;
   const fr=r.final_regime||null;
@@ -873,14 +916,14 @@ function updateDrum(){
   const blanks=n=>Array(n).fill(`<div class="drum-row" style="opacity:0;pointer-events:none;"></div>`).join('');
   drum.innerHTML=blanks(PAD)+drumRows.map((r,i)=>`<div class="drum-row${r.corrClass||''}" data-idx="${i}" data-pair="${r.pair}">${r.html}</div>`).join('')+blanks(PAD);
   const idx=drumRows.findIndex(r=>r.pair===selectedPair);
-  drum.scrollTop=(idx>=0?idx:0)*52;
+  drum.scrollTop=(idx>=0?idx:0)*35;
   updateDrumHighlight();
   drum.onscroll=()=>updateDrumHighlight();
-  drum.querySelectorAll('.drum-row[data-pair]').forEach(row=>{row.onclick=()=>{const pair=row.dataset.pair;if(pair){drum.scrollTop=parseInt(row.dataset.idx)*52;onPairSelect(pair);}};});
+  drum.querySelectorAll('.drum-row[data-pair]').forEach(row=>{row.onclick=()=>{const pair=row.dataset.pair;if(pair){drum.scrollTop=parseInt(row.dataset.idx)*35;onPairSelect(pair);}};});
 }
 function updateDrumHighlight(){
   const drum=document.getElementById('drum-scroll');if(!drum)return;
-  const PAD=2,centerIdx=Math.round(drum.scrollTop/52)+PAD;
+  const PAD=2,centerIdx=Math.round(drum.scrollTop/35)+PAD;
   drum.querySelectorAll('.drum-row').forEach((el,i)=>{
     const dist=Math.abs(i-centerIdx);
     el.style.opacity=dist===0?1:dist===1?.72:dist===2?.38:.14;
