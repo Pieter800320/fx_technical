@@ -34,24 +34,24 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #sheet-close-btn{background:transparent;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--muted);font-size:var(--xs);padding:3px 8px;cursor:pointer;}
 #sheet-body{overflow-y:auto;flex:1;}
 #drum-wrap{background:#020e02;border:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;}
-#drum-scroll{height:140px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;margin:0 14px;}
+#drum-scroll{height:176px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;margin:0 14px;}
 #drum-scroll::-webkit-scrollbar{display:none;}
-.drum-row{height:35px;scroll-snap-align:center;display:grid;grid-template-rows:24px 10px;padding:0 12px;font-family:'VT323',monospace;font-size:24px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;width:100%;box-sizing:border-box;border-left:none;}
+.drum-row{height:44px;scroll-snap-align:center;display:grid;grid-template-rows:30px 12px;padding:0 12px;font-family:'VT323',monospace;font-size:24px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;width:100%;box-sizing:border-box;border-left:none;}
 .drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.4);}
 .drum-row.d-corr{}
 #drum-wall-l{position:absolute;top:0;left:0;width:14px;height:100%;background:linear-gradient(to right,#141a14,#0d150d);border-right:1px solid rgba(0,204,51,.18);z-index:3;}
 #drum-wall-r{position:absolute;top:0;right:0;width:14px;height:100%;background:linear-gradient(to left,#141a14,#0d150d);border-left:1px solid rgba(0,204,51,.18);z-index:3;}
-.d-top{display:table;table-layout:fixed;width:100%;height:24px;}
+.d-top{display:table;table-layout:fixed;width:100%;height:30px;}
 .d-pair{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:25%;}
 .d-setup{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:25%;}
 .d-edge{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:25%;}
 .d-sess{display:table-cell;text-align:center;vertical-align:middle;font-size:18px;font-family:'VT323',monospace;width:25%;color:#007a29;}
 .d-arr{display:none;}
-.d-bar-zone{display:flex;align-items:center;gap:3px;width:100%;height:10px;}
-.d-bar-item{position:relative;height:10px;background:rgba(0,204,51,.07);border:1px solid rgba(0,204,51,.25);border-radius:1px;overflow:hidden;flex:1;min-width:0;}
+.d-bar-zone{display:flex;align-items:center;gap:3px;width:100%;height:12px;}
+.d-bar-item{position:relative;height:12px;background:rgba(0,204,51,.07);border:1px solid rgba(0,204,51,.25);border-radius:1px;overflow:hidden;flex:1;min-width:0;}
 #drum-fade-top{position:absolute;top:0;left:14px;right:14px;height:60px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
 #drum-fade-bot{position:absolute;bottom:0;left:14px;right:14px;height:60px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
-#drum-center-line{position:absolute;top:50%;left:14px;right:14px;height:35px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
+#drum-center-line{position:absolute;top:50%;left:14px;right:14px;height:44px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
 #sig-strip{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
 .ssp{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;cursor:pointer;border:none;background:transparent;position:relative;}
 .ssp:not(:last-child){border-right:1px solid var(--border);}
@@ -178,7 +178,7 @@ tr:last-child td{border-bottom:none;}
   </div>
 </div>
 <div id="screen-journal" class="screen">
-  <div class="hdr"><h1>Log</h1><button class="btn btn-muted" onclick="exportCSV()" style="padding:3px 10px;">Export CSV</button></div>
+  <div class="hdr"><h1>Log</h1><button class="btn" onclick="exportCSV()" style="padding:3px 10px;">Export CSV</button></div>
   <div class="scroll-body">
     <div style="border-bottom:1px solid var(--border);">
       <div style="display:flex;background:#0d1117;border-bottom:1px solid var(--border2);">
@@ -941,14 +941,14 @@ function updateDrum(){
   const blanks=n=>Array(n).fill(`<div class="drum-row" style="opacity:0;pointer-events:none;"></div>`).join('');
   drum.innerHTML=blanks(PAD)+drumRows.map((r,i)=>`<div class="drum-row${r.corrClass||''}" data-idx="${i}" data-pair="${r.pair}">${r.html}</div>`).join('')+blanks(PAD);
   const idx=drumRows.findIndex(r=>r.pair===selectedPair);
-  drum.scrollTop=(idx>=0?idx:0)*35+17;
+  drum.scrollTop=(idx>=0?idx:0)*44+22;
   updateDrumHighlight();
   drum.onscroll=()=>updateDrumHighlight();
-  drum.querySelectorAll('.drum-row[data-pair]').forEach(row=>{row.onclick=()=>{const pair=row.dataset.pair;if(pair){drum.scrollTop=parseInt(row.dataset.idx)*35+17;onPairSelect(pair);}};});
+  drum.querySelectorAll('.drum-row[data-pair]').forEach(row=>{row.onclick=()=>{const pair=row.dataset.pair;if(pair){drum.scrollTop=parseInt(row.dataset.idx)*44+22;onPairSelect(pair);}};});
 }
 function updateDrumHighlight(){
   const drum=document.getElementById('drum-scroll');if(!drum)return;
-  const PAD=2,centerIdx=Math.round((drum.scrollTop-17)/35)+PAD;
+  const PAD=2,centerIdx=Math.round((drum.scrollTop-22)/44)+PAD;
   drum.querySelectorAll('.drum-row').forEach((el,i)=>{
     const dist=Math.abs(i-centerIdx);
     el.style.opacity=dist===0?1:dist===1?.72:dist===2?.38:.14;
