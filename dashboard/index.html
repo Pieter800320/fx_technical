@@ -1405,7 +1405,7 @@ function renderLog(){
       const pairWr={};
       cls2.forEach(t=>{if(!pairWr[t.pair])pairWr[t.pair]=[];pairWr[t.pair].push(t);});
       const pairStats=Object.entries(pairWr).filter(([,v])=>v.length>=2).map(([p,v])=>({p:p.replace('/',''),wr:wr2(v),n:v.length})).sort((a,b)=>b.wr-a.wr);
-      h+=`<div style="display:flex;border-bottom:1px solid var(--border2);">${cell('<60%',s_lo)}${cell('60-75%',s_mid)}${cell('>75%',s_hi)}</div>`;
+      h+=`<div style="display:flex;border-bottom:1px solid var(--border2);">${cell('Setup <60%',s_lo)}${cell('Setup 60-75%',s_mid)}${cell('Setup >75%',s_hi)}</div>`;
       h+=`<div style="display:flex;${pairStats.length?'border-bottom:1px solid var(--border2);':''}">${cell('Edge <6',e_lo)}${cell('Edge 6-7',e_mid)}${cell('Edge 8-10',e_hi)}</div>`;
       if(pairStats.length){
         const best=pairStats[0],worst=pairStats[pairStats.length-1];
