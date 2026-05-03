@@ -20,8 +20,7 @@ from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, is_extended
 from scanner.correlate import compute_correlation
 from scanner.cooldown import is_on_cooldown, record_alert
-from scanner.regime import classify_regime, compute_final_regime
-from scanner.csm import compute_currency_strength_h4
+from scanner.regime import classify_regime
 from alerts.news import get_alert_context
 from alerts.log import log_alert
 
@@ -227,7 +226,7 @@ def main():
                 if df is None or len(df) < 2:
                     continue
                 bars_list = []
-                for ts, row in df.tail(100).iterrows():
+                for ts, row in df.iterrows():
                     try:
                         import calendar, datetime as _dt
                         dt_raw = row.get("datetime") if hasattr(row, "get") else str(ts)
@@ -254,20 +253,6 @@ def main():
         json.dump(h4_output, f, indent=2)
     print(f"\n  Saved: {H4_OUTPUT}")
     print(f"  Saved: {CORR_OUTPUT}")
-
-    # ── H4 CSM Rankings ───────────────────────────────────────────────────────
-    print("\n  Computing H4 CSM rankings...")
-    try:
-        h4_csm    = compute_currency_strength_h4(ohlcv)
-        csm_path  = os.path.join(DATA_DIR, "csm.json")
-        existing_csm = load_scores(csm_path)
-        existing_csm["h4_rankings"]  = h4_csm["rankings"]
-        existing_csm["h4_confidence"] = h4_csm["confidence"]
-        with open(csm_path, "w") as f:
-            json.dump(existing_csm, f, indent=2)
-        print(f"  H4 CSM: {list(h4_csm['rankings'].items())[:3]}...")
-    except Exception as e:
-        print(f"  [H4 CSM] ERROR: {e}")
 
     # ── H4 Regime ─────────────────────────────────────────────────────────────
     print("\n  Computing H4 market regime...")
