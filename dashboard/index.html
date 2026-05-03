@@ -48,11 +48,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #drum-trade-bar .tb-entry{position:absolute;left:0;right:0;height:1px;background:rgba(0,204,51,.6);}
 #drum-trade-bar .tb-price{position:absolute;left:0;right:0;height:2px;border-radius:1px;background:rgba(0,255,65,.9);}
 .d-top{display:table;table-layout:fixed;width:100%;height:30px;}
-.d-pair{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:20%;}
-.d-setup{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:20%;}
-.d-edge{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:20%;}
-.d-sess{display:table-cell;text-align:center;vertical-align:middle;font-size:18px;font-family:'VT323',monospace;width:20%;color:#007a29;}
-.d-dir{display:table-cell;text-align:center;vertical-align:middle;font-size:18px;font-family:'VT323',monospace;width:20%;color:#00cc44;}
+.d-pair{display:table-cell;text-align:center;vertical-align:middle;font-size:19px;font-family:'VT323',monospace;width:20%;}
+.d-setup{display:table-cell;text-align:center;vertical-align:middle;font-size:19px;font-family:'VT323',monospace;width:20%;}
+.d-edge{display:table-cell;text-align:center;vertical-align:middle;font-size:19px;font-family:'VT323',monospace;width:20%;}
+.d-sess{display:table-cell;text-align:center;vertical-align:middle;font-size:15px;font-family:'VT323',monospace;width:20%;color:#007a29;}
+.d-dir{display:table-cell;text-align:center;vertical-align:middle;font-family:'VT323',monospace;width:20%;color:#00cc44;}
 .d-arr{display:none;}
 .d-bar-zone{display:flex;align-items:center;gap:3px;width:100%;height:12px;}
 .d-bar-item{position:relative;height:12px;background:rgba(0,204,51,.07);border:1px solid rgba(0,204,51,.25);border-radius:1px;overflow:hidden;flex:1;min-width:0;}
@@ -929,12 +929,14 @@ function buildDrumRows(){
     const pairSess=PAIR_SESS[pair]||[];
     const sessMatch=!closed()&&activeSess.some(s=>pairSess.includes(s));
     const sessStyle=sessMatch?'':'color:#007a29;';
-    // Direction arrow: from active trade, else from H4 signal
+    // Direction arrow: only for pairs with an active or pending trade
     const activeTrade=tradesLoad().find(t=>t.pair===pair&&(t.status==='open'||t.status==='pending'));
-    const tradeDir=activeTrade?activeTrade.direction:null;
-    const h4dir=h4d?h4d.direction:null;
-    const dirSrc=tradeDir||(h4dir==='bull'?'BUY':h4dir==='bear'?'SELL':null);
-    const dirArrow=dirSrc==='BUY'?'▲':dirSrc==='SELL'?'▼':'—';
+    let dirArrow='';
+    if(activeTrade){
+      const arrow=activeTrade.direction==='BUY'?'▲':'▼';
+      const sz=activeTrade.status==='open'?'22px':'14px';
+      dirArrow=`<span style="font-size:${sz};line-height:1;">${arrow}</span>`;
+    }
     const topLine=
       `<span class="d-pair">${pair.replace('/','')}</span>`+
       `<span class="d-setup">${setup.score>0?setup.score+'%':'—'}</span>`+
