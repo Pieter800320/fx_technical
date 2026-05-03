@@ -1206,12 +1206,13 @@ function buildSubChart(container,label){
   // offsetWidth/Height gives correct dimensions after layout — clientHeight returns 0 before paint
   const w=container.offsetWidth||window.innerWidth;
   const h=container.offsetHeight||100;
+  const isRSI=label==='RSI';
   const chart=LightweightCharts.createChart(wrap,{
     width:w,height:h,
     layout:{background:{color:'transparent'},textColor:'#8b949e'},
-    grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
+    grid:{vertLines:{color:'#21262d'},horzLines:{visible:!isRSI,color:'#21262d'}},
     crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
-    rightPriceScale:{visible:true,borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.1,bottom:0.1}},
+    rightPriceScale:{visible:true,borderColor:'#30363d',autoScale:!isRSI,scaleMargins:{top:0.1,bottom:0.1}},
     timeScale:{visible:false,borderVisible:false},
     handleScroll:false,
     handleScale:false
@@ -1228,7 +1229,7 @@ function renderChtMACD(container,ohlcv){
   if(!macdData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
   const offset=ohlcv.length-macdData.length;
   const chart=buildSubChart(container,'MACD');
-  chart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.5)':'rgba(248,81,73,0.5)'})));
+  chart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.2)':'rgba(248,81,73,0.2)'})));
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.macd})));
   chart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.signal})));
   return{chart,offset};
@@ -1238,8 +1239,11 @@ function renderChtRSI(container,ohlcv){
   if(!rsiData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
   const offset=ohlcv.length-rsiData.length;
   const chart=buildSubChart(container,'RSI');
+  // Fix scale 0-100, hide auto grid horzLines handled in buildSubChart
   const tFirst=rsiData[0].time,tLast=rsiData[rsiData.length-1].time;
-  [70,50,30].forEach(lvl=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false}).setData([{time:tFirst,value:lvl},{time:tLast,value:lvl}]);});
+  [75,50,25].forEach(lvl=>{
+    chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true}).setData([{time:tFirst,value:lvl},{time:tLast,value:lvl}]);
+  });
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:true}).setData(rsiData);
   return{chart,offset};
 }
@@ -1323,6 +1327,7 @@ function migrateOldTrades(){
 
 // ── Trade lifecycle engine — called on every init()
 function checkTrades(){
+  if(closed())return false;  // Don't auto-close on weekends — stale bars give false signals
   const trades=tradesLoad();
   if(!trades.length)return false;
   const h1Ohlcv=(D.h1&&D.h1._ohlcv)||{};
