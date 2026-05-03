@@ -34,18 +34,19 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #sheet-close-btn{background:transparent;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--muted);font-size:var(--xs);padding:3px 8px;cursor:pointer;}
 #sheet-body{overflow-y:auto;flex:1;}
 #drum-wrap{background:#020e02;border:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;}
-#drum-scroll{height:176px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;margin:0 48px 0 14px;}
+#drum-scroll{height:176px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;margin:0 48px;}
 #drum-scroll::-webkit-scrollbar{display:none;}
-.drum-row{height:44px;scroll-snap-align:center;display:grid;grid-template-rows:30px 12px;padding:0 12px;font-family:'VT323',monospace;font-size:24px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;width:100%;box-sizing:border-box;border-left:none;}
+.drum-row{height:44px;scroll-snap-align:center;display:flex;align-items:center;padding:0 12px;font-family:'VT323',monospace;font-size:24px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;width:100%;box-sizing:border-box;}
 .drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.4);}
 .drum-row.d-corr{}
-#drum-wall-l{position:absolute;top:0;left:0;width:14px;height:100%;background:#020e02;border-right:1px solid rgba(0,204,51,.18);z-index:3;}
+#drum-wall-l{position:absolute;top:0;left:0;width:48px;height:100%;background:#020e02;border-right:1px solid rgba(0,204,51,.18);z-index:3;overflow:hidden;}
+#drum-rank-scroll{height:100%;overflow:hidden;pointer-events:none;}
 #drum-wall-r{position:absolute;top:0;right:0;width:48px;height:100%;background:#020e02;border-left:1px solid rgba(0,204,51,.18);z-index:3;}
 #drum-trade-bar{position:absolute;top:8px;bottom:8px;right:8px;width:14px;z-index:4;border-radius:3px;overflow:hidden;background:rgba(0,204,51,.06);border:1px solid rgba(0,204,51,.15);display:none;}
 #drum-trade-bar .tb-tp{position:absolute;left:0;right:0;background:rgba(63,185,80,.18);}
 #drum-trade-bar .tb-sl{position:absolute;left:0;right:0;background:rgba(248,81,73,.18);}
 #drum-trade-bar .tb-entry{position:absolute;left:0;right:0;height:1px;background:rgba(0,204,51,.6);}
-#drum-trade-bar .tb-price{position:absolute;left:0;right:0;height:2px;border-radius:1px;background:rgba(0,212,255,.9);}
+#drum-trade-bar .tb-price{position:absolute;left:0;right:0;height:2px;border-radius:1px;background:rgba(0,255,65,.9);}
 .d-top{display:table;table-layout:fixed;width:100%;height:30px;}
 .d-pair{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:25%;}
 .d-setup{display:table-cell;text-align:center;vertical-align:middle;font-size:24px;font-family:'VT323',monospace;width:25%;}
@@ -54,9 +55,9 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .d-arr{display:none;}
 .d-bar-zone{display:flex;align-items:center;gap:3px;width:100%;height:12px;}
 .d-bar-item{position:relative;height:12px;background:rgba(0,204,51,.07);border:1px solid rgba(0,204,51,.25);border-radius:1px;overflow:hidden;flex:1;min-width:0;}
-#drum-fade-top{position:absolute;top:0;left:14px;right:48px;height:60px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
-#drum-fade-bot{position:absolute;bottom:0;left:14px;right:48px;height:60px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
-#drum-center-line{position:absolute;top:50%;left:14px;right:48px;height:44px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
+#drum-fade-top{position:absolute;top:0;left:48px;right:48px;height:60px;pointer-events:none;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;}
+#drum-fade-bot{position:absolute;bottom:0;left:48px;right:48px;height:60px;pointer-events:none;background:linear-gradient(to top,#020e02,transparent);z-index:2;}
+#drum-center-line{position:absolute;top:50%;left:48px;right:48px;height:44px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;}
 #sig-strip{display:flex;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
 .ssp{flex:1;display:flex;flex-direction:column;align-items:center;padding:8px 6px;cursor:pointer;border:none;background:transparent;position:relative;}
 .ssp:not(:last-child){border-right:1px solid var(--border);}
@@ -155,7 +156,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr"><h1>Forex1212</h1><div class="hdr-right"><span id="last-updated">Loading…</span></div></div>
   <div class="scroll-body">
     <div id="ptr-indicator">↺ Release to refresh</div>
-  <div id="drum-wrap"><div id="drum-wall-l"></div><div id="drum-wall-r"><div id="drum-trade-bar"></div></div><div id="drum-fade-top"></div><div id="drum-center-line"></div><div id="drum-scroll"></div><div id="drum-fade-bot"></div></div>
+  <div id="drum-wrap"><div id="drum-wall-l"><div id="drum-rank-scroll"></div></div><div id="drum-wall-r"><div id="drum-trade-bar"></div></div><div id="drum-fade-top"></div><div id="drum-center-line"></div><div id="drum-scroll"></div><div id="drum-fade-bot"></div></div>
     <div id="sig-strip">
       <button class="ssp" id="ssp-d1" onclick="openSignalSheet('d1')"><span class="ssp-tf">D1</span><div class="ssp-pill pill-N" id="ssp-d1-pill">—</div><span class="ssp-score" id="ssp-d1-score"></span></button>
       <button class="ssp" id="ssp-h4" onclick="openSignalSheet('h4')"><span class="ssp-tf">H4</span><div class="ssp-pill pill-N" id="ssp-h4-pill">—</div><span class="ssp-score" id="ssp-h4-score"></span></button>
@@ -921,7 +922,6 @@ function buildDrumRows(){
       arrChar=dir==='bull'?'▲':dir==='bear'?'▼':' ';
       arrStyle='color:#00ff55;text-shadow:0 0 6px #00ff55;';
     }
-    const barZone=buildDrumBarZone(pair);
     const corrClass=corrFlagged.has(pair)?' d-corr':'';
     const sessLabel=getSessionLabel();
     const activeSess=getActiveSessions();
@@ -933,10 +933,7 @@ function buildDrumRows(){
       `<span class="d-setup">${setup.score>0?setup.score+'%':'—'}</span>`+
       `<span class="d-edge">${edgeStr}</span>`+
       `<span class="d-sess" style="${sessStyle}">${sessLabel}</span>`;
-    return{pair,corrClass,html:
-      `<div class="d-top">${topLine}</div>`+
-      barZone
-    };
+    return{pair,corrClass,html:`<div class="d-top">${topLine}</div>`};
   });
 }
 let drumRows=[];
@@ -965,6 +962,24 @@ function updateDrum(){
     else if(drum.scrollTop>=(2*N)*ROW_H)drum.scrollTop-=N*ROW_H;
     updateDrumHighlight();
   };
+  // Build rank scroll (mirrors drum structure)
+  const rankScroll=document.getElementById('drum-rank-scroll');
+  if(rankScroll){
+    const ROW_H=44;
+    let rhtml='';
+    for(let copy=0;copy<DRUM_COPIES;copy++){
+      drumRows.forEach((_,i)=>{
+        const rank=i+1;
+        const rankCol=rank<=3?'#00ff55':rank<=6?'#00cc44':rank<=9?'#008a2e':'#005a1e';
+        rhtml+=`<div style="height:${ROW_H}px;display:flex;align-items:center;justify-content:center;font-family:'VT323',monospace;font-size:20px;color:${rankCol};opacity:.5;">${rank}</div>`;
+      });
+    }
+    rankScroll.innerHTML=rhtml;
+    // Sync scroll position
+    const syncRank=()=>{rankScroll.scrollTop=drum.scrollTop;};
+    drum.addEventListener('scroll',syncRank,{passive:true});
+    syncRank();
+  }
   drum.querySelectorAll('.drum-row[data-pair]').forEach(row=>{
     row.onclick=()=>{
       const pair=row.dataset.pair;
@@ -988,6 +1003,14 @@ function updateDrumHighlight(){
     if(dist===0){el.classList.add('drum-center');const pair=el.dataset.pair;if(pair&&pair!==selectedPair)onPairSelect(pair);}
     else el.classList.remove('drum-center');
   });
+  // Sync rank numbers opacity
+  const rankScroll=document.getElementById('drum-rank-scroll');
+  if(rankScroll){
+    rankScroll.querySelectorAll('div').forEach((el,i)=>{
+      const dist=Math.abs(i-centerIdx);
+      el.style.opacity=dist===0?1:dist===1?.72:dist===2?.38:.14;
+    });
+  }
 }
 // ── CHART
 function _filterChartSpikes(bars,pct=0.03){
@@ -1012,7 +1035,7 @@ function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>{document.getElementB
 function toggleMACD(){chtShowMacd=!chtShowMacd;document.getElementById('ib-macd').classList.toggle('macd-on',chtShowMacd);const priceEl=document.getElementById('cht-price'),macdEl=document.getElementById('cht-macd');priceEl.style.display=chtShowMacd?'none':'block';macdEl.style.display=chtShowMacd?'block':'none';requestAnimationFrame(()=>requestAnimationFrame(()=>chtShowMacd?renderChtMacd():renderChtPrice()));}
 function toggleInd(key){indState[key]=!indState[key];localStorage.setItem(IND_KEY,JSON.stringify(indState));document.getElementById('ib-'+key).classList.toggle('on',indState[key]);if(!chtShowMacd)renderChtPrice();}
 function buildLwChart(container){container.innerHTML='';const w=container.clientWidth||window.innerWidth,h=container.clientHeight||Math.max(200,window.innerHeight-160);return LightweightCharts.createChart(container,{width:w,height:h,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.08,bottom:0.08}},timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},handleScroll:true,handleScale:true});}
-function makeCandleSeries(chart){const isJpy=selectedPair.includes('JPY');return chart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',priceLineVisible:true,priceLineColor:'rgba(0,212,255,.85)',priceLineWidth:1,priceLineStyle:2,priceFormat:{type:'price',precision:isJpy?3:5,minMove:isJpy?0.001:0.00001}});}
+function makeCandleSeries(chart){const isJpy=selectedPair.includes('JPY');return chart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',priceLineVisible:true,priceLineColor:'rgba(0,255,65,.85)',priceLineWidth:1,priceLineStyle:2,priceFormat:{type:'price',precision:isJpy?3:5,minMove:isJpy?0.001:0.00001}});}
 function renderChtPrice(){
   const container=document.getElementById('cht-price');if(!container||chtShowMacd)return;
   if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}
