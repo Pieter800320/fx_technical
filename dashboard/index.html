@@ -728,7 +728,7 @@ function buildLiveContent(){
     return{pair,nowClose,pct,diff,col,dec,w1Pct,isMover:Math.abs(pct)>=(pair.includes('JPY')?1.2:0.8)};
   }).filter(Boolean).sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct));
   if(!rows.length)return'<div class="loading">No data.</div>';
-  return`<div style="display:flex;padding:5px var(--pad) 4px;border-bottom:1px solid var(--border2);"><span style="width:62px;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">Pair</span><span style="flex:1;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">Last</span><span style="min-width:56px;text-align:right;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">D1 %</span><span style="min-width:48px;text-align:right;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;border-left:1px solid var(--border2);padding-left:8px;">D5 %</span></div>`+rows.map(r=>`<div style="display:flex;align-items:center;padding:7px var(--pad);border-bottom:1px solid var(--border2);"><span style="width:62px;font-size:var(--md);font-weight:700;">${r.pair.replace('/','')}</span><span style="flex:1;font-size:var(--xs);color:var(--muted);">${r.nowClose.toFixed(r.dec)}</span><span style="font-size:${r.isMover?'var(--md)':'var(--sm)'};font-weight:700;color:${r.col};min-width:56px;text-align:right;">${r.diff>=0?'+':'-'}${Math.abs(r.pct).toFixed(2)}%</span><span style="font-size:var(--xs);font-weight:600;color:${r.w1Pct===null?'var(--muted)':r.w1Pct>=0?'var(--buy)':'var(--sell)'};min-width:48px;text-align:right;border-left:1px solid var(--border2);padding-left:8px;">${r.w1Pct!==null?fmt2(r.w1Pct):'—'}</span></div>`).join('');
+  return`<div style="display:flex;padding:5px var(--pad) 4px;border-bottom:1px solid var(--border2);"><span style="width:62px;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">Pair</span><span style="flex:1;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">Last</span><span style="min-width:56px;text-align:right;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;">D1 %</span><span style="min-width:48px;text-align:right;font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;border-left:1px solid var(--border2);padding-left:8px;">D5 %</span></div>`+rows.map(r=>`<div style="display:flex;align-items:center;padding:7px var(--pad);border-bottom:1px solid var(--border2);"><span style="width:62px;font-size:var(--md);font-weight:700;">${r.pair.replace('/','')}</span><span id="lp-price-${r.pair.replace('/','')}" style="flex:1;font-size:var(--xs);color:var(--muted);">${r.nowClose.toFixed(r.dec)}</span><span style="font-size:${r.isMover?'var(--md)':'var(--sm)'};font-weight:700;color:${r.col};min-width:56px;text-align:right;">${r.diff>=0?'+':'-'}${Math.abs(r.pct).toFixed(2)}%</span><span style="font-size:var(--xs);font-weight:600;color:${r.w1Pct===null?'var(--muted)':r.w1Pct>=0?'var(--buy)':'var(--sell)'};min-width:48px;text-align:right;border-left:1px solid var(--border2);padding-left:8px;">${r.w1Pct!==null?fmt2(r.w1Pct):'—'}</span></div>`).join('');
 }
 // ── REGIME SHEET — FIX 4: macro grid added as Cross-Asset section
 function openClosedTradesSheet(){
@@ -1094,15 +1094,22 @@ function tvToggle(key){
   document.getElementById('tv-ib-'+key).classList.toggle('on',tvStudyState[key]);
   tvRebuild();
 }
+let _tvWidgetN=0;
 function tvRebuild(){
-  const container=document.getElementById('tv-widget-container');
-  if(!container||document.getElementById('screen-tv').style.display==='none')return;
-  container.innerHTML='';
+  const wrap=document.getElementById('tv-widget-container');
+  if(!wrap||document.getElementById('screen-tv').style.display==='none')return;
+  wrap.innerHTML='';
+  _tvWidgetN++;
+  const uid='tvw'+_tvWidgetN;
+  const div=document.createElement('div');div.id=uid;div.style.cssText='width:100%;height:100%;';
+  wrap.appendChild(div);
   const symbol=TV_SYMBOLS[selectedPair]||('FX:'+selectedPair.replace('/',''));
   if(typeof TradingView!=='undefined'){
-    new TradingView.widget({container_id:'tv-widget-container',symbol,interval:'60',timezone:'Etc/UTC',theme:'dark',style:'1',locale:'en',toolbar_bg:'#0d1117',enable_publishing:false,allow_symbol_change:false,hide_side_toolbar:false,width:'100%',height:'100%',save_image:false,studies:tvBuildStudies()});
+    new TradingView.widget({container_id:uid,symbol,interval:'60',timezone:'Etc/UTC',theme:'dark',style:'1',locale:'en',toolbar_bg:'#0d1117',enable_publishing:false,allow_symbol_change:false,hide_side_toolbar:false,width:'100%',height:'100%',save_image:false,studies:tvBuildStudies()});
   }
 }
+function cycleAlertDir(){alertDir=alertDir==='above'?'below':'above';const b=document.getElementById('tv-dir-btn');if(b)b.textContent=alertDir==='above'?'↑ Above':'↓ Below';}
+function setLevelAlert(){const inp=document.getElementById('tv-alert-inp');if(!inp)return;const price=parseFloat(inp.value);if(!price||isNaN(price))return;const alerts=laLoad();alerts.push({id:Date.now(),pair:selectedPair,price,direction:alertDir,active:true,created:new Date().toLocaleString()});laSave(alerts);inp.value='';renderChtAlerts();pushAlertsToGitHub(alerts);}
 function openChart(){
   const el=document.getElementById('screen-tv');
   el.style.display='flex';
@@ -1112,10 +1119,13 @@ function openChart(){
   wsStart(selectedPair);
   const container=document.getElementById('tv-widget-container');
   container.innerHTML='';
-  const symbol=TV_SYMBOLS[selectedPair]||('FX:'+selectedPair.replace('/',''));
+  _tvWidgetN++;
+  const uid='tvw'+_tvWidgetN;
+  const div=document.createElement('div');div.id=uid;div.style.cssText='width:100%;height:100%;';
+  container.appendChild(div);
   const symbol_str=TV_SYMBOLS[selectedPair]||('FX:'+selectedPair.replace('/',''));
   function buildWidget(){
-    new TradingView.widget({container_id:'tv-widget-container',symbol:symbol_str,interval:'60',timezone:'Etc/UTC',theme:'dark',style:'1',locale:'en',toolbar_bg:'#0d1117',enable_publishing:false,allow_symbol_change:false,hide_side_toolbar:false,width:'100%',height:'100%',save_image:false,studies:tvBuildStudies()});
+    new TradingView.widget({container_id:uid,symbol:symbol_str,interval:'60',timezone:'Etc/UTC',theme:'dark',style:'1',locale:'en',toolbar_bg:'#0d1117',enable_publishing:false,allow_symbol_change:false,hide_side_toolbar:false,width:'100%',height:'100%',save_image:false,studies:tvBuildStudies()});
   }
   if(typeof TradingView!=='undefined'){buildWidget();}
   else{
@@ -1159,11 +1169,19 @@ function wsStart(pair){
   try{
     _ws=new WebSocket(`${TD_WS}?apikey=${key}`);
     _ws.onopen=()=>_ws.send(JSON.stringify({action:'subscribe',params:{symbols:pair.replace('/','')}}));
-    _ws.onmessage=(e)=>{try{const d=JSON.parse(e.data);if(d.event==='price'&&d.price){_wsLastPrice=parseFloat(d.price);checkLevelAlertsLive(_wsLastPrice,_wsPair);}}catch(err){}};
+    _ws.onmessage=(e)=>{try{const d=JSON.parse(e.data);if(d.event==='price'&&d.price){_wsLastPrice=parseFloat(d.price);checkLevelAlertsLive(_wsLastPrice,_wsPair);wsUpdateLivePrices(_wsLastPrice,_wsPair);}}catch(err){}};
     _ws.onerror=()=>{_ws=null;};_ws.onclose=()=>{_ws=null;};
   }catch(e){_ws=null;}
 }
 function wsStop(){if(_ws){try{_ws.close();}catch(e){}  _ws=null;}_wsPair=null;_wsLastPrice=null;}
+function wsUpdateLivePrices(price,pair){
+  // Update the live prices row for this pair if the sheet is open
+  const el=document.getElementById('lp-price-'+pair.replace('/',''));
+  if(!el)return;
+  const isJpy=pair.includes('JPY');
+  const dec=price>50?2:price>5?3:isJpy?3:5;
+  el.textContent=price.toFixed(dec);
+}
 function setRatesStatus(msg,col){const el=document.getElementById('rates-save-status');if(el){el.textContent=msg;el.style.color=col||'var(--muted)';}}
 function saveRatesPAT(){const inp=document.getElementById('rates-pat-input');if(!inp||!inp.value)return;localStorage.setItem('fx1212_rates_pat',inp.value.trim());inp.value='';inp.placeholder='PAT saved ✓';}
 function saveTdKey(){const inp=document.getElementById('td-key-input');if(!inp||!inp.value)return;localStorage.setItem('fx1212_td_key',inp.value.trim());inp.value='';inp.placeholder='Key saved ✓';}
