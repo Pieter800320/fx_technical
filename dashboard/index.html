@@ -175,8 +175,9 @@ tr:last-child td{border-bottom:none;}
       <button class="dbtn" onclick="openDrawerSheet('sess')">Sessions</button>
       <button class="dbtn" onclick="openDrawerSheet('live')">Live Prices</button>
     </div>
-    <div style="padding:10px var(--pad);border-bottom:1px solid var(--border);background:var(--surface);">
-      <button class="btn" onclick="openChart()" style="width:100%;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Open Chart</button>
+    <div style="padding:10px var(--pad);border-bottom:1px solid var(--border);background:var(--surface);display:flex;gap:8px;">
+      <button class="btn" onclick="openChart()" style="flex:1;justify-content:center;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>Open Chart</button>
+      <button class="btn btn-muted" onclick="openTVChart()" style="flex:1;justify-content:center;">📺 TV Chart</button>
     </div>
     <div class="slbl">Currency Strength</div>
     <div class="csm-toggle"><button class="csm-tb active" id="csm-tb-d1" onclick="setCsmMode('d1')">D1</button><button class="csm-tb" id="csm-tb-h4" onclick="setCsmMode('h4')">H4</button></div>
@@ -269,6 +270,16 @@ tr:last-child td{border-bottom:none;}
     </div>
   </div>
   <div id="cht-alerts-list"></div>
+</div>
+<div id="screen-tv" style="position:fixed;inset:0;background:#0d1117;z-index:200;display:none;flex-direction:column;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px var(--pad);background:#0d1117;border-bottom:1px solid var(--border);flex-shrink:0;">
+    <span id="tv-pair-lbl" style="font-size:var(--md);font-weight:700;">—</span>
+    <div style="display:flex;gap:6px;align-items:center;">
+      <button class="btn btn-green" onclick="openEnterTradeSheet()" style="padding:4px 10px;font-size:var(--xs);">+ Enter Trade</button>
+      <button class="btn btn-red" onclick="closeTVChart()" style="padding:3px 8px;">✕</button>
+    </div>
+  </div>
+  <div id="tv-widget-container" style="flex:1;min-height:0;"></div>
 </div>
 <div id="sheet-overlay" onclick="closeSheet()"></div>
 <div id="sheet-panel">
@@ -1042,12 +1053,54 @@ function computeEMA(vals,period){if(!vals.length)return[];const k=2/(period+1);c
 function computeMACD(ohlcv,fast=12,slow=26,sig=9){if(!ohlcv||ohlcv.length<slow+sig)return[];const closes=ohlcv.map(d=>d.close);const ema12=computeEMA(closes,fast),ema26=computeEMA(closes,slow);const macdLine=ema12.map((v,i)=>v-ema26[i]);const macdTrimmed=macdLine.slice(slow-1);const signalLine=computeEMA(macdTrimmed,sig);const out=[];for(let i=0;i<signalLine.length;i++){const oi=i+(slow-1);const mac=macdLine[oi],si=signalLine[i];out.push({time:ohlcv[oi].time,macd:mac,signal:si,histogram:mac-si});}return out;}
 function computeBB(ohlcv,period=20,mult=2){if(!ohlcv||ohlcv.length<period)return[];const closes=ohlcv.map(d=>d.close);const out=[];for(let i=period-1;i<closes.length;i++){const slice=closes.slice(i-period+1,i+1);const mean=slice.reduce((a,b)=>a+b,0)/period;const std=Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/period);out.push({time:ohlcv[i].time,upper:mean+mult*std,middle:mean,lower:mean-mult*std});}return out;}
 function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');chtShowMacd=false;const priceEl=document.getElementById('cht-price'),macdEl=document.getElementById('cht-macd');if(priceEl)priceEl.style.display='block';if(macdEl)macdEl.style.display='none';document.getElementById('ib-ema200').className='ind-btn'+(indState.ema200?' on':'');document.getElementById('ib-ema50').className='ind-btn'+(indState.ema50?' on':'');document.getElementById('ib-bb').className='ind-btn'+(indState.bb?' on':'');document.getElementById('ib-macd').className='ind-btn';startCandleTimer();updateCloseTradeBtn();requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
-function closeChart(){const el=document.getElementById('screen-chart');el.style.display='none';chtShowMacd=false;wsDisconnect();if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtMacdInst){try{chtMacdInst.remove();}catch(e){}chtMacdInst=null;}}
+function closeChart(){const el=document.getElementById('screen-chart');el.style.display='none';chtShowMacd=false;wsDisconnect();if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtMacdInst){try{chtMacdInst.remove();}catch(e){}chtMacdInst=null;};}
+
+const TV_SYMBOLS={
+  'EUR/USD':'FX:EURUSD','GBP/USD':'FX:GBPUSD','USD/JPY':'FX:USDJPY',
+  'USD/CHF':'FX:USDCHF','AUD/USD':'FX:AUDUSD','USD/CAD':'FX:USDCAD',
+  'NZD/USD':'FX:NZDUSD','EUR/JPY':'FX:EURJPY','GBP/JPY':'FX:GBPJPY',
+  'AUD/JPY':'FX:AUDJPY','NZD/JPY':'FX:NZDJPY','CAD/JPY':'FX:CADJPY'
+};
+function openTVChart(){
+  const el=document.getElementById('screen-tv');
+  el.style.display='flex';
+  document.getElementById('tv-pair-lbl').textContent=selectedPair.replace('/','');
+  const container=document.getElementById('tv-widget-container');
+  container.innerHTML='';
+  const symbol=TV_SYMBOLS[selectedPair]||('FX:'+selectedPair.replace('/',''));
+  const script=document.createElement('script');
+  script.src='https://s3.tradingview.com/tv.js';
+  script.onload=()=>{
+    new TradingView.widget({
+      container_id:'tv-widget-container',
+      symbol,
+      interval:'60',
+      timezone:'Etc/UTC',
+      theme:'dark',
+      style:'1',
+      locale:'en',
+      toolbar_bg:'#0d1117',
+      enable_publishing:false,
+      allow_symbol_change:false,
+      hide_side_toolbar:false,
+      width:'100%',
+      height:'100%',
+      save_image:false,
+      studies:['MASimple@tv-scriptstd;length=200','MASimple@tv-scriptstd;length=50']
+    });
+  };
+  document.head.appendChild(script);
+}
+function closeTVChart(){
+  const el=document.getElementById('screen-tv');
+  el.style.display='none';
+  document.getElementById('tv-widget-container').innerHTML='';
+}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>{document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf);});wsDisconnect();startCandleTimer();if(chtShowMacd)renderChtMacd();else renderChtPrice();}
 function toggleMACD(){chtShowMacd=!chtShowMacd;document.getElementById('ib-macd').classList.toggle('macd-on',chtShowMacd);const priceEl=document.getElementById('cht-price'),macdEl=document.getElementById('cht-macd');priceEl.style.display=chtShowMacd?'none':'block';macdEl.style.display=chtShowMacd?'block':'none';requestAnimationFrame(()=>requestAnimationFrame(()=>chtShowMacd?renderChtMacd():renderChtPrice()));}
 function toggleInd(key){indState[key]=!indState[key];localStorage.setItem(IND_KEY,JSON.stringify(indState));document.getElementById('ib-'+key).classList.toggle('on',indState[key]);if(!chtShowMacd)renderChtPrice();}
 function buildLwChart(container){container.innerHTML='';const w=container.clientWidth||window.innerWidth,h=container.clientHeight||Math.max(200,window.innerHeight-160);return LightweightCharts.createChart(container,{width:w,height:h,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.08,bottom:0.08}},timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},handleScroll:true,handleScale:true});}
-function makeCandleSeries(chart){const isJpy=selectedPair.includes('JPY');return chart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',priceLineVisible:false,priceFormat:{type:'price',precision:isJpy?3:5,minMove:isJpy?0.001:0.00001}});}
+function makeCandleSeries(chart){const isJpy=selectedPair.includes('JPY');return chart.addCandlestickSeries({upColor:'#3fb950',downColor:'#f85149',borderUpColor:'#3fb950',borderDownColor:'#f85149',wickUpColor:'#3fb950',wickDownColor:'#f85149',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'price',precision:isJpy?3:5,minMove:isJpy?0.001:0.00001}});}
 function renderChtPrice(){
   const container=document.getElementById('cht-price');if(!container||chtShowMacd)return;
   if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}
@@ -1060,9 +1113,9 @@ function renderChtPrice(){
   const livePrice=h1raw?parseFloat(h1raw.close):null;
   if(livePrice){candles.createPriceLine({price:livePrice,color:'rgba(0,255,65,.85)',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'',axisLabelColor:'rgba(0,255,65,.85)',axisLabelTextColor:'#020e02'});}
   wsConnect(selectedPair,candles);
-  if(indState.ema200&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),200);const s=chart.addLineSeries({color:'rgba(63,185,80,.6)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
-  if(indState.ema50&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),50);const s=chart.addLineSeries({color:'rgba(56,139,253,.7)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
-  if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper','rgba(227,179,65,.5)'],['middle','rgba(227,179,65,.3)'],['lower','rgba(227,179,65,.5)']].forEach(([k,col])=>{const s=chart.addLineSeries({color:col,lineWidth:1,lineStyle:k==='middle'?2:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
+  if(indState.ema200&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),200);const s=chart.addLineSeries({color:'rgba(63,185,80,.6)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:()=>null});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
+  if(indState.ema50&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),50);const s=chart.addLineSeries({color:'rgba(56,139,253,.7)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:()=>null});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
+  if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper','rgba(227,179,65,.5)'],['middle','rgba(227,179,65,.3)'],['lower','rgba(227,179,65,.5)']].forEach(([k,col])=>{const s=chart.addLineSeries({color:col,lineWidth:1,lineStyle:k==='middle'?2:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,autoscaleInfoProvider:()=>null});s.setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
   const alerts=laLoad().filter(a=>a.pair===selectedPair&&a.active);
   alerts.forEach(a=>{const s=chart.addLineSeries({color:'rgba(139,148,158,.7)',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});s.setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);});
   const trades=tradesLoad().filter(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending')&&(t.entry||t.sl||t.tp));
