@@ -1107,13 +1107,38 @@ function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementBy
 function startCandleTimer(){if(candleTimerInt)clearInterval(candleTimerInt);function tick(){const el=document.getElementById('cht-timer');if(!el)return;if(closed()){el.textContent='';return;}const now=Math.floor(Date.now()/1000);const tfSecs={H1:3600,H4:14400,D1:86400}[chtTf]||3600;const secsLeft=tfSecs-(now%tfSecs);const h=Math.floor(secsLeft/3600),m=Math.floor((secsLeft%3600)/60),s=secsLeft%60;const pad=n=>String(n).padStart(2,'0');el.textContent=h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);el.style.color=secsLeft<=60?'var(--sell)':'var(--muted)';}tick();candleTimerInt=setInterval(tick,1000);}
 let _wsPriceLine=null,_chtCandles=null,_subChartOffset=0;
 function wsUpdatePrice(price){if(!chtMainInst||!_chtCandles)return;try{if(_wsPriceLine){_chtCandles.removePriceLine(_wsPriceLine);_wsPriceLine=null;}_wsPriceLine=_chtCandles.createPriceLine({price,color:CHT_BLUE,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,axisLabelColor:CHT_BLUE,axisLabelTextColor:'#0d1117',title:''});}catch(e){}}
-function renderChtPrice(){
+async function renderChtPrice(){
   const container=document.getElementById('cht-price');if(!container)return;
   if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}
   _wsPriceLine=null;_chtCandles=null;
   let ohlcv=getOhlcv(selectedPair,chtTf);
   if(closed()&&ohlcv.length){const fc=ohlcv.slice().reverse().find(b=>{const d=new Date(b.time*1000),dow=d.getUTCDay(),h=d.getUTCHours();return!(dow===6||(dow===0&&h<22)||(dow===5&&h>=22));});if(fc)ohlcv=ohlcv.filter(b=>b.time<=fc.time);}
   if(!ohlcv.length){container.innerHTML='<div class="loading">'+selectedPair+' '+chtTf+' — no data</div>';return;}
+  // Fetch live current bar from Twelvedata — fills gap since last scan
+  if(!closed()){
+    const key=localStorage.getItem('fx1212_td_key');
+    if(key){
+      try{
+        const sym=selectedPair.replace('/','');
+        const tfMap={H1:'1h',H4:'4h',D1:'1day'};
+        const interval=tfMap[chtTf]||'1h';
+        const url=`https://api.twelvedata.com/quote?symbol=${sym}&interval=${interval}&apikey=${key}`;
+        const res=await fetch(url);
+        if(res.ok){
+          const q=await res.json();
+          if(q&&q.close&&!q.status){
+            const ts=Math.floor(new Date(q.datetime).getTime()/1000);
+            const bar={time:ts,open:parseFloat(q.open),high:parseFloat(q.high),low:parseFloat(q.low),close:parseFloat(q.close)};
+            if(ohlcv.length&&ohlcv[ohlcv.length-1].time===ts){
+              ohlcv[ohlcv.length-1]=bar;
+            } else if(ts>(ohlcv[ohlcv.length-1]||{}).time){
+              ohlcv=[...ohlcv,bar];
+            }
+          }
+        }
+      }catch(e){}
+    }
+  }
   const chart=buildLwChart(container);
   const isJpy=selectedPair.includes('JPY');
   const candles=chart.addCandlestickSeries({
