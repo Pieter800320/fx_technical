@@ -228,9 +228,11 @@ tr:last-child td{border-bottom:none;}
       <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
         <label style="font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;">GitHub PAT</label>
         <div style="display:flex;gap:8px;"><input id="rates-pat-input" type="password" placeholder="ghp_xxxxxxxxxxxx" style="background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:7px 10px;font-size:var(--md);flex:1;"/><button class="btn" onclick="saveRatesPAT()">Save PAT</button></div>
-        <div style="font-size:var(--xs);color:var(--muted);margin-top:4px;">Stored in browser only. Needs repo write permission.</div>
-      </div>
-    </div>
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);">
+          <label style="font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:4px;">Twelvedata API Key (live prices)</label>
+          <div style="display:flex;gap:8px;"><input id="td-key-input" type="password" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" style="background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:7px 10px;font-size:var(--md);flex:1;"/><button class="btn" onclick="saveTdKey()">Save</button></div>
+          <div style="font-size:var(--xs);color:var(--muted);margin-top:4px;">Used for live price streaming in charts. Stored in browser only.</div>
+        </div>
     <div id="rates-diff-grid" style="display:none;"></div>
     <div id="rates-table-grid" style="display:none;"></div>
   </div>
@@ -1040,8 +1042,8 @@ function computeEMA(vals,period){if(!vals.length)return[];const k=2/(period+1);c
 function computeMACD(ohlcv,fast=12,slow=26,sig=9){if(!ohlcv||ohlcv.length<slow+sig)return[];const closes=ohlcv.map(d=>d.close);const ema12=computeEMA(closes,fast),ema26=computeEMA(closes,slow);const macdLine=ema12.map((v,i)=>v-ema26[i]);const macdTrimmed=macdLine.slice(slow-1);const signalLine=computeEMA(macdTrimmed,sig);const out=[];for(let i=0;i<signalLine.length;i++){const oi=i+(slow-1);const mac=macdLine[oi],si=signalLine[i];out.push({time:ohlcv[oi].time,macd:mac,signal:si,histogram:mac-si});}return out;}
 function computeBB(ohlcv,period=20,mult=2){if(!ohlcv||ohlcv.length<period)return[];const closes=ohlcv.map(d=>d.close);const out=[];for(let i=period-1;i<closes.length;i++){const slice=closes.slice(i-period+1,i+1);const mean=slice.reduce((a,b)=>a+b,0)/period;const std=Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/period);out.push({time:ohlcv[i].time,upper:mean+mult*std,middle:mean,lower:mean-mult*std});}return out;}
 function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');chtShowMacd=false;const priceEl=document.getElementById('cht-price'),macdEl=document.getElementById('cht-macd');if(priceEl)priceEl.style.display='block';if(macdEl)macdEl.style.display='none';document.getElementById('ib-ema200').className='ind-btn'+(indState.ema200?' on':'');document.getElementById('ib-ema50').className='ind-btn'+(indState.ema50?' on':'');document.getElementById('ib-bb').className='ind-btn'+(indState.bb?' on':'');document.getElementById('ib-macd').className='ind-btn';startCandleTimer();updateCloseTradeBtn();requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
-function closeChart(){const el=document.getElementById('screen-chart');el.style.display='none';chtShowMacd=false;if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtMacdInst){try{chtMacdInst.remove();}catch(e){}chtMacdInst=null;}}
-function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>{document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf);});startCandleTimer();if(chtShowMacd)renderChtMacd();else renderChtPrice();}
+function closeChart(){const el=document.getElementById('screen-chart');el.style.display='none';chtShowMacd=false;wsDisconnect();if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtMacdInst){try{chtMacdInst.remove();}catch(e){}chtMacdInst=null;}}
+function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>{document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf);});wsDisconnect();startCandleTimer();if(chtShowMacd)renderChtMacd();else renderChtPrice();}
 function toggleMACD(){chtShowMacd=!chtShowMacd;document.getElementById('ib-macd').classList.toggle('macd-on',chtShowMacd);const priceEl=document.getElementById('cht-price'),macdEl=document.getElementById('cht-macd');priceEl.style.display=chtShowMacd?'none':'block';macdEl.style.display=chtShowMacd?'block':'none';requestAnimationFrame(()=>requestAnimationFrame(()=>chtShowMacd?renderChtMacd():renderChtPrice()));}
 function toggleInd(key){indState[key]=!indState[key];localStorage.setItem(IND_KEY,JSON.stringify(indState));document.getElementById('ib-'+key).classList.toggle('on',indState[key]);if(!chtShowMacd)renderChtPrice();}
 function buildLwChart(container){container.innerHTML='';const w=container.clientWidth||window.innerWidth,h=container.clientHeight||Math.max(200,window.innerHeight-160);return LightweightCharts.createChart(container,{width:w,height:h,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.08,bottom:0.08}},timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},handleScroll:true,handleScale:true});}
@@ -1057,6 +1059,7 @@ function renderChtPrice(){
   const h1raw=D.h1&&D.h1[selectedPair]&&D.h1[selectedPair].raw;
   const livePrice=h1raw?parseFloat(h1raw.close):null;
   if(livePrice){candles.createPriceLine({price:livePrice,color:'rgba(0,255,65,.85)',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'',axisLabelColor:'rgba(0,255,65,.85)',axisLabelTextColor:'#020e02'});}
+  wsConnect(selectedPair,candles);
   if(indState.ema200&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),200);const s=chart.addLineSeries({color:'rgba(63,185,80,.6)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
   if(indState.ema50&&ohlcv.length>=10){const vals=computeEMA(ohlcv.map(d=>d.close),50);const s=chart.addLineSeries({color:'rgba(56,139,253,.7)',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(ohlcv.map((d,i)=>({time:d.time,value:vals[i]})));}
   if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper','rgba(227,179,65,.5)'],['middle','rgba(227,179,65,.3)'],['lower','rgba(227,179,65,.5)']].forEach(([k,col])=>{const s=chart.addLineSeries({color:col,lineWidth:1,lineStyle:k==='middle'?2:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
@@ -1129,6 +1132,55 @@ function renderRatesDiffGrid(){const el=document.getElementById('rates-diff-grid
 function renderRatesFormGrid(){const el=document.getElementById('rates-form-grid');if(!el)return;el.innerHTML=CCYS.map(c=>`<div class="fg" style="margin:0;"><label>${BANKS[c]} (${c})</label><div style="display:flex;align-items:center;gap:4px;"><input id="rate-inp-${c}" type="number" step="0.01" min="0" max="25" value="${ratesLocal[c]||0}" onchange="ratesLocal['${c}']=parseFloat(this.value)||0;renderRatesDiffGrid();"/><span style="font-size:var(--xs);color:var(--muted);">%</span></div></div>`).join('');}
 function renderRatesTableGrid(){const el=document.getElementById('rates-table-grid'),upEl=document.getElementById('rates-updated');if(!el)return;const src=getRatesMap();el.innerHTML=CCYS.map(c=>{const r=src[c];if(!r)return`<div class="rcard"><span class="rcard-pair">${c}</span><span style="color:var(--muted);font-size:var(--sm);">No data</span></div>`;return`<div class="rcard"><span class="rcard-pair">${c}</span><span class="rcard-detail">${r.bank}</span><span class="rcard-val">${r.rate}%</span></div>`;}).join('');if(upEl&&src.updated)upEl.textContent='Last updated: '+new Date(src.updated).toLocaleString();}
 function saveRatesPAT(){const inp=document.getElementById('rates-pat-input');if(!inp||!inp.value)return;localStorage.setItem('fx1212_rates_pat',inp.value.trim());inp.value='';inp.placeholder='PAT saved ✓';}
+function saveTdKey(){const inp=document.getElementById('td-key-input');if(!inp||!inp.value)return;localStorage.setItem('fx1212_td_key',inp.value.trim());inp.value='';inp.placeholder='Key saved ✓';}
+
+// ── Live price WebSocket (Twelvedata)
+let _ws=null,_wsSymbol=null,_wsPriceLine=null,_wsCandles=null;
+const TD_WS='wss://ws.twelvedata.com/v1/quotes/price';
+function tdSymbol(pair){return pair.replace('/','');}
+function wsConnect(pair,candleSeries){
+  wsDisconnect();
+  const key=localStorage.getItem('fx1212_td_key');
+  if(!key)return;
+  _wsSymbol=pair;_wsCandles=candleSeries;
+  try{
+    _ws=new WebSocket(`${TD_WS}?apikey=${key}`);
+    _ws.onopen=()=>{
+      _ws.send(JSON.stringify({action:'subscribe',params:{symbols:tdSymbol(pair)}}));
+    };
+    _ws.onmessage=(e)=>{
+      try{
+        const d=JSON.parse(e.data);
+        if(d.event==='price'&&d.symbol===tdSymbol(pair)&&d.price){
+          wsUpdatePrice(parseFloat(d.price));
+        }
+      }catch(err){}
+    };
+    _ws.onerror=()=>{_ws=null;};
+    _ws.onclose=()=>{_ws=null;};
+  }catch(err){_ws=null;}
+}
+function wsDisconnect(){
+  if(_ws){
+    try{
+      if(_ws.readyState===WebSocket.OPEN)
+        _ws.send(JSON.stringify({action:'unsubscribe',params:{symbols:_wsSymbol?tdSymbol(_wsSymbol):'*'}}));
+      _ws.close();
+    }catch(e){}
+    _ws=null;
+  }
+  _wsSymbol=null;_wsCandles=null;_wsPriceLine=null;
+}
+function wsUpdatePrice(price){
+  if(!_wsCandles)return;
+  try{
+    if(_wsPriceLine){_wsCandles.removePriceLine(_wsPriceLine);_wsPriceLine=null;}
+    _wsPriceLine=_wsCandles.createPriceLine({
+      price,color:'rgba(0,255,65,.9)',lineWidth:1,lineStyle:2,
+      axisLabelVisible:true,axisLabelColor:'rgba(0,255,65,.9)',axisLabelTextColor:'#020e02',title:''
+    });
+  }catch(e){}
+}
 function setRatesStatus(msg,col){const el=document.getElementById('rates-save-status');if(el){el.textContent=msg;el.style.color=col||'var(--muted)';}}
 async function saveRates(){const pat=localStorage.getItem('fx1212_rates_pat');if(!pat){setRatesStatus('No PAT stored.','var(--sell)');return;}CCYS.forEach(c=>{const inp=document.getElementById('rate-inp-'+c);if(inp)ratesLocal[c]=parseFloat(inp.value)||0;});const payload={};CCYS.forEach(c=>{payload[c]={rate:ratesLocal[c],bank:BANKS[c]};});payload.updated=new Date().toISOString();const content=btoa(unescape(encodeURIComponent(JSON.stringify(payload,null,2))));const apiUrl=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/data/rates_manual.json`;setRatesStatus('Pushing…','var(--amber)');try{let sha=null;const get=await fetch(apiUrl,{headers:{Authorization:`token ${pat}`,Accept:'application/vnd.github.v3+json'}});if(get.ok){const d=await get.json();sha=d.sha;}const body={message:`rates: manual update ${new Date().toISOString().slice(0,10)}`,content};if(sha)body.sha=sha;const put=await fetch(apiUrl,{method:'PUT',headers:{Authorization:`token ${pat}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)});if(put.ok){setRatesStatus('Pushed.','var(--buy)');D.rates={rates:CCYS.map(c=>({currency:c,rate:ratesLocal[c],bank:BANKS[c]})),updated:payload.updated};renderRatesTableGrid();renderRatesDiffGrid();}else{const err=await put.json();setRatesStatus('Failed: '+err.message,'var(--sell)');}}catch(e){setRatesStatus('Error: '+e.message,'var(--sell)');}}
 // ── TRADE SYSTEM
