@@ -118,7 +118,7 @@ def main():
                 df = ohlcv.get(pair)
                 if df is None or len(df) < 2:
                     continue
-                bars = df.tail(100).copy()
+                bars = df.copy()
                 bars_list = []
                 for ts, row in bars.iterrows():
                     try:
