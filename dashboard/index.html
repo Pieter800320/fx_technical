@@ -120,8 +120,7 @@ tr:last-child td{border-bottom:none;}
 #cht-timer{font-size:var(--xs);color:var(--muted);font-variant-numeric:tabular-nums;min-width:42px;text-align:center;}
 .tf-btn{font-size:var(--xs);font-weight:700;letter-spacing:.05em;padding:4px 10px;border-radius:var(--r-sm);border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;}
 .tf-btn.active{background:rgba(56,139,253,.1);border-color:rgba(56,139,253,.4);color:var(--accent);}
-#cht-canvas-area{flex:1;min-height:0;position:relative;}
-#cht-price,#cht-macd{position:absolute;inset:0;}#cht-macd{display:none;}
+#cht-canvas-area{flex:1;min-height:0;}
 #cht-controls{flex-shrink:0;border-top:1px solid var(--border);}
 #cht-row1{display:flex;align-items:center;gap:5px;padding:6px var(--pad);border-bottom:1px solid var(--border2);}
 #cht-row2{display:flex;align-items:center;gap:5px;padding:6px var(--pad);}
@@ -1135,12 +1134,12 @@ function renderChtPrice(){
   alerts.forEach(a=>{const s=chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false});s.setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);});
   const trades=tradesLoad().filter(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending')&&(t.entry||t.sl||t.tp));
   trades.forEach(t=>{[[t.tp,CHT_UP,'TP'],[t.entry,CHT_WHITE,'Entry'],[t.sl,CHT_DN,'SL']].forEach(([p,c,l])=>{if(!p)return;const s=chart.addLineSeries({color:c,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:l});s.setData([{time:ohlcv[0].time,value:parseFloat(p)},{time:ohlcv[ohlcv.length-1].time,value:parseFloat(p)}]);});});
-  // Sub pane — rendered separately, synced one-way from price chart
+  // Sub pane — destroy old, render new, one-way time sync from price → sub
   const subEl=document.getElementById('cht-sub');
   if(subEl){
+    if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}
     if(indState.macd||indState.rsi){
       subEl.style.display='block';
-      if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}
       const subChart=indState.macd?renderChtMACD(subEl,ohlcv):renderChtRSI(subEl,ohlcv);
       if(subChart){
         let _rafId=null;
@@ -1150,12 +1149,18 @@ function renderChtPrice(){
           _rafId=requestAnimationFrame(()=>{try{subChart.timeScale().setVisibleRange(r);}catch(e){}});
         });
       }
-    } else subEl.style.display='none';
+    } else {
+      subEl.style.display='none';
+    }
   }
   const visN=Math.min(150,ohlcv.length);
   chart.timeScale().setVisibleLogicalRange({from:ohlcv.length-visN,to:ohlcv.length+2});
-  // Push initial time range to sub chart after layout settles
-  if(chtSubInst){setTimeout(()=>{try{const r=chart.timeScale().getVisibleRange();if(r)chtSubInst.timeScale().setVisibleRange(r);}catch(e){};},50);}
+  // Push initial visible time range to sub chart after layout settles
+  if(chtSubInst){
+    setTimeout(()=>{
+      try{const r=chart.timeScale().getVisibleRange();if(r)chtSubInst.timeScale().setVisibleRange(r);}catch(e){}
+    },100);
+  }
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:container.clientWidth,height:container.clientHeight});}).observe(container);
   chtMainInst=chart;
   if(_wsLastPrice&&_wsPair===selectedPair)wsUpdatePrice(_wsLastPrice);
@@ -1164,46 +1169,37 @@ function renderChtPrice(){
 function buildSubChart(container,label){
   container.innerHTML='';
   container.style.position='relative';
-  // Label overlay
   const lbl=document.createElement('div');
   lbl.style.cssText='position:absolute;top:4px;left:8px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;pointer-events:none;z-index:2;';
   lbl.textContent=label;
   container.appendChild(lbl);
-  // Chart wrapper fills container
   const wrap=document.createElement('div');
   wrap.style.cssText='position:absolute;inset:0;';
   container.appendChild(wrap);
-  const w=wrap.offsetWidth||window.innerWidth;
+  // offsetWidth/Height gives correct dimensions after layout — clientHeight returns 0 before paint
+  const w=container.offsetWidth||window.innerWidth;
   const h=container.offsetHeight||100;
   const chart=LightweightCharts.createChart(wrap,{
     width:w,height:h,
     layout:{background:{color:'transparent'},textColor:'#8b949e'},
     grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
     crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
-    leftPriceScale:{visible:false},
-    rightPriceScale:{
-      visible:true,
-      borderColor:'#30363d',
-      scaleMargins:{top:0.1,bottom:0.1},
-      autoScale:true,
-      entireTextOnly:true
-    },
+    rightPriceScale:{visible:true,borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.1,bottom:0.1}},
     timeScale:{visible:false,borderVisible:false},
     handleScroll:false,
-    handleScale:false,
-    overlayPriceScales:{ticksVisible:false}
+    handleScale:false
   });
   new ResizeObserver(()=>{
-    const W=wrap.offsetWidth,H=container.offsetHeight;
+    const W=container.offsetWidth,H=container.offsetHeight;
     if(W&&H)chart.applyOptions({width:W,height:H});
   }).observe(container);
   chtSubInst=chart;
-  return{wrap,chart};
+  return chart;
 }
 function renderChtMACD(container,ohlcv){
   const macdData=computeMACD(ohlcv);
   if(!macdData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
-  const{chart}=buildSubChart(container,'MACD');
+  const chart=buildSubChart(container,'MACD');
   chart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.8)':'rgba(248,81,73,0.8)'})));
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.macd})));
   chart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.signal})));
@@ -1212,7 +1208,7 @@ function renderChtMACD(container,ohlcv){
 function renderChtRSI(container,ohlcv){
   const rsiData=computeRSI(ohlcv);
   if(!rsiData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
-  const{chart}=buildSubChart(container,'RSI');
+  const chart=buildSubChart(container,'RSI');
   const tFirst=rsiData[0].time,tLast=rsiData[rsiData.length-1].time;
   [70,30].forEach(lvl=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false}).setData([{time:tFirst,value:lvl},{time:tLast,value:lvl}]);});
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(rsiData);
