@@ -248,8 +248,6 @@ tr:last-child td{border-bottom:none;}
       <button class="tf-btn" id="cht-tf-D1" onclick="setChtTf('D1')">D1</button>
       <button class="tf-btn" id="cht-tf-H4" onclick="setChtTf('H4')">H4</button>
       <button class="tf-btn active" id="cht-tf-H1" onclick="setChtTf('H1')">H1</button>
-      <button class="btn btn-green" onclick="openEnterTradeSheet()" style="padding:3px 8px;">+ Enter</button>
-      <button class="btn btn-red" id="cht-close-trade-btn" onclick="closeChartActiveTrade()" style="padding:3px 8px;display:none;">✕ Close</button>
       <button class="btn btn-red" onclick="closeChart()" style="padding:3px 8px;">✕</button>
     </div>
   </div>
@@ -265,6 +263,10 @@ tr:last-child td{border-bottom:none;}
       <button class="btn" onclick="setLevelAlert()" style="padding:5px 8px;flex-shrink:0;">Set Alert</button>
     </div>
     <div id="cht-alerts-list" style="padding:0 var(--pad);"></div>
+    <div style="display:flex;gap:6px;padding:6px var(--pad);">
+      <button class="btn btn-green" onclick="openEnterTradeSheet()" style="flex:1;justify-content:center;">+ Enter Trade</button>
+      <button class="btn btn-red" id="cht-close-trade-btn" onclick="closeChartActiveTrade()" style="flex:1;justify-content:center;display:none;">✕ Close Trade</button>
+    </div>
   </div>
 </div>
 <div id="sheet-overlay" onclick="closeSheet()"></div>
@@ -1166,7 +1168,7 @@ async function renderChtPrice(){
       if(rd.length){
         _subChartOffset=ohlcv.length-rd.length;
         const tf=rd[0].time,tl=rd[rd.length-1].time;
-        [75,50,25].forEach(lvl=>subChart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true}).setData([{time:tf,value:lvl},{time:tl,value:lvl}]));
+        [75,50,25].forEach(lvl=>subChart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false}).setData([{time:tf,value:lvl},{time:tl,value:lvl}]));
         subChart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:true}).setData(rd);
         try{subChart.priceScale('right').applyOptions({autoScale:false});}catch(e){}
       }
