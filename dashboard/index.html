@@ -248,6 +248,8 @@ tr:last-child td{border-bottom:none;}
       <button class="tf-btn" id="cht-tf-D1" onclick="setChtTf('D1')">D1</button>
       <button class="tf-btn" id="cht-tf-H4" onclick="setChtTf('H4')">H4</button>
       <button class="tf-btn active" id="cht-tf-H1" onclick="setChtTf('H1')">H1</button>
+      <button class="btn btn-green" onclick="openEnterTradeSheet()" style="padding:3px 8px;">+ Enter</button>
+      <button class="btn btn-red" id="cht-close-trade-btn" onclick="closeChartActiveTrade()" style="padding:3px 8px;display:none;">✕ Close</button>
       <button class="btn btn-red" onclick="closeChart()" style="padding:3px 8px;">✕</button>
     </div>
   </div>
@@ -256,17 +258,13 @@ tr:last-child td{border-bottom:none;}
     <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
   </div>
   <div id="cht-controls">
-    <div style="display:flex;gap:6px;padding:6px var(--pad);border-bottom:1px solid var(--border2);">
+    <div style="display:flex;gap:6px;padding:6px var(--pad);">
       <button class="btn" onclick="openIndicatorsSheet()" style="flex:0 0 auto;">⚙ Indicators</button>
       <input id="cht-alert-inp" type="number" step="0.00001" placeholder="e.g. 1.08450" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:5px 8px;font-size:var(--sm);"/>
       <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;">↑ Above</button>
       <button class="btn" onclick="setLevelAlert()" style="padding:5px 8px;flex-shrink:0;">Set Alert</button>
     </div>
     <div id="cht-alerts-list" style="padding:0 var(--pad);"></div>
-    <div style="display:flex;gap:5px;padding:6px var(--pad);border-top:1px solid var(--border2);">
-      <button class="btn btn-green" onclick="openEnterTradeSheet()" style="flex:1;justify-content:center;">+ Enter Trade</button>
-      <button class="btn btn-red" id="cht-close-trade-btn" onclick="closeChartActiveTrade()" style="flex:1;justify-content:center;display:none;">✕ Close Trade</button>
-    </div>
   </div>
 </div>
 <div id="sheet-overlay" onclick="closeSheet()"></div>
@@ -1107,7 +1105,7 @@ function openChart(){const el=document.getElementById('screen-chart');el.style.d
 function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
 function startCandleTimer(){if(candleTimerInt)clearInterval(candleTimerInt);function tick(){const el=document.getElementById('cht-timer');if(!el)return;if(closed()){el.textContent='';return;}const now=Math.floor(Date.now()/1000);const tfSecs={H1:3600,H4:14400,D1:86400}[chtTf]||3600;const secsLeft=tfSecs-(now%tfSecs);const h=Math.floor(secsLeft/3600),m=Math.floor((secsLeft%3600)/60),s=secsLeft%60;const pad=n=>String(n).padStart(2,'0');el.textContent=h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);el.style.color=secsLeft<=60?'var(--sell)':'var(--muted)';}tick();candleTimerInt=setInterval(tick,1000);}
-let _wsPriceLine=null,_chtCandles=null;
+let _wsPriceLine=null,_chtCandles=null,_subChartOffset=0;
 function wsUpdatePrice(price){if(!chtMainInst||!_chtCandles)return;try{if(_wsPriceLine){_chtCandles.removePriceLine(_wsPriceLine);_wsPriceLine=null;}_wsPriceLine=_chtCandles.createPriceLine({price,color:CHT_BLUE,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,axisLabelColor:CHT_BLUE,axisLabelTextColor:'#0d1117',title:''});}catch(e){}}
 function renderChtPrice(){
   const container=document.getElementById('cht-price');if(!container)return;
@@ -1140,13 +1138,17 @@ function renderChtPrice(){
     if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}
     if(indState.macd||indState.rsi){
       subEl.style.display='block';
-      const subChart=indState.macd?renderChtMACD(subEl,ohlcv):renderChtRSI(subEl,ohlcv);
-      if(subChart){
+      const result=indState.macd?renderChtMACD(subEl,ohlcv):renderChtRSI(subEl,ohlcv);
+      if(result){
+        const{chart:subChart,offset}=result;
+        _subChartOffset=offset;
         let _rafId=null;
         chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{
           if(!r||!chtSubInst)return;
           if(_rafId)cancelAnimationFrame(_rafId);
-          _rafId=requestAnimationFrame(()=>{try{chtSubInst.timeScale().setVisibleLogicalRange(r);}catch(e){}});
+          _rafId=requestAnimationFrame(()=>{
+            try{chtSubInst.timeScale().setVisibleLogicalRange({from:r.from-_subChartOffset,to:r.to-_subChartOffset});}catch(e){}
+          });
         });
       }
     } else {
@@ -1158,7 +1160,7 @@ function renderChtPrice(){
   // Push initial visible time range to sub chart after layout settles
   if(chtSubInst){
     setTimeout(()=>{
-      try{const r=chart.timeScale().getVisibleLogicalRange();if(r)chtSubInst.timeScale().setVisibleLogicalRange(r);}catch(e){}
+      try{const r=chart.timeScale().getVisibleLogicalRange();if(r)chtSubInst.timeScale().setVisibleLogicalRange({from:r.from-_subChartOffset,to:r.to-_subChartOffset});}catch(e){}
     },100);
   }
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:container.clientWidth,height:container.clientHeight});}).observe(container);
@@ -1199,22 +1201,24 @@ function buildSubChart(container,label){
 function renderChtMACD(container,ohlcv){
   const macdData=computeMACD(ohlcv);
   if(!macdData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
+  const offset=ohlcv.length-macdData.length;
   const chart=buildSubChart(container,'MACD');
   chart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.8)':'rgba(248,81,73,0.8)'})));
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.macd})));
   chart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.signal})));
-  return chart;
+  return{chart,offset};
 }
 function renderChtRSI(container,ohlcv){
   const rsiData=computeRSI(ohlcv);
   if(!rsiData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
+  const offset=ohlcv.length-rsiData.length;
   const chart=buildSubChart(container,'RSI');
   const tFirst=rsiData[0].time,tLast=rsiData[rsiData.length-1].time;
   [70,30].forEach(lvl=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false}).setData([{time:tFirst,value:lvl},{time:tLast,value:lvl}]);});
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(rsiData);
-  return chart;
+  return{chart,offset};
 }
-function updateCloseTradeBtn(){const btn=document.getElementById('cht-close-trade-btn');if(!btn)return;const has=tradesLoad().some(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending'));btn.style.display=has?'flex':'none';}
+function updateCloseTradeBtn(){const btn=document.getElementById('cht-close-trade-btn');if(!btn)return;const has=tradesLoad().some(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending'));btn.style.display=has?'inline-flex':'none';}
 
 function cycleAlertDir(){alertDir=alertDir==='above'?'below':'above';const b=document.getElementById('cht-dir-btn');if(b)b.textContent=alertDir==='above'?'↑ Above':'↓ Below';}
 function setLevelAlert(){const inp=document.getElementById('cht-alert-inp');if(!inp)return;const price=parseFloat(inp.value);if(!price||isNaN(price))return;const alerts=laLoad();alerts.push({id:Date.now(),pair:selectedPair,price,direction:alertDir,active:true,created:new Date().toLocaleString()});laSave(alerts);inp.value='';renderChtAlerts();pushAlertsToGitHub(alerts);}
