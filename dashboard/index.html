@@ -1088,24 +1088,22 @@ function computeRSI(ohlcv,period){period=period||14;if(ohlcv.length<period+1)ret
 function buildLwChart(container,opts){opts=opts||{};container.innerHTML='';const w=container.clientWidth||window.innerWidth,h=container.clientHeight||300;return LightweightCharts.createChart(container,{width:w,height:h,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{borderColor:'#30363d',autoScale:true,scaleMargins:opts.scaleMargins||{top:0.08,bottom:0.08}},timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},handleScroll:true,handleScale:true});}
 function openIndicatorsSheet(){
   const items=[
-    {key:'ema200',label:'EMA 200',col:'#e6edf3'},
-    {key:'ema50', label:'EMA 50', col:'#58a6ff'},
-    {key:'bb',    label:'Bollinger Bands',col:'rgba(139,148,158,0.8)'},
-    {key:'macd',  label:'MACD',  col:'#58a6ff'},
-    {key:'rsi',   label:'RSI',   col:'#58a6ff'}
+    {key:'ema200',label:'EMA 200'},
+    {key:'ema50', label:'EMA 50'},
+    {key:'bb',    label:'Bollinger Bands'},
+    {key:'macd',  label:'MACD'},
+    {key:'rsi',   label:'RSI'}
   ];
   let h='<div>';
   items.forEach(it=>{
     const on=indState[it.key];
-    h+='<div data-key="'+it.key+'" onclick="toggleInd(this.dataset.key)" id="ind-row-'+it.key+'" style="display:flex;align-items:center;padding:13px var(--pad);border-bottom:1px solid var(--border2);cursor:pointer;background:'+(on?'rgba(56,139,253,.06)':'transparent')+';">'+
-      '<span style="width:10px;height:10px;border-radius:50%;background:'+it.col+';margin-right:12px;flex-shrink:0;"></span>'+
-      '<span style="flex:1;font-size:var(--md);font-weight:600;">'+it.label+'</span>'+
-      '<span style="font-size:var(--xs);font-weight:700;color:'+(on?'var(--accent)':'var(--muted)')+';">'+(on?'ON':'OFF')+'</span></div>';
+    h+='<div data-key="'+it.key+'" onclick="toggleInd(this.dataset.key)" id="ind-row-'+it.key+'" style="padding:14px var(--pad);border-bottom:1px solid var(--border2);cursor:pointer;background:'+(on?'rgba(56,139,253,.08)':'transparent')+';border-left:3px solid '+(on?'rgba(56,139,253,.6)':'transparent')+';">'+
+      '<span style="font-size:var(--md);font-weight:600;color:'+(on?'var(--accent)':'var(--text)')+';">'+it.label+'</span></div>';
   });
   h+='</div>';
   openSheet('Indicators',h);
 }
-function toggleInd(key){if(key==='macd'&&!indState.macd)indState.rsi=false;if(key==='rsi'&&!indState.rsi)indState.macd=false;indState[key]=!indState[key];saveIndState();const row=document.getElementById('ind-row-'+key);if(row){row.style.background=indState[key]?'rgba(56,139,253,.06)':'transparent';const sp=row.querySelector('span:last-child');if(sp){sp.textContent=indState[key]?'ON':'OFF';sp.style.color=indState[key]?'var(--accent)':'var(--muted)';}}renderChtPrice();}
+function toggleInd(key){if(key==='macd'&&!indState.macd)indState.rsi=false;if(key==='rsi'&&!indState.rsi)indState.macd=false;indState[key]=!indState[key];saveIndState();const row=document.getElementById('ind-row-'+key);if(row){row.style.background=indState[key]?'rgba(56,139,253,.08)':'transparent';row.style.borderLeft='3px solid '+(indState[key]?'rgba(56,139,253,.6)':'transparent');const sp=row.querySelector('span');if(sp)sp.style.color=indState[key]?'var(--accent)':'var(--text)';}renderChtPrice();}
 function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
 function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
@@ -1122,9 +1120,9 @@ function renderChtPrice(){
   const chart=buildLwChart(container);
   const isJpy=selectedPair.includes('JPY');
   const candles=chart.addCandlestickSeries({
-    upColor:'#3fb950',downColor:'#f85149',
-    borderUpColor:'#238636',borderDownColor:'#b62324',
-    wickUpColor:'rgba(63,185,80,0.6)',wickDownColor:'rgba(248,81,73,0.6)',
+    upColor:'rgba(63,185,80,.15)',downColor:'rgba(248,81,73,.15)',
+    borderUpColor:'rgba(63,185,80,.8)',borderDownColor:'rgba(248,81,73,.8)',
+    wickUpColor:'rgba(63,185,80,0.5)',wickDownColor:'rgba(248,81,73,0.5)',
     priceLineVisible:false,lastValueVisible:false,
     priceFormat:{type:'price',precision:isJpy?3:5,minMove:isJpy?0.001:0.00001}
   });
@@ -1147,19 +1145,21 @@ function renderChtPrice(){
       if(subChart){
         // Sync time scales bidirectionally
         let _syncing=false;
-        chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(_syncing||!r)return;_syncing=true;subChart.timeScale().setVisibleLogicalRange(r);_syncing=false;});
-        subChart.timeScale().subscribeVisibleLogicalRangeChange(r=>{if(_syncing||!r)return;_syncing=true;chart.timeScale().setVisibleLogicalRange(r);_syncing=false;});
+        chart.timeScale().subscribeVisibleTimeRangeChange(r=>{if(_syncing||!r)return;_syncing=true;try{subChart.timeScale().setVisibleRange(r);}catch(e){}  _syncing=false;});
+        subChart.timeScale().subscribeVisibleTimeRangeChange(r=>{if(_syncing||!r)return;_syncing=true;try{chart.timeScale().setVisibleRange(r);}catch(e){}  _syncing=false;});
       }
     } else subEl.style.display='none';
   }
   const visN=Math.min(150,ohlcv.length);
   chart.timeScale().setVisibleLogicalRange({from:ohlcv.length-visN,to:ohlcv.length+2});
+  // Push initial time range to sub chart after a tick
+  if(chtSubInst){requestAnimationFrame(()=>{const r=chart.timeScale().getVisibleRange();if(r)try{chtSubInst.timeScale().setVisibleRange(r);}catch(e){}});}
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:container.clientWidth,height:container.clientHeight});}).observe(container);
   chtMainInst=chart;
   if(_wsLastPrice&&_wsPair===selectedPair)wsUpdatePrice(_wsLastPrice);
 }
 
-function renderChtMACD(container,ohlcv){const macdData=computeMACD(ohlcv);if(!macdData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}const chart=buildLwChart(container,{scaleMargins:{top:0.1,bottom:0.1}});chart.addHistogramSeries({priceScaleId:"right",priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?"rgba(63,185,80,0.7)":"rgba(248,81,73,0.7)"})));chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceScaleId:"right",priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.macd})));chart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceScaleId:"right",priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.signal})));new ResizeObserver(()=>{if(chtSubInst)chtSubInst.applyOptions({width:container.clientWidth,height:container.clientHeight});}).observe(container);chtSubInst=chart;return chart;}
+function renderChtMACD(container,ohlcv){const macdData=computeMACD(ohlcv);if(!macdData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}const chart=buildLwChart(container,{scaleMargins:{top:0.1,bottom:0.1}});chart.addHistogramSeries({priceScaleId:"right",priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?"rgba(63,185,80,0.8)":"rgba(248,81,73,0.8)"})));chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceScaleId:"right",priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.macd})));chart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceScaleId:"right",priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.signal})));new ResizeObserver(()=>{if(chtSubInst)chtSubInst.applyOptions({width:container.clientWidth,height:container.clientHeight});}).observe(container);chtSubInst=chart;return chart;}
 function renderChtRSI(container,ohlcv){const rsiData=computeRSI(ohlcv);if(!rsiData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}const chart=buildLwChart(container,{scaleMargins:{top:0.05,bottom:0.05}});const tFirst=rsiData[0].time,tLast=rsiData[rsiData.length-1].time;[70,30].forEach(lvl=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceScaleId:"right",priceLineVisible:false,lastValueVisible:false}).setData([{time:tFirst,value:lvl},{time:tLast,value:lvl}]);});chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceScaleId:"right",priceLineVisible:false,lastValueVisible:false}).setData(rsiData);new ResizeObserver(()=>{if(chtSubInst)chtSubInst.applyOptions({width:container.clientWidth,height:container.clientHeight});}).observe(container);chtSubInst=chart;return chart;}
 function updateCloseTradeBtn(){const btn=document.getElementById('cht-close-trade-btn');if(!btn)return;const has=tradesLoad().some(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending'));btn.style.display=has?'flex':'none';}
 
