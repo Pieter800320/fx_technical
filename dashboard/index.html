@@ -1212,7 +1212,7 @@ function buildSubChart(container,label){
     layout:{background:{color:'transparent'},textColor:'#8b949e'},
     grid:{vertLines:{color:'#21262d'},horzLines:{visible:!isRSI,color:'#21262d'}},
     crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
-    rightPriceScale:{visible:true,borderColor:'#30363d',autoScale:!isRSI,scaleMargins:{top:0.1,bottom:0.1}},
+    rightPriceScale:{visible:true,borderColor:'#30363d',autoScale:false,scaleMargins:{top:0,bottom:0},entireTextOnly:true},
     timeScale:{visible:false,borderVisible:false},
     handleScroll:false,
     handleScale:false
@@ -1229,7 +1229,7 @@ function renderChtMACD(container,ohlcv){
   if(!macdData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
   const offset=ohlcv.length-macdData.length;
   const chart=buildSubChart(container,'MACD');
-  chart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.2)':'rgba(248,81,73,0.2)'})));
+  chart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.6)':'rgba(248,81,73,0.6)'})));
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.macd})));
   chart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.signal})));
   return{chart,offset};
@@ -1239,8 +1239,9 @@ function renderChtRSI(container,ohlcv){
   if(!rsiData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
   const offset=ohlcv.length-rsiData.length;
   const chart=buildSubChart(container,'RSI');
-  // Fix scale 0-100, hide auto grid horzLines handled in buildSubChart
   const tFirst=rsiData[0].time,tLast=rsiData[rsiData.length-1].time;
+  // Anchor lines that force the price scale to 0-100
+  chart.addLineSeries({color:'transparent',priceLineVisible:false,lastValueVisible:false}).setData([{time:tFirst,value:0},{time:tLast,value:100}]);
   [75,50,25].forEach(lvl=>{
     chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true}).setData([{time:tFirst,value:lvl},{time:tLast,value:lvl}]);
   });
@@ -1254,6 +1255,32 @@ function setLevelAlert(){const inp=document.getElementById('cht-alert-inp');if(!
 function deleteAlert(id){const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);renderChtAlerts();pushAlertsToGitHub(alerts);}
 function checkLevelAlerts(){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active)return;const h1d=D.h1&&D.h1[a.pair];if(!h1d||!h1d.raw)return;const price=parseFloat(h1d.raw.close);if(!price)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;setTimeout(()=>alert('Alert: '+a.pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed)laSave(alerts);}
 function checkLevelAlertsLive(price,pair){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active||a.pair!==pair)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;renderChtAlerts();setTimeout(()=>alert('🔔 Alert: '+pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed)laSave(alerts);}
+async function pushTradesToGitHub(trades){
+  const token=localStorage.getItem('gh_pat');if(!token)return;
+  const apiUrl=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/data/trades.json`;
+  const content=btoa(unescape(encodeURIComponent(JSON.stringify(trades,null,2))));
+  let sha=null;
+  try{const get=await fetch(apiUrl,{headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json'}});if(get.ok){const d=await get.json();sha=d.sha;}}catch(e){}
+  const body={message:`trades update ${new Date().toISOString()}`,content};
+  if(sha)body.sha=sha;
+  try{await fetch(apiUrl,{method:'PUT',headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)});}catch(e){}
+}
+function tradesSaveAndSync(trades){
+  tradesSaveAndSync(trades);
+  pushTradesToGitHub(trades);
+}
+async function mergeTradesFromGitHub(){
+  try{
+    const remote=await load('trades.json');
+    if(!remote||!Array.isArray(remote))return;
+    const local=tradesLoad();
+    const localIds=new Set(local.map(t=>t.id));
+    const merged=[...local];
+    remote.forEach(t=>{if(!localIds.has(t.id))merged.push(t);});
+    merged.sort((a,b)=>b.id-a.id);
+    if(merged.length!==local.length)tradesSave(merged);
+  }catch(e){}
+}
 async function pushAlertsToGitHub(alerts){const token=localStorage.getItem('gh_pat');if(!token)return;const apiUrl=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/data/level_alerts.json`;const content=btoa(unescape(encodeURIComponent(JSON.stringify(alerts,null,2))));let sha=null;try{const get=await fetch(apiUrl,{headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json'}});if(get.ok){const d=await get.json();sha=d.sha;}}catch(e){}const body={message:`level alerts update ${new Date().toISOString()}`,content};if(sha)body.sha=sha;try{await fetch(apiUrl,{method:'PUT',headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)});}catch(e){}}
 function generateBrief(){const nb=D.newsBrief;if(!nb){openSheet('Market Brief','<div class="loading">No brief yet — runs 4× daily.</div>');return;}let h='';if(nb.narrative){h+=`<div style="padding:var(--pad);font-size:var(--sm);line-height:1.6;color:var(--text);">${nb.narrative.replace(/\n/g,'<br>')}</div>`;}openSheet('Market Brief',h);}
 function copyBriefPrompt(){const{h1,h4,d1,csm,regime}=D;const{kept}=buildRankedShortlist();let t='MARKET BRIEF - '+new Date().toLocaleString()+'\n\n';if(csm&&csm.rankings){t+='CURRENCY STRENGTH:\n';Object.entries(csm.rankings).forEach(([c,v])=>{t+=c+' '+v.toFixed(0)+'  ';});t+='\n\n';}t+='TECHNICAL SCORES:\n';PAIRS.forEach(p=>{const h1d=h1&&h1[p],h4d=h4&&h4[p],d1d=d1&&d1[p];const h1l=h1d?h1d.label:'N/A',h4l=h4d?h4d.label:'N/A',d1l=d1d?d1d.label:'N/A';const sc=h4d?h4d.score:0;if(h1l==='Neutral'&&h4l==='Neutral'&&d1l==='Neutral')return;t+=p.replace('/','')+'  D1:'+d1l+' H4:'+h4l+' H1:'+h1l+' [score:'+sc+']\n';});if(regime&&regime.regime)t+='\nREGIME: '+regime.regime+' ('+regime.confidence+')\n';if(kept.length)t+='SHORTLIST: '+kept.map(x=>x.pair.replace('/',''))+'\n';navigator.clipboard.writeText(t).then(()=>{});}
@@ -1336,8 +1363,9 @@ function checkTrades(){
     if(t.status==='closed')return;
     const bars=h1Ohlcv[t.pair]||[];
     if(!bars.length)return;
-    const createdTs=new Date(t.created).getTime()/1000;
-    const relevantBars=bars.filter(b=>b.time>=createdTs);
+    const createdTs=Math.floor(new Date(t.created).getTime()/1000);
+    if(!createdTs||isNaN(createdTs))return;
+    const relevantBars=bars.filter(b=>typeof b.time==='number'&&b.time>=createdTs);
     if(!relevantBars.length)return;
     if(t.status==='pending'){
       const hit=relevantBars.some(b=>t.direction==='BUY'?b.high>=t.entry:b.low<=t.entry);
@@ -1534,7 +1562,7 @@ function submitTrade(){
   if(_etEditId){
     const trades=tradesLoad();
     const t=trades.find(x=>x.id===_etEditId);
-    if(t){t.sl=sl;t.tp=tp;t.notes=notes;tradesSave(trades);}
+    if(t){t.sl=sl;t.tp=tp;t.notes=notes;tradesSaveAndSync(trades);}
     closeSheet();renderLog();updateDrum();return;
   }
   // New trade
@@ -1556,7 +1584,7 @@ function submitTrade(){
     date:new Date().toLocaleString(),created:now,
     opened:isAtMarket?now:null,closed:null,
   };
-  const trades=tradesLoad();trades.push(trade);tradesSave(trades);
+  const trades=tradesLoad();trades.push(trade);tradesSaveAndSync(trades);
   closeSheet();renderLog();updateDrum();
   updateCloseTradeBtn();
 }
@@ -1568,7 +1596,7 @@ function closeTradeManual(id){
   const curr=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
   t.status='closed';t.result='manual';
   t.close_price=curr||t.entry;t.closed=new Date().toISOString();
-  tradesSave(trades);closeSheet();renderLog();updateDrum();updateCloseTradeBtn();
+  tradesSaveAndSync(trades);closeSheet();renderLog();updateDrum();updateCloseTradeBtn();
 }
 function closeChartActiveTrade(){
   const trades=tradesLoad().filter(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending'));
@@ -1601,11 +1629,11 @@ function saveEditNotes(id){
   const trades=tradesLoad(),t=trades.find(x=>x.id===id);
   if(!t)return;
   t.notes=document.getElementById('en-notes')?.value||'';
-  tradesSave(trades);closeSheet();renderLog();
+  tradesSaveAndSync(trades);closeSheet();renderLog();
 }
 function delClosedTrade(id){
   const trades=tradesLoad().filter(x=>x.id!==id);
-  tradesSave(trades);renderLog();
+  tradesSaveAndSync(trades);renderLog();
 }
 
 // ── Log renderer
@@ -1727,6 +1755,7 @@ async function init(){
   const parseTS=s=>{if(!s)return new Date(s);const c=s.endsWith('Z')||s.includes('+')?s:s+'Z';return new Date(c);};
   if(ts.length)document.getElementById("last-updated").textContent="Updated "+parseTS(ts[ts.length-1]).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief,alertCooldown};
+  await mergeTradesFromGitHub();
   renderRegime(regime);renderCSM(csm,conviction);renderSignalStrip(selectedPair);renderIndStrip(selectedPair);checkLevelAlerts();migrateOldTrades();checkTrades();renderLog();updateDrum();
 }
 init();setInterval(init,5*60*1000);
