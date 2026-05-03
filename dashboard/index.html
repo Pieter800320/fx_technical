@@ -1228,7 +1228,7 @@ function renderChtMACD(container,ohlcv){
   if(!macdData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
   const offset=ohlcv.length-macdData.length;
   const chart=buildSubChart(container,'MACD');
-  chart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.8)':'rgba(248,81,73,0.8)'})));
+  chart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.5)':'rgba(248,81,73,0.5)'})));
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.macd})));
   chart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.signal})));
   return{chart,offset};
@@ -1239,8 +1239,8 @@ function renderChtRSI(container,ohlcv){
   const offset=ohlcv.length-rsiData.length;
   const chart=buildSubChart(container,'RSI');
   const tFirst=rsiData[0].time,tLast=rsiData[rsiData.length-1].time;
-  [70,30].forEach(lvl=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false}).setData([{time:tFirst,value:lvl},{time:tLast,value:lvl}]);});
-  chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(rsiData);
+  [70,50,30].forEach(lvl=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false}).setData([{time:tFirst,value:lvl},{time:tLast,value:lvl}]);});
+  chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:true}).setData(rsiData);
   return{chart,offset};
 }
 function updateCloseTradeBtn(){const btn=document.getElementById('cht-close-trade-btn');if(!btn)return;const has=tradesLoad().some(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending'));btn.style.display=has?'inline-flex':'none';}
@@ -1260,7 +1260,6 @@ function getRatesMap(){if(!D.rates)return{};if(Array.isArray(D.rates.rates)){con
 function renderRatesDiffGrid(){const el=document.getElementById('rates-diff-grid');if(!el)return;const pairs=[['AUD','USD'],['EUR','USD'],['GBP','USD'],['USD','JPY'],['USD','CHF'],['USD','CAD'],['NZD','USD'],['CAD','JPY'],['AUD','JPY'],['GBP','JPY']];el.innerHTML=pairs.map(([b,q])=>{const br=ratesLocal[b]||0,qr=ratesLocal[q]||0,bps=Math.round((br-qr)*100);const col=bps>0?'var(--buy)':bps<0?'var(--sell)':'var(--muted)';return`<div class="rcard"><span class="rcard-pair">${b+q}</span><span class="rcard-detail">${BANKS[b]} ${br}% vs ${BANKS[q]} ${qr}%</span><span class="rcard-val" style="color:${col};">${bps>0?'+':''}${bps}bps</span></div>`;}).join('');}
 function renderRatesFormGrid(){const el=document.getElementById('rates-form-grid');if(!el)return;el.innerHTML=CCYS.map(c=>`<div class="fg" style="margin:0;"><label>${BANKS[c]} (${c})</label><div style="display:flex;align-items:center;gap:4px;"><input id="rate-inp-${c}" type="number" step="0.01" min="0" max="25" value="${ratesLocal[c]||0}" onchange="ratesLocal['${c}']=parseFloat(this.value)||0;renderRatesDiffGrid();"/><span style="font-size:var(--xs);color:var(--muted);">%</span></div></div>`).join('');}
 function renderRatesTableGrid(){const el=document.getElementById('rates-table-grid'),upEl=document.getElementById('rates-updated');if(!el)return;const src=getRatesMap();el.innerHTML=CCYS.map(c=>{const r=src[c];if(!r)return`<div class="rcard"><span class="rcard-pair">${c}</span><span style="color:var(--muted);font-size:var(--sm);">No data</span></div>`;return`<div class="rcard"><span class="rcard-pair">${c}</span><span class="rcard-detail">${r.bank}</span><span class="rcard-val">${r.rate}%</span></div>`;}).join('');if(upEl&&src.updated)upEl.textContent='Last updated: '+new Date(src.updated).toLocaleString();}
-const tradesSave=t=>localStorage.setItem(TR_KEY,JSON.stringify(t));
 // ── WebSocket (Twelvedata) — live prices for level alerts only
 let _ws=null,_wsPair=null,_wsLastPrice=null;
 const TD_WS='wss://ws.twelvedata.com/v1/quotes/price';
@@ -1293,6 +1292,7 @@ async function saveRates(){const pat=localStorage.getItem('fx1212_rates_pat');if
 // ── TRADE SYSTEM
 const JK="fx1212_j_v2"; // legacy journal key (for migration only)
 const TR_KEY="fx1212_trades_v1";
+const tradesSave=t=>localStorage.setItem(TR_KEY,JSON.stringify(t));
 const calcR=(en,sl,tp)=>{if(!en||!sl||!tp)return null;const risk=Math.abs(en-sl),rwd=Math.abs(tp-en);return risk?Math.round(rwd/risk*100)/100:null;};
 const tradesLoad=()=>{try{return JSON.parse(localStorage.getItem(TR_KEY)||"[]");}catch{return[];}};
 
