@@ -254,7 +254,7 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div id="cht-canvas-area" style="flex:1;min-height:0;display:flex;flex-direction:column;">
     <div id="cht-price" style="flex:1;min-height:0;"></div>
-    <div id="cht-sub" style="display:none;height:28%;min-height:80px;border-top:1px solid var(--border2);"></div>
+    <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
   </div>
   <div id="cht-controls">
     <div style="display:flex;gap:6px;padding:6px var(--pad);border-bottom:1px solid var(--border2);">
@@ -263,11 +263,11 @@ tr:last-child td{border-bottom:none;}
       <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;">↑ Above</button>
       <button class="btn" onclick="setLevelAlert()" style="padding:5px 8px;flex-shrink:0;">Set Alert</button>
     </div>
-    <div style="display:flex;gap:5px;padding:6px var(--pad);">
+    <div id="cht-alerts-list" style="padding:0 var(--pad);"></div>
+    <div style="display:flex;gap:5px;padding:6px var(--pad);border-top:1px solid var(--border2);">
       <button class="btn btn-green" onclick="openEnterTradeSheet()" style="flex:1;justify-content:center;">+ Enter Trade</button>
       <button class="btn btn-red" id="cht-close-trade-btn" onclick="closeChartActiveTrade()" style="flex:1;justify-content:center;display:none;">✕ Close Trade</button>
     </div>
-    <div id="cht-alerts-list"></div>
   </div>
 </div>
 <div id="sheet-overlay" onclick="closeSheet()"></div>
@@ -1163,37 +1163,60 @@ function renderChtPrice(){
 
 function buildSubChart(container,label){
   container.innerHTML='';
-  const lbl=document.createElement('div');
-  lbl.style.cssText='position:absolute;top:4px;left:8px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;pointer-events:none;z-index:1;';
-  lbl.textContent=label;
   container.style.position='relative';
+  // Label overlay
+  const lbl=document.createElement('div');
+  lbl.style.cssText='position:absolute;top:4px;left:8px;font-size:10px;color:var(--muted);font-weight:700;letter-spacing:.06em;text-transform:uppercase;pointer-events:none;z-index:2;';
+  lbl.textContent=label;
   container.appendChild(lbl);
+  // Chart wrapper fills container
   const wrap=document.createElement('div');
   wrap.style.cssText='position:absolute;inset:0;';
   container.appendChild(wrap);
-  const w=wrap.clientWidth||window.innerWidth,h=container.clientHeight||100;
-  const chart=LightweightCharts.createChart(wrap,{width:w,height:h,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{borderColor:'#30363d',scaleMargins:{top:0.15,bottom:0.1}},timeScale:{visible:false,borderVisible:false},handleScroll:false,handleScale:false});
+  const w=wrap.offsetWidth||window.innerWidth;
+  const h=container.offsetHeight||100;
+  const chart=LightweightCharts.createChart(wrap,{
+    width:w,height:h,
+    layout:{background:{color:'transparent'},textColor:'#8b949e'},
+    grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
+    crosshair:{mode:LightweightCharts.CrosshairMode.Normal},
+    leftPriceScale:{visible:false},
+    rightPriceScale:{
+      visible:true,
+      borderColor:'#30363d',
+      scaleMargins:{top:0.1,bottom:0.1},
+      autoScale:true,
+      entireTextOnly:true
+    },
+    timeScale:{visible:false,borderVisible:false},
+    handleScroll:false,
+    handleScale:false,
+    overlayPriceScales:{ticksVisible:false}
+  });
+  new ResizeObserver(()=>{
+    const W=wrap.offsetWidth,H=container.offsetHeight;
+    if(W&&H)chart.applyOptions({width:W,height:H});
+  }).observe(container);
+  chtSubInst=chart;
   return{wrap,chart};
 }
 function renderChtMACD(container,ohlcv){
   const macdData=computeMACD(ohlcv);
   if(!macdData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
-  const{wrap,chart}=buildSubChart(container,'MACD');
+  const{chart}=buildSubChart(container,'MACD');
   chart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.8)':'rgba(248,81,73,0.8)'})));
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.macd})));
   chart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(macdData.map(d=>({time:d.time,value:d.signal})));
-  new ResizeObserver(()=>{if(chtSubInst)chtSubInst.applyOptions({width:wrap.clientWidth,height:wrap.clientHeight});}).observe(wrap);
-  chtSubInst=chart;return chart;
+  return chart;
 }
 function renderChtRSI(container,ohlcv){
   const rsiData=computeRSI(ohlcv);
   if(!rsiData.length){container.innerHTML='<div class="loading">Not enough data</div>';return null;}
-  const{wrap,chart}=buildSubChart(container,'RSI');
+  const{chart}=buildSubChart(container,'RSI');
   const tFirst=rsiData[0].time,tLast=rsiData[rsiData.length-1].time;
   [70,30].forEach(lvl=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false}).setData([{time:tFirst,value:lvl},{time:tLast,value:lvl}]);});
   chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(rsiData);
-  new ResizeObserver(()=>{if(chtSubInst)chtSubInst.applyOptions({width:wrap.clientWidth,height:wrap.clientHeight});}).observe(wrap);
-  chtSubInst=chart;return chart;
+  return chart;
 }
 function updateCloseTradeBtn(){const btn=document.getElementById('cht-close-trade-btn');if(!btn)return;const has=tradesLoad().some(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending'));btn.style.display=has?'flex':'none';}
 
