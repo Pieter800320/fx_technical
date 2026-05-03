@@ -1143,10 +1143,10 @@ function renderChtPrice(){
       const subChart=indState.macd?renderChtMACD(subEl,ohlcv):renderChtRSI(subEl,ohlcv);
       if(subChart){
         let _rafId=null;
-        chart.timeScale().subscribeVisibleTimeRangeChange(r=>{
-          if(!r)return;
+        chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{
+          if(!r||!chtSubInst)return;
           if(_rafId)cancelAnimationFrame(_rafId);
-          _rafId=requestAnimationFrame(()=>{try{subChart.timeScale().setVisibleRange(r);}catch(e){}});
+          _rafId=requestAnimationFrame(()=>{try{chtSubInst.timeScale().setVisibleLogicalRange(r);}catch(e){}});
         });
       }
     } else {
@@ -1158,7 +1158,7 @@ function renderChtPrice(){
   // Push initial visible time range to sub chart after layout settles
   if(chtSubInst){
     setTimeout(()=>{
-      try{const r=chart.timeScale().getVisibleRange();if(r)chtSubInst.timeScale().setVisibleRange(r);}catch(e){}
+      try{const r=chart.timeScale().getVisibleLogicalRange();if(r)chtSubInst.timeScale().setVisibleLogicalRange(r);}catch(e){}
     },100);
   }
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:container.clientWidth,height:container.clientHeight});}).observe(container);
