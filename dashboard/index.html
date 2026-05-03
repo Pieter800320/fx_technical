@@ -971,7 +971,7 @@ function buildDrumRows(){
       dirArrow=activeTrades.map(t=>{
         const arrow=t.direction==='BUY'?'▲':'▼';
         const sz=t.status==='open'?'22px':'14px';
-        return`<span style="font-size:${sz};line-height:1;">${arrow}</span>`;
+        return`<span style="font-size:${sz};line-height:1;color:#00cc44;">${arrow}</span>`;
       }).join('');
     }
     const topLine=
@@ -1466,9 +1466,10 @@ function openEnterTradeSheet(editId){
     </div>`;
   }
   h+=`<div style="padding:var(--pad);display:flex;flex-direction:column;gap:8px;">`;
-  h+=`<div class="fg" style="margin:0;"><label>Entry</label><input id="et-entry" type="number" step="${step}" value="${prefillEntry}" oninput="etCalcRR()"/></div>`;
-  h+=`<div class="fg" style="margin:0;"><label>Stop Loss</label><input id="et-sl" type="number" step="${step}" value="${prefillSl}" placeholder="SL price" oninput="etCalcRR()"/></div>`;
-  h+=`<div class="fg" style="margin:0;"><label>Take Profit</label><input id="et-tp" type="number" step="${step}" value="${prefillTp}" placeholder="TP price" oninput="etCalcRR()"/></div>`;
+  h+=`<div class="fg" style="margin:0;"><label>Entry</label><input id="et-entry" type="number" step="${step}" value="${prefillEntry}" oninput="etCalcRR();etClearError()"/></div>`;
+  h+=`<div class="fg" style="margin:0;"><label>Stop Loss</label><input id="et-sl" type="number" step="${step}" value="${prefillSl}" placeholder="SL price" oninput="etCalcRR();etClearError()"/></div>`;
+  h+=`<div class="fg" style="margin:0;"><label>Take Profit</label><input id="et-tp" type="number" step="${step}" value="${prefillTp}" placeholder="TP price" oninput="etCalcRR();etClearError()"/></div>`;
+  h+=`<div id="et-error" style="color:var(--sell);font-size:var(--xs);padding:4px 0;min-height:18px;"></div>`;
   h+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;"><span style="font-size:var(--xs);color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">R:R</span><span id="et-rr" style="font-size:var(--md);font-weight:700;color:var(--muted);">—</span></div>`;
   h+=`<div class="fg" style="margin:0;"><label>Notes</label><textarea id="et-notes" placeholder="Setup rationale…" style="min-height:48px;">${prefillNotes}</textarea></div>`;
   h+=`<button class="${editId?'btn':'btn btn-green'}" onclick="submitTrade()" style="width:100%;justify-content:center;padding:10px;">${editId?'Save Changes':'Enter Trade'}</button>`;
@@ -1492,6 +1493,8 @@ function etCalcRR(){
   const el=document.getElementById('et-rr');
   if(el)el.textContent=rr?rr+'R':'—';
 }
+function etClearError(){const el=document.getElementById('et-error');if(el)el.textContent='';}
+function etShowError(msg){const el=document.getElementById('et-error');if(el)el.textContent=msg;}
 function submitTrade(){
   const en=parseFloat(document.getElementById('et-entry')?.value)||null;
   const sl=parseFloat(document.getElementById('et-sl')?.value)||null;
@@ -1499,6 +1502,19 @@ function submitTrade(){
   const notes=document.getElementById('et-notes')?.value||'';
   const pair=selectedPair;
   if(!en)return;
+  // Direction-aware SL/TP validation
+  if(sl||tp){
+    const isBuy=_etDir==='BUY';
+    if(sl&&en){
+      if(isBuy&&sl>=en){etShowError('SL must be below entry for a BUY');return;}
+      if(!isBuy&&sl<=en){etShowError('SL must be above entry for a SELL');return;}
+    }
+    if(tp&&en){
+      if(isBuy&&tp<=en){etShowError('TP must be above entry for a BUY');return;}
+      if(!isBuy&&tp>=en){etShowError('TP must be below entry for a SELL');return;}
+    }
+  }
+  etClearError();
   // Edit existing trade
   if(_etEditId){
     const trades=tradesLoad();
