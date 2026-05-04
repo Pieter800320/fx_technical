@@ -53,7 +53,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .d-pair{display:table-cell;text-align:center;vertical-align:middle;font-size:19px;font-family:'VT323',monospace;width:20%;}
 .d-setup{display:table-cell;text-align:center;vertical-align:middle;font-size:19px;font-family:'VT323',monospace;width:20%;}
 .d-edge{display:table-cell;text-align:center;vertical-align:middle;font-size:19px;font-family:'VT323',monospace;width:20%;}
-.d-sess{display:table-cell;text-align:center;vertical-align:middle;font-size:15px;font-family:'VT323',monospace;width:20%;color:#007a29;}
+.d-sess{display:table-cell;text-align:center;vertical-align:middle;font-size:15px;font-family:'VT323',monospace;width:20%;color:#00cc44;}
 .d-dir{display:table-cell;text-align:center;vertical-align:middle;font-family:'VT323',monospace;width:20%;color:#00cc44;}
 .d-arr{display:none;}
 .d-bar-zone{display:flex;align-items:center;gap:3px;width:100%;height:12px;}
@@ -518,7 +518,7 @@ function computeQAI(pair){
 function openQAISheet(){
   const pair=selectedPair,qai=computeQAI(pair);
   const labels={align:'TF Alignment',entry:'Entry Position',csm:'CSM Divergence',regime:'Regime Fit',rate:'Rate Differential',edge:'Edge (AI)',session:'Session Fit'};
-  const wts={align:30,entry:20,csm:17,regime:14,rate:6,edge:13};
+  const wts={align:28,entry:18,csm:16,regime:13,rate:5,edge:12,session:8};
   const descs={align:'D1+H4+H1 unified direction',entry:'Reset×0.6 + ATR×0.4',csm:'Base vs quote strength',regime:'Macro context fit',rate:'Interest rate tailwind',edge:'Cross-source coherence',session:'Active session match'};
   let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Setup Score</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
   h+=Object.keys(labels).map(k=>{
@@ -963,15 +963,15 @@ function buildDrumRows(){
     const activeSess=getActiveSessions();
     const pairSess=PAIR_SESS[pair]||[];
     const sessMatch=!closed()&&activeSess.some(s=>pairSess.includes(s));
-    const sessStyle=sessMatch?'':'color:#007a29;';
+    const sessStyle=sessMatch?'':'color:#2a4a2a;';
     // Direction arrow: only for pairs with an active or pending trade
     const activeTrades=tradesLoad().filter(t=>t.pair===pair&&(t.status==='open'||t.status==='pending'));
     let dirArrow='';
     if(activeTrades.length){
       dirArrow=activeTrades.map(t=>{
         const arrow=t.direction==='BUY'?'▲':'▼';
-        const sz=t.status==='open'?'22px':'14px';
-        return`<span style="font-size:${sz};line-height:1;color:#00cc44;">${arrow}</span>`;
+        const sz=t.status==='open'?'22px':'13px';
+        return`<span style="font-size:${sz};line-height:1;display:inline-block;width:${sz};">${arrow}</span>`;
       }).join('');
     }
     const topLine=
@@ -1142,6 +1142,11 @@ async function renderChtPrice(){
   const chart=LightweightCharts.createChart(priceEl,{width:w,height:h,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.08,bottom:0.08}},timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},handleScroll:true,handleScale:true});
   const candles=chart.addCandlestickSeries({upColor:'rgba(63,185,80,.15)',downColor:'rgba(248,81,73,.15)',borderUpColor:'rgba(63,185,80,.8)',borderDownColor:'rgba(248,81,73,.8)',wickUpColor:'rgba(63,185,80,0.5)',wickDownColor:'rgba(248,81,73,0.5)',priceLineVisible:false,lastValueVisible:false,priceFormat:{type:'price',precision:isJpy?3:5,minMove:isJpy?0.001:0.00001}});
   candles.setData(ohlcv);_chtCandles=candles;
+  // Draw current price immediately from h1 raw close, WebSocket will update it when connected
+  const h1raw=D.h1&&D.h1[selectedPair]&&D.h1[selectedPair].raw;
+  if(h1raw&&h1raw.close){
+    try{_wsPriceLine=candles.createPriceLine({price:parseFloat(h1raw.close),color:CHT_BLUE,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,axisLabelColor:CHT_BLUE,axisLabelTextColor:'#0d1117',title:''});}catch(e){}
+  }
   if(indState.ema200&&ohlcv.length>=10){const v=computeEMA(ohlcv.map(d=>d.close),200);chart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(ohlcv.map((d,i)=>({time:d.time,value:v[i]})));}
   if(indState.ema50&&ohlcv.length>=10){const v=computeEMA(ohlcv.map(d=>d.close),50);chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(ohlcv.map((d,i)=>({time:d.time,value:v[i]})));}
   if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper',0],['middle',2],['lower',0]].forEach(([k,ls])=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:ls,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
@@ -1219,8 +1224,12 @@ async function mergeTradesFromGitHub(){
     if(!remote||!Array.isArray(remote))return;
     const local=tradesLoad();
     const localIds=new Set(local.map(t=>t.id));
+    // Track permanently deleted trade IDs in localStorage
+    const deletedIds=new Set(JSON.parse(localStorage.getItem('fx1212_deleted_trades')||'[]'));
     const merged=[...local];
-    remote.forEach(t=>{if(!localIds.has(t.id))merged.push(t);});
+    remote.forEach(t=>{
+      if(!localIds.has(t.id)&&!deletedIds.has(t.id))merged.push(t);
+    });
     merged.sort((a,b)=>b.id-a.id);
     if(merged.length!==local.length)tradesSave(merged);
   }catch(e){}
@@ -1589,6 +1598,9 @@ function saveEditNotes(id){
   tradesSaveAndSync(trades);closeSheet();renderLog();
 }
 function delClosedTrade(id){
+  // Record as permanently deleted so mergeTradesFromGitHub won't re-add it
+  const deleted=JSON.parse(localStorage.getItem('fx1212_deleted_trades')||'[]');
+  if(!deleted.includes(id)){deleted.push(id);localStorage.setItem('fx1212_deleted_trades',JSON.stringify(deleted));}
   const trades=tradesLoad().filter(x=>x.id!==id);
   tradesSaveAndSync(trades);renderLog();
 }
