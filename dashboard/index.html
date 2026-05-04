@@ -724,8 +724,7 @@ function buildLiveContent(){
     let prevClose=null,weekClose=null;
     if(d1Ohlcv&&d1Ohlcv.length>=2)prevClose=d1Ohlcv[d1Ohlcv.length-2].close;
     if(d1Ohlcv&&d1Ohlcv.length>=6)weekClose=d1Ohlcv[d1Ohlcv.length-6].close;
-    if(!prevClose)return null;
-    const diff=nowClose-prevClose,pct=diff/prevClose*100;
+    const diff=prevClose?nowClose-prevClose:0,pct=prevClose?(diff/prevClose*100):0;
     const dec=nowClose>50?2:nowClose>5?3:5,col=diff>=0?'var(--buy)':'var(--sell)';
     let w1Pct=null;if(weekClose)w1Pct=(nowClose-weekClose)/weekClose*100;
     return{pair,nowClose,pct,diff,col,dec,w1Pct,isMover:Math.abs(pct)>=(pair.includes('JPY')?1.2:0.8)};
@@ -963,15 +962,17 @@ function buildDrumRows(){
     const activeSess=getActiveSessions();
     const pairSess=PAIR_SESS[pair]||[];
     const sessMatch=!closed()&&activeSess.some(s=>pairSess.includes(s));
-    const sessStyle=sessMatch?'':'color:#2a4a2a;';
+    const sessStyle=sessMatch?'':'color:#1a3a1a;text-shadow:none;';
     // Direction arrow: only for pairs with an active or pending trade
     const activeTrades=tradesLoad().filter(t=>t.pair===pair&&(t.status==='open'||t.status==='pending'));
     let dirArrow='';
     if(activeTrades.length){
       dirArrow=activeTrades.map(t=>{
-        const arrow=t.direction==='BUY'?'▲':'▼';
-        const sz=t.status==='open'?'22px':'13px';
-        return`<span style="font-size:${sz};line-height:1;display:inline-block;width:${sz};">${arrow}</span>`;
+        const isBuy=t.direction==='BUY';
+        const base=t.status==='open'?22:13;
+        const sz=(isBuy?base:Math.round(base*1.3))+'px';
+        const arrow=isBuy?'▲':'▼';
+        return`<span style="font-size:${sz};line-height:1;display:inline-block;">${arrow}</span>`;
       }).join('');
     }
     const topLine=
@@ -1111,7 +1112,15 @@ function closeChart(){document.getElementById('screen-chart').style.display='non
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
 function startCandleTimer(){if(candleTimerInt)clearInterval(candleTimerInt);function tick(){const el=document.getElementById('cht-timer');if(!el)return;if(closed()){el.textContent='';return;}const now=Math.floor(Date.now()/1000);const tfSecs={H1:3600,H4:14400,D1:86400}[chtTf]||3600;const secsLeft=tfSecs-(now%tfSecs);const h=Math.floor(secsLeft/3600),m=Math.floor((secsLeft%3600)/60),s=secsLeft%60;const pad=n=>String(n).padStart(2,'0');el.textContent=h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);el.style.color=secsLeft<=60?'var(--sell)':'var(--muted)';}tick();candleTimerInt=setInterval(tick,1000);}
 let _wsPriceLine=null,_chtCandles=null,_subChartOffset=0;
-function wsUpdatePrice(price){if(!chtMainInst||!_chtCandles)return;try{if(_wsPriceLine){_chtCandles.removePriceLine(_wsPriceLine);_wsPriceLine=null;}_wsPriceLine=_chtCandles.createPriceLine({price,color:CHT_BLUE,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,axisLabelColor:CHT_BLUE,axisLabelTextColor:'#0d1117',title:''});}catch(e){}}
+function wsUpdatePrice(price){
+  if(!chtMainInst||!_chtCandles)return;
+  // Update live data store so D1%, Enter Trade prefill, thermometer all reflect live price
+  if(D.h1&&D.h1[_wsPair]&&D.h1[_wsPair].raw)D.h1[_wsPair].raw.close=price;
+  try{
+    if(_wsPriceLine){_chtCandles.removePriceLine(_wsPriceLine);_wsPriceLine=null;}
+    _wsPriceLine=_chtCandles.createPriceLine({price,color:CHT_BLUE,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,axisLabelColor:CHT_BLUE,axisLabelTextColor:'#0d1117',title:''});
+  }catch(e){}
+}
 async function renderChtPrice(){
   const wrap=document.getElementById('cht-canvas-area');
   const priceEl=document.getElementById('cht-price');
@@ -1161,7 +1170,7 @@ async function renderChtPrice(){
     lbl.textContent=indState.macd?'MACD':'RSI';
     subEl.appendChild(lbl);
     const sh=subEl.clientHeight||100;
-    const subChart=LightweightCharts.createChart(subEl,{width:w,height:sh,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{visible:false}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{visible:true,borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.1,bottom:0.1}},timeScale:{visible:false,borderVisible:false},handleScroll:false,handleScale:false});
+    const subChart=LightweightCharts.createChart(subEl,{width:w,height:sh,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{visible:false}},crosshair:{mode:LightweightCharts.CrosshairMode.Hidden},rightPriceScale:{visible:true,borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.1,bottom:0.1}},timeScale:{visible:false,borderVisible:false},handleScroll:false,handleScale:false});
     chtSubInst=subChart;
     if(indState.macd){
       const md=computeMACD(ohlcv);
