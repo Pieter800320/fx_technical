@@ -1,17 +1,17 @@
 {
   "EUR/USD": {
-    "score": 4,
-    "label": "Strong Buy",
+    "score": 3,
+    "label": "Buy",
     "direction": "bull",
     "raw": {
-      "close": 1.1736,
-      "ema200": 1.16966,
-      "ema50": 1.17212,
-      "rsi": 66.7,
-      "macd_line": 0.000399,
-      "macd_signal": 0.000341,
-      "dmi_plus": 18.9,
-      "dmi_minus": 4.9,
+      "close": 1.17254,
+      "ema200": 1.16965,
+      "ema50": 1.17208,
+      "rsi": 56.2,
+      "macd_line": 0.000314,
+      "macd_signal": 0.000324,
+      "dmi_plus": 18.5,
+      "dmi_minus": 4.8,
       "adx": 37.7
     },
     "signals": {
@@ -20,227 +20,51 @@
       "RSI": 1,
       "EMA50": 1,
       "DMI": 1,
-      "MACD": 1,
+      "MACD": -1,
       "Structure": 1
     },
     "filter_ok": false,
     "extended": {
       "extended": true,
       "reasons": [
-        "Price 3.2x ATR from EMA200",
+        "Price 2.3x ATR from EMA200",
         "10 consecutive bars beyond EMA50"
       ],
-      "atr_dist": 3.23
+      "atr_dist": 2.32
     },
     "conflict": false,
     "structure": {
       "direction": "bull",
       "event": "none",
-      "strength": 0.82,
+      "strength": 0.38,
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 47,
-    "updated": "2026-05-04T06:31:47.323322"
+    "reset_score": 32,
+    "updated": "2026-05-04T07:28:15.009501"
   },
   "GBP/USD": {
-    "score": 4,
-    "label": "Strong Buy",
-    "direction": "bull",
-    "raw": {
-      "close": 1.3597,
-      "ema200": 1.34838,
-      "ema50": 1.35557,
-      "rsi": 66.4,
-      "macd_line": 0.001171,
-      "macd_signal": 0.001274,
-      "dmi_plus": 13.8,
-      "dmi_minus": 7.6,
-      "adx": 26.6
-    },
-    "signals": {
-      "EMA200": 1,
-      "Momentum": 1,
-      "RSI": 1,
-      "EMA50": 1,
-      "DMI": 1,
-      "MACD": 1,
-      "Structure": 0
-    },
-    "filter_ok": false,
-    "extended": {
-      "extended": true,
-      "reasons": [
-        "Price 7.3x ATR from EMA200",
-        "10 consecutive bars beyond EMA50"
-      ],
-      "atr_dist": 7.3
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "neutral",
-      "event": "none",
-      "strength": 0.0,
-      "multiplier": 1.0
-    },
-    "adx_weight": 1.0,
-    "reset_score": 47,
-    "updated": "2026-05-04T06:31:47.323322"
-  },
-  "USD/JPY": {
-    "score": -4,
-    "label": "Strong Sell",
-    "direction": "bear",
-    "raw": {
-      "close": 156.80319,
-      "ema200": 158.69332,
-      "ema50": 157.93468,
-      "rsi": 37.5,
-      "macd_line": -0.401195,
-      "macd_signal": -0.465221,
-      "dmi_plus": 1.6,
-      "dmi_minus": 26.9,
-      "adx": 44.7
-    },
-    "signals": {
-      "EMA200": -1,
-      "Momentum": -1,
-      "RSI": -1,
-      "EMA50": -1,
-      "DMI": -1,
-      "MACD": -1,
-      "Structure": 0
-    },
-    "filter_ok": true,
-    "extended": {
-      "extended": true,
-      "reasons": [
-        "Price 5.4x ATR from EMA200",
-        "10 consecutive bars beyond EMA50"
-      ],
-      "atr_dist": 5.44
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "neutral",
-      "event": "none",
-      "strength": 0.0,
-      "multiplier": 1.0
-    },
-    "adx_weight": 1.0,
-    "reset_score": 43,
-    "updated": "2026-05-04T06:31:47.323322"
-  },
-  "USD/CHF": {
-    "score": -4,
-    "label": "Strong Sell",
-    "direction": "bear",
-    "raw": {
-      "close": 0.78071,
-      "ema200": 0.78589,
-      "ema50": 0.78366,
-      "rsi": 36.6,
-      "macd_line": -0.001061,
-      "macd_signal": -0.001117,
-      "dmi_plus": 2.3,
-      "dmi_minus": 22.4,
-      "adx": 66.0
-    },
-    "signals": {
-      "EMA200": -1,
-      "Momentum": -1,
-      "RSI": -1,
-      "EMA50": -1,
-      "DMI": -1,
-      "MACD": -1,
-      "Structure": 0
-    },
-    "filter_ok": false,
-    "extended": {
-      "extended": true,
-      "reasons": [
-        "Price 4.7x ATR from EMA200",
-        "10 consecutive bars beyond EMA50"
-      ],
-      "atr_dist": 4.71
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "neutral",
-      "event": "none",
-      "strength": 0.0,
-      "multiplier": 1.0
-    },
-    "adx_weight": 1.0,
-    "reset_score": 44,
-    "updated": "2026-05-04T06:31:47.323322"
-  },
-  "AUD/USD": {
-    "score": 4,
-    "label": "Buy",
-    "direction": "bull",
-    "raw": {
-      "close": 0.72084,
-      "ema200": 0.71172,
-      "ema50": 0.71828,
-      "rsi": 63.8,
-      "macd_line": 0.0009,
-      "macd_signal": 0.000942,
-      "dmi_plus": 21.2,
-      "dmi_minus": 6.7,
-      "adx": 61.2
-    },
-    "signals": {
-      "EMA200": 1,
-      "Momentum": 1,
-      "RSI": 1,
-      "EMA50": 1,
-      "DMI": 1,
-      "MACD": -1,
-      "Structure": 1
-    },
-    "filter_ok": false,
-    "extended": {
-      "extended": true,
-      "reasons": [
-        "Price 11.9x ATR from EMA200",
-        "10 consecutive bars beyond EMA50"
-      ],
-      "atr_dist": 11.88
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "bull",
-      "event": "none",
-      "strength": 0.8,
-      "multiplier": 1.0
-    },
-    "adx_weight": 1.0,
-    "reset_score": 45,
-    "updated": "2026-05-04T06:31:47.323322"
-  },
-  "USD/CAD": {
-    "score": -1,
+    "score": 2,
     "label": "Neutral",
     "direction": "neutral",
     "raw": {
-      "close": 1.35909,
-      "ema200": 1.37028,
-      "ema50": 1.36235,
+      "close": 1.35733,
+      "ema200": 1.34836,
+      "ema50": 1.35547,
       "rsi": 49.5,
-      "macd_line": -0.001107,
-      "macd_signal": -0.001382,
-      "dmi_plus": 13.3,
-      "dmi_minus": 6.1,
-      "adx": 48.4
+      "macd_line": 0.000982,
+      "macd_signal": 0.001236,
+      "dmi_plus": 13.1,
+      "dmi_minus": 9.3,
+      "adx": 25.7
     },
     "signals": {
-      "EMA200": -1,
+      "EMA200": 1,
       "Momentum": 1,
       "RSI": -1,
-      "EMA50": -1,
+      "EMA50": 1,
       "DMI": 1,
-      "MACD": 1,
+      "MACD": -1,
       "Structure": 0
     },
     "filter_ok": false,
@@ -258,67 +82,22 @@
     },
     "adx_weight": 1.0,
     "reset_score": 12,
-    "updated": "2026-05-04T06:31:47.323322"
+    "updated": "2026-05-04T07:28:15.009501"
   },
-  "NZD/USD": {
-    "score": 5,
-    "label": "Strong Buy",
-    "direction": "bull",
-    "raw": {
-      "close": 0.59186,
-      "ema200": 0.58649,
-      "ema50": 0.58908,
-      "rsi": 93.6,
-      "macd_line": 0.000732,
-      "macd_signal": 0.00059,
-      "dmi_plus": 33.7,
-      "dmi_minus": 2.5,
-      "adx": 58.6
-    },
-    "signals": {
-      "EMA200": 1,
-      "Momentum": 1,
-      "RSI": 1,
-      "EMA50": 1,
-      "DMI": 1,
-      "MACD": 1,
-      "Structure": 0
-    },
-    "filter_ok": false,
-    "extended": {
-      "extended": true,
-      "reasons": [
-        "Price 7.7x ATR from EMA200",
-        "RSI overbought (94)",
-        "10 consecutive bars beyond EMA50"
-      ],
-      "atr_dist": 7.66
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "neutral",
-      "event": "none",
-      "strength": 0.0,
-      "multiplier": 1.0
-    },
-    "adx_weight": 1.0,
-    "reset_score": 49,
-    "updated": "2026-05-04T06:31:47.323322"
-  },
-  "EUR/JPY": {
+  "USD/JPY": {
     "score": -3,
     "label": "Sell",
     "direction": "bear",
     "raw": {
-      "close": 184.03687,
-      "ema200": 185.61178,
-      "ema50": 185.11634,
-      "rsi": 47.4,
-      "macd_line": -0.405783,
-      "macd_signal": -0.49069,
-      "dmi_plus": 9.4,
-      "dmi_minus": 30.5,
-      "adx": 43.6
+      "close": 156.91958,
+      "ema200": 158.69448,
+      "ema50": 157.93924,
+      "rsi": 43.4,
+      "macd_line": -0.391911,
+      "macd_signal": -0.463364,
+      "dmi_plus": 1.5,
+      "dmi_minus": 26.5,
+      "adx": 44.7
     },
     "signals": {
       "EMA200": -1,
@@ -329,14 +108,14 @@
       "MACD": 1,
       "Structure": 0
     },
-    "filter_ok": false,
+    "filter_ok": true,
     "extended": {
       "extended": true,
       "reasons": [
-        "Price 4.8x ATR from EMA200",
+        "Price 5.0x ATR from EMA200",
         "10 consecutive bars beyond EMA50"
       ],
-      "atr_dist": 4.79
+      "atr_dist": 5.02
     },
     "conflict": false,
     "structure": {
@@ -346,72 +125,31 @@
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 19,
-    "updated": "2026-05-04T06:31:47.323322"
+    "reset_score": 32,
+    "updated": "2026-05-04T07:28:15.009501"
   },
-  "GBP/JPY": {
-    "score": -1,
+  "USD/CHF": {
+    "score": -2,
     "label": "Neutral",
     "direction": "neutral",
     "raw": {
-      "close": 213.2182,
-      "ema200": 213.97079,
-      "ema50": 214.08512,
-      "rsi": 49.7,
-      "macd_line": -0.356742,
-      "macd_signal": -0.42797,
-      "dmi_plus": 22.2,
-      "dmi_minus": 7.0,
-      "adx": 45.4
+      "close": 0.78206,
+      "ema200": 0.7859,
+      "ema50": 0.78371,
+      "rsi": 51.6,
+      "macd_line": -0.000953,
+      "macd_signal": -0.001096,
+      "dmi_plus": 3.7,
+      "dmi_minus": 21.1,
+      "adx": 65.2
     },
     "signals": {
       "EMA200": -1,
-      "Momentum": 1,
-      "RSI": -1,
-      "EMA50": -1,
-      "DMI": 1,
-      "MACD": 1,
-      "Structure": 0
-    },
-    "filter_ok": false,
-    "extended": {
-      "extended": false,
-      "reasons": [],
-      "atr_dist": 0.0
-    },
-    "conflict": false,
-    "structure": {
-      "direction": "neutral",
-      "event": "none",
-      "strength": 0.0,
-      "multiplier": 1.0
-    },
-    "adx_weight": 1.0,
-    "reset_score": 10,
-    "updated": "2026-05-04T06:31:47.323322"
-  },
-  "AUD/JPY": {
-    "score": -1,
-    "label": "Neutral",
-    "direction": "neutral",
-    "raw": {
-      "close": 113.04192,
-      "ema200": 112.94101,
-      "ema50": 113.43782,
-      "rsi": 47.1,
-      "macd_line": -0.144669,
-      "macd_signal": -0.184683,
-      "dmi_plus": 3.0,
-      "dmi_minus": 23.7,
-      "adx": 39.7
-    },
-    "signals": {
-      "EMA200": 1,
       "Momentum": -1,
-      "RSI": -1,
+      "RSI": 1,
       "EMA50": -1,
       "DMI": -1,
-      "MACD": -1,
+      "MACD": 1,
       "Structure": 0
     },
     "filter_ok": true,
@@ -428,23 +166,64 @@
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 20,
-    "updated": "2026-05-04T06:31:47.323322"
+    "reset_score": 15,
+    "updated": "2026-05-04T07:28:15.009501"
   },
-  "NZD/JPY": {
-    "score": -2,
+  "AUD/USD": {
+    "score": 2,
     "label": "Neutral",
     "direction": "neutral",
     "raw": {
-      "close": 92.81881,
-      "ema200": 93.06678,
-      "ema50": 93.03438,
-      "rsi": 60.4,
-      "macd_line": -0.119217,
-      "macd_signal": -0.180074,
-      "dmi_plus": 31.1,
-      "dmi_minus": 6.3,
-      "adx": 36.1
+      "close": 0.71948,
+      "ema200": 0.71171,
+      "ema50": 0.71823,
+      "rsi": 44.4,
+      "macd_line": 0.000791,
+      "macd_signal": 0.00092,
+      "dmi_plus": 19.5,
+      "dmi_minus": 12.6,
+      "adx": 59.1
+    },
+    "signals": {
+      "EMA200": 1,
+      "Momentum": 1,
+      "RSI": -1,
+      "EMA50": 1,
+      "DMI": 1,
+      "MACD": -1,
+      "Structure": 1
+    },
+    "filter_ok": false,
+    "extended": {
+      "extended": false,
+      "reasons": [],
+      "atr_dist": 0.0
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "bull",
+      "event": "CHoCH",
+      "strength": 0.08,
+      "multiplier": 0.968
+    },
+    "adx_weight": 1.0,
+    "reset_score": 30,
+    "updated": "2026-05-04T07:28:15.009501"
+  },
+  "USD/CAD": {
+    "score": 0,
+    "label": "Neutral",
+    "direction": "neutral",
+    "raw": {
+      "close": 1.36022,
+      "ema200": 1.3703,
+      "ema50": 1.36239,
+      "rsi": 64.2,
+      "macd_line": -0.001017,
+      "macd_signal": -0.001364,
+      "dmi_plus": 17.5,
+      "dmi_minus": 5.7,
+      "adx": 49.4
     },
     "signals": {
       "EMA200": -1,
@@ -453,7 +232,7 @@
       "EMA50": -1,
       "DMI": 1,
       "MACD": 1,
-      "Structure": -1
+      "Structure": 0
     },
     "filter_ok": false,
     "extended": {
@@ -461,7 +240,226 @@
       "reasons": [],
       "atr_dist": 0.0
     },
-    "conflict": true,
+    "conflict": false,
+    "structure": {
+      "direction": "neutral",
+      "event": "none",
+      "strength": 0.0,
+      "multiplier": 1.0
+    },
+    "adx_weight": 1.0,
+    "reset_score": 45,
+    "updated": "2026-05-04T07:28:15.009501"
+  },
+  "NZD/USD": {
+    "score": 3,
+    "label": "Buy",
+    "direction": "bull",
+    "raw": {
+      "close": 0.59025,
+      "ema200": 0.58647,
+      "ema50": 0.58902,
+      "rsi": 55.6,
+      "macd_line": 0.000604,
+      "macd_signal": 0.000564,
+      "dmi_plus": 29.8,
+      "dmi_minus": 2.3,
+      "adx": 58.6
+    },
+    "signals": {
+      "EMA200": 1,
+      "Momentum": 1,
+      "RSI": 1,
+      "EMA50": 1,
+      "DMI": 1,
+      "MACD": -1,
+      "Structure": 0
+    },
+    "filter_ok": false,
+    "extended": {
+      "extended": true,
+      "reasons": [
+        "Price 4.8x ATR from EMA200",
+        "10 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 4.77
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "neutral",
+      "event": "none",
+      "strength": 0.0,
+      "multiplier": 1.0
+    },
+    "adx_weight": 1.0,
+    "reset_score": 29,
+    "updated": "2026-05-04T07:28:15.009501"
+  },
+  "EUR/JPY": {
+    "score": -3,
+    "label": "Sell",
+    "direction": "bear",
+    "raw": {
+      "close": 183.96019,
+      "ema200": 185.61102,
+      "ema50": 185.11333,
+      "rsi": 43.7,
+      "macd_line": -0.4119,
+      "macd_signal": -0.491913,
+      "dmi_plus": 9.3,
+      "dmi_minus": 30.3,
+      "adx": 43.6
+    },
+    "signals": {
+      "EMA200": -1,
+      "Momentum": -1,
+      "RSI": -1,
+      "EMA50": -1,
+      "DMI": -1,
+      "MACD": 1,
+      "Structure": 0
+    },
+    "filter_ok": false,
+    "extended": {
+      "extended": true,
+      "reasons": [
+        "Price 5.0x ATR from EMA200",
+        "10 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 5.0
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "neutral",
+      "event": "none",
+      "strength": 0.0,
+      "multiplier": 1.0
+    },
+    "adx_weight": 1.0,
+    "reset_score": 32,
+    "updated": "2026-05-04T07:28:15.009501"
+  },
+  "GBP/JPY": {
+    "score": -4,
+    "label": "Sell",
+    "direction": "bear",
+    "raw": {
+      "close": 212.98455,
+      "ema200": 213.96846,
+      "ema50": 214.07596,
+      "rsi": 38.8,
+      "macd_line": -0.375381,
+      "macd_signal": -0.431698,
+      "dmi_plus": 22.2,
+      "dmi_minus": 7.0,
+      "adx": 45.4
+    },
+    "signals": {
+      "EMA200": -1,
+      "Momentum": -1,
+      "RSI": -1,
+      "EMA50": -1,
+      "DMI": 1,
+      "MACD": -1,
+      "Structure": 0
+    },
+    "filter_ok": false,
+    "extended": {
+      "extended": true,
+      "reasons": [
+        "Price 2.2x ATR from EMA200",
+        "10 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 2.23
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "neutral",
+      "event": "none",
+      "strength": 0.0,
+      "multiplier": 1.0
+    },
+    "adx_weight": 1.0,
+    "reset_score": 42,
+    "updated": "2026-05-04T07:28:15.009501"
+  },
+  "AUD/JPY": {
+    "score": -4,
+    "label": "Strong Sell",
+    "direction": "bear",
+    "raw": {
+      "close": 112.86562,
+      "ema200": 112.93926,
+      "ema50": 113.4309,
+      "rsi": 38.5,
+      "macd_line": -0.158733,
+      "macd_signal": -0.187496,
+      "dmi_plus": 2.9,
+      "dmi_minus": 23.1,
+      "adx": 39.7
+    },
+    "signals": {
+      "EMA200": -1,
+      "Momentum": -1,
+      "RSI": -1,
+      "EMA50": -1,
+      "DMI": -1,
+      "MACD": -1,
+      "Structure": 0
+    },
+    "filter_ok": true,
+    "extended": {
+      "extended": true,
+      "reasons": [
+        "10 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 0.28
+    },
+    "conflict": false,
+    "structure": {
+      "direction": "neutral",
+      "event": "none",
+      "strength": 0.0,
+      "multiplier": 1.0
+    },
+    "adx_weight": 1.0,
+    "reset_score": 42,
+    "updated": "2026-05-04T07:28:15.009501"
+  },
+  "NZD/JPY": {
+    "score": -3,
+    "label": "Sell",
+    "direction": "bear",
+    "raw": {
+      "close": 92.60494,
+      "ema200": 93.06465,
+      "ema50": 93.02599,
+      "rsi": 47.7,
+      "macd_line": -0.136278,
+      "macd_signal": -0.183486,
+      "dmi_plus": 29.4,
+      "dmi_minus": 6.0,
+      "adx": 36.1
+    },
+    "signals": {
+      "EMA200": -1,
+      "Momentum": -1,
+      "RSI": -1,
+      "EMA50": -1,
+      "DMI": 1,
+      "MACD": -1,
+      "Structure": -1
+    },
+    "filter_ok": true,
+    "extended": {
+      "extended": true,
+      "reasons": [
+        "Price 2.1x ATR from EMA200",
+        "10 consecutive bars beyond EMA50"
+      ],
+      "atr_dist": 2.14
+    },
+    "conflict": false,
     "structure": {
       "direction": "bear",
       "event": "none",
@@ -469,22 +467,22 @@
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 40,
-    "updated": "2026-05-04T06:31:47.323322"
+    "reset_score": 18,
+    "updated": "2026-05-04T07:28:15.009501"
   },
   "CAD/JPY": {
     "score": -4,
     "label": "Strong Sell",
     "direction": "bear",
     "raw": {
-      "close": 115.37665,
-      "ema200": 115.8144,
-      "ema50": 115.92812,
-      "rsi": 39.5,
-      "macd_line": -0.200218,
-      "macd_signal": -0.223674,
+      "close": 115.34812,
+      "ema200": 115.81411,
+      "ema50": 115.927,
+      "rsi": 37.7,
+      "macd_line": -0.202493,
+      "macd_signal": -0.224129,
       "dmi_plus": 4.6,
-      "dmi_minus": 29.0,
+      "dmi_minus": 28.8,
       "adx": 46.5
     },
     "signals": {
@@ -500,9 +498,10 @@
     "extended": {
       "extended": true,
       "reasons": [
+        "Price 2.1x ATR from EMA200",
         "10 consecutive bars beyond EMA50"
       ],
-      "atr_dist": 1.99
+      "atr_dist": 2.11
     },
     "conflict": false,
     "structure": {
@@ -512,8 +511,8 @@
       "multiplier": 1.0
     },
     "adx_weight": 1.0,
-    "reset_score": 41,
-    "updated": "2026-05-04T06:31:47.323322"
+    "reset_score": 43,
+    "updated": "2026-05-04T07:28:15.009501"
   },
   "_ohlcv": {
     "EUR/USD": [
@@ -7513,9 +7512,9 @@
       {
         "time": 1777906800,
         "open": 1.17288,
-        "high": 1.17375,
-        "low": 1.17256,
-        "close": 1.1736
+        "high": 1.17382,
+        "low": 1.17229,
+        "close": 1.17254
       }
     ],
     "GBP/USD": [
@@ -14515,9 +14514,9 @@
       {
         "time": 1777906800,
         "open": 1.35872,
-        "high": 1.35988,
-        "low": 1.35835,
-        "close": 1.3597
+        "high": 1.36002,
+        "low": 1.35731,
+        "close": 1.35733
       }
     ],
     "USD/JPY": [
@@ -21517,9 +21516,9 @@
       {
         "time": 1777906800,
         "open": 156.75282,
-        "high": 156.88693,
+        "high": 156.97793,
         "low": 156.70313,
-        "close": 156.80319
+        "close": 156.91958
       }
     ],
     "USD/CHF": [
@@ -28519,9 +28518,9 @@
       {
         "time": 1777906800,
         "open": 0.78101,
-        "high": 0.78114,
+        "high": 0.78206,
         "low": 0.78052,
-        "close": 0.78071
+        "close": 0.78206
       }
     ],
     "AUD/USD": [
@@ -35521,9 +35520,9 @@
       {
         "time": 1777906800,
         "open": 0.72077,
-        "high": 0.721,
-        "low": 0.72032,
-        "close": 0.72084
+        "high": 0.72106,
+        "low": 0.71942,
+        "close": 0.71948
       }
     ],
     "USD/CAD": [
@@ -42523,9 +42522,9 @@
       {
         "time": 1777906800,
         "open": 1.35904,
-        "high": 1.35933,
+        "high": 1.36029,
         "low": 1.35889,
-        "close": 1.35909
+        "close": 1.36022
       }
     ],
     "NZD/USD": [
@@ -49526,8 +49525,8 @@
         "time": 1777906800,
         "open": 0.59187,
         "high": 0.59207,
-        "low": 0.5915,
-        "close": 0.59186
+        "low": 0.59022,
+        "close": 0.59025
       }
     ],
     "EUR/JPY": [
@@ -56527,9 +56526,9 @@
       {
         "time": 1777906800,
         "open": 183.85529,
-        "high": 184.07113,
+        "high": 184.09297,
         "low": 183.82173,
-        "close": 184.03687
+        "close": 183.96019
       }
     ],
     "GBP/JPY": [
@@ -63531,7 +63530,7 @@
         "open": 212.98439,
         "high": 213.24263,
         "low": 212.94455,
-        "close": 213.2182
+        "close": 212.98455
       }
     ],
     "AUD/JPY": [
@@ -70532,8 +70531,8 @@
         "time": 1777906800,
         "open": 112.98306,
         "high": 113.05936,
-        "low": 112.94296,
-        "close": 113.04192
+        "low": 112.85518,
+        "close": 112.86562
       }
     ],
     "NZD/JPY": [
@@ -77534,8 +77533,8 @@
         "time": 1777906800,
         "open": 92.77692,
         "high": 92.83526,
-        "low": 92.75759,
-        "close": 92.81881
+        "low": 92.59549,
+        "close": 92.60494
       }
     ],
     "CAD/JPY": [
@@ -84535,9 +84534,9 @@
       {
         "time": 1777906800,
         "open": 115.34245,
-        "high": 115.43424,
+        "high": 115.45347,
         "low": 115.32007,
-        "close": 115.37665
+        "close": 115.34812
       }
     ]
   }
