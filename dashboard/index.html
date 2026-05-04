@@ -969,10 +969,10 @@ function buildDrumRows(){
     if(activeTrades.length){
       dirArrow=activeTrades.map(t=>{
         const isBuy=t.direction==='BUY';
-        const base=t.status==='open'?22:13;
-        const sz=(isBuy?base:Math.round(base*1.3))+'px';
+        const base=t.status==='open'?20:12;
         const arrow=isBuy?'▲':'▼';
-        return`<span style="font-size:${sz};line-height:1;display:inline-block;">${arrow}</span>`;
+        const sz=base+'px';
+        return`<span style="font-family:Arial,sans-serif;font-size:${sz};line-height:1;display:inline-block;">${arrow}</span>`;
       }).join('');
     }
     const topLine=
@@ -1781,4 +1781,3 @@ function updateNewsCountdown(){
 </script>
 </body>
 </html>
-  
