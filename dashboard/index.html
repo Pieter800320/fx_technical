@@ -631,8 +631,7 @@ function buildNewsSheetContent(){
     if(nb.watch)h+=`<div class="sh-row"><span class="sh-lbl">Watch</span><span class="sh-val" style="color:var(--muted);">${nb.watch}</span></div>`;
   }
   h+=`<div class="sh-hdr">Technical Brief</div>`;
-  const brief=generateBrief();
-  h+=`<div style="padding:8px var(--pad) 10px;font-size:var(--sm);line-height:1.9;white-space:pre-wrap;">${brief||'No data.'}</div>`;
+  h+=generateBrief();
   h+=`<div style="padding:8px var(--pad) 12px;"><button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button></div>`;
   return h;
 }
@@ -1244,7 +1243,32 @@ async function mergeTradesFromGitHub(){
   }catch(e){}
 }
 async function pushAlertsToGitHub(alerts){const token=localStorage.getItem('gh_pat');if(!token)return;const apiUrl=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/data/level_alerts.json`;const content=btoa(unescape(encodeURIComponent(JSON.stringify(alerts,null,2))));let sha=null;try{const get=await fetch(apiUrl,{headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json'}});if(get.ok){const d=await get.json();sha=d.sha;}}catch(e){}const body={message:`level alerts update ${new Date().toISOString()}`,content};if(sha)body.sha=sha;try{await fetch(apiUrl,{method:'PUT',headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json','Content-Type':'application/json'},body:JSON.stringify(body)});}catch(e){}}
-function generateBrief(){const nb=D.newsBrief;if(!nb){openSheet('Market Brief','<div class="loading">No brief yet — runs 4× daily.</div>');return;}let h='';if(nb.narrative){h+=`<div style="padding:var(--pad);font-size:var(--sm);line-height:1.6;color:var(--text);">${nb.narrative.replace(/\n/g,'<br>')}</div>`;}openSheet('Market Brief',h);}
+function buildRankedShortlist(){
+  const ranked=PAIRS.map(pair=>{
+    const setup=computeQAI(pair).score,edge=getEdgeScore(pair)??5;
+    return{pair,score:setup*0.6+edge*4};
+  }).sort((a,b)=>b.score-a.score);
+  return{kept:ranked.slice(0,5)};
+}
+function generateBrief(){
+  const{h1,h4,d1}=D;
+  const lines=[];
+  PAIRS.forEach(p=>{
+    const h1d=h1&&h1[p],h4d=h4&&h4[p],d1d=d1&&d1[p];
+    const d1l=d1d?d1d.label:'N/A',h4l=h4d?h4d.label:'N/A',h1l=h1d?h1d.label:'N/A';
+    if(d1l==='Neutral'&&h4l==='Neutral'&&h1l==='Neutral')return;
+    const edge=getEdgeScore(p);
+    const col=h4l.toLowerCase().includes('buy')?'var(--buy)':h4l.toLowerCase().includes('sell')?'var(--sell)':'var(--muted)';
+    lines.push(`<div style="display:flex;align-items:center;padding:5px var(--pad);border-bottom:1px solid var(--border2);gap:6px;">
+      <span style="font-size:var(--sm);font-weight:700;width:56px;flex-shrink:0;">${p.replace('/','')}</span>
+      <span style="font-size:var(--xs);color:var(--muted);flex-shrink:0;">D1</span><span style="font-size:var(--xs);width:44px;">${d1l}</span>
+      <span style="font-size:var(--xs);color:var(--muted);flex-shrink:0;">H4</span><span style="font-size:var(--xs);font-weight:700;color:${col};width:52px;">${h4l}</span>
+      <span style="font-size:var(--xs);color:var(--muted);flex-shrink:0;">H1</span><span style="font-size:var(--xs);width:40px;">${h1l}</span>
+      ${edge!==null?`<span style="font-size:var(--xs);font-weight:700;color:${edge>=8?'var(--buy)':edge>=6?'var(--amber)':'var(--sell)'};margin-left:auto;">${edge}/10</span>`:''}
+    </div>`);
+  });
+  return lines.length?lines.join(''):'<div class="loading">No signal data.</div>';
+}
 function copyBriefPrompt(){const{h1,h4,d1,csm,regime}=D;const{kept}=buildRankedShortlist();let t='MARKET BRIEF - '+new Date().toLocaleString()+'\n\n';if(csm&&csm.rankings){t+='CURRENCY STRENGTH:\n';Object.entries(csm.rankings).forEach(([c,v])=>{t+=c+' '+v.toFixed(0)+'  ';});t+='\n\n';}t+='TECHNICAL SCORES:\n';PAIRS.forEach(p=>{const h1d=h1&&h1[p],h4d=h4&&h4[p],d1d=d1&&d1[p];const h1l=h1d?h1d.label:'N/A',h4l=h4d?h4d.label:'N/A',d1l=d1d?d1d.label:'N/A';const sc=h4d?h4d.score:0;if(h1l==='Neutral'&&h4l==='Neutral'&&d1l==='Neutral')return;t+=p.replace('/','')+'  D1:'+d1l+' H4:'+h4l+' H1:'+h1l+' [score:'+sc+']\n';});if(regime&&regime.regime)t+='\nREGIME: '+regime.regime+' ('+regime.confidence+')\n';if(kept.length)t+='SHORTLIST: '+kept.map(x=>x.pair.replace('/',''))+'\n';navigator.clipboard.writeText(t).then(()=>{});}
 function buildCorrSelect(){if(!D.corr||!D.corr.pairs)return;const sel=document.getElementById('corr-pair-select');if(!sel)return;sel.innerHTML=D.corr.pairs.map(p=>`<option value="${p}">${p}</option>`).join('');if(corrSelectedPair)sel.value=corrSelectedPair;const disp=document.getElementById('corr-pair-display');if(disp)disp.textContent=sel.value||corrSelectedPair||'Select Pair';}
 function openCorrPairSheet(){if(!D.corr||!D.corr.pairs){openSheet('Select Pair','<div class="loading">No correlation data yet.</div>');return;}const pairs=D.corr.pairs;let h='<div>';pairs.forEach(p=>{const active=p===(corrSelectedPair||pairs[0]);h+=`<div onclick="corrSelectedPair='${p}';document.getElementById('corr-pair-display').textContent='${p}';const sel=document.getElementById('corr-pair-select');if(sel)sel.value='${p}';renderCorr(D.corr);closeSheet();" style="padding:12px var(--pad);border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:${active?'rgba(56,139,253,.08)':'transparent'};"><span style="font-size:var(--md);font-weight:700;color:${active?'var(--accent)':'var(--text)'};">${p}</span>${active?'<span style="color:var(--accent);">✓</span>':''}</div>`;});h+='</div>';openSheet('Base Pair',h);}
