@@ -1161,7 +1161,36 @@ async function renderChtPrice(){
   if(indState.ema50&&ohlcv.length>=10){const v=computeEMA(ohlcv.map(d=>d.close),50);chart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(ohlcv.map((d,i)=>({time:d.time,value:v[i]})));}
   if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper',0],['middle',2],['lower',0]].forEach(([k,ls])=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:ls,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
   laLoad().filter(a=>a.pair===selectedPair&&a.active).forEach(a=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false}).setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);});
-  tradesLoad().filter(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending')&&(t.entry||t.sl||t.tp)).forEach(t=>{[[t.tp,CHT_UP,'TP'],[t.entry,CHT_WHITE,'Entry'],[t.sl,CHT_DN,'SL']].forEach(([p,c,l])=>{if(!p)return;chart.addLineSeries({color:c,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:l}).setData([{time:ohlcv[0].time,value:parseFloat(p)},{time:ohlcv[ohlcv.length-1].time,value:parseFloat(p)}]);});});
+  // Trade lines — start from entry bar, zone shading between SL and TP
+  tradesLoad().filter(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending')&&t.entry).forEach(t=>{
+    const entry=parseFloat(t.entry);
+    const sl=t.sl?parseFloat(t.sl):null;
+    const tp=t.tp?parseFloat(t.tp):null;
+    const isBuy=t.direction==='BUY';
+    // Find the start bar — first bar at or after trade created timestamp
+    const createdTs=t.opened?Math.floor(new Date(t.opened).getTime()/1000):
+                    t.created?Math.floor(new Date(t.created).getTime()/1000):null;
+    const startBar=createdTs?ohlcv.find(b=>b.time>=createdTs):null;
+    const startTime=startBar?startBar.time:ohlcv[0].time;
+    const endTime=ohlcv[ohlcv.length-1].time;
+    const tradeOhlcv=ohlcv.filter(b=>b.time>=startTime);
+    if(!tradeOhlcv.length)return;
+    // Entry line — white dashed, full width from entry bar
+    chart.addLineSeries({color:CHT_WHITE,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'Entry'}).setData([{time:startTime,value:entry},{time:endTime,value:entry}]);
+    // TP line — green dashed
+    if(tp)chart.addLineSeries({color:CHT_UP,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'TP'}).setData([{time:startTime,value:tp},{time:endTime,value:tp}]);
+    // SL line — red dashed
+    if(sl)chart.addLineSeries({color:CHT_DN,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'SL'}).setData([{time:startTime,value:sl},{time:endTime,value:sl}]);
+    // Zone shading — profit zone (green) and loss zone (red) as histogram series
+    if(tp){
+      const profitZone=chart.addHistogramSeries({color:isBuy?'rgba(63,185,80,0.06)':'rgba(63,185,80,0.06)',priceScaleId:'right',priceLineVisible:false,lastValueVisible:false,base:entry});
+      profitZone.setData(tradeOhlcv.map(b=>({time:b.time,value:tp})));
+    }
+    if(sl){
+      const lossZone=chart.addHistogramSeries({color:'rgba(248,81,73,0.06)',priceScaleId:'right',priceLineVisible:false,lastValueVisible:false,base:entry});
+      lossZone.setData(tradeOhlcv.map(b=>({time:b.time,value:sl})));
+    }
+  });
   // Sub indicator — separate chart synced by time range
   if(hasSub&&subEl){
     subEl.innerHTML='';
