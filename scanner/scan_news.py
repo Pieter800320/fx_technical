@@ -509,62 +509,6 @@ RULES:
     return narrative, edge_scores
 
 
-def call_edge_scores(macro, themes_data, tech_text, corr_text):
-    """Score all 12 pairs 1-10 on cross-source coherence (Edge score)."""
-    macro_lines = []
-    for key, _, label, invert in STOOQ_INSTRUMENTS:
-        d = macro.get(key)
-        if not d:
-            continue
-        chg = d["change_pct"]
-        arr = "up" if chg > 0 else "down" if chg < 0 else "flat"
-        macro_lines.append(f"{label}: {fmt_val(d['value'])} ({arr} {abs(chg):.2f}%)")
-    macro_text = "\n".join(macro_lines) or "No macro data"
-
-    themes      = themes_data.get("themes", [])
-    themes_text = (
-        f"USD bias: {themes_data.get('usd_bias', '?')} | "
-        f"Risk: {themes_data.get('risk_sentiment', '?')}\n"
-        + "\n".join(f"- {t['theme']} [{t['direction'].upper()}]" for t in themes[:6])
-    )
-
-    prompt = (
-        "You are a professional FX analyst. Score each currency pair 1-10 on EDGE - "
-        "how coherently all four data sources (correlation, technicals, macro, news) "
-        "agree on a tradeable direction for that pair right now.\n\n"
-        "Scoring guide:\n"
-        "10 = All four sources fully aligned, clear direction, no contradictions\n"
-        "7-9 = Three sources agree, one mild conflict\n"
-        "4-6 = Mixed signals, sources partially agree\n"
-        "1-3 = Contradictory sources, no clear edge\n\n"
-        f"DATA:\nCORRELATIONS: {corr_text[:800]}\n"
-        f"TECHNICALS: {tech_text}\n"
-        f"MACRO: {macro_text}\n"
-        f"NEWS: {themes_text}\n\n"
-        "Score ALL 12 pairs. Respond ONLY with valid JSON, no markdown, no explanation:\n"
-        '{"EURUSD":7,"GBPUSD":5,"USDJPY":9,"USDCHF":6,"AUDUSD":4,"USDCAD":5,'
-        '"NZDUSD":8,"EURJPY":6,"GBPJPY":5,"AUDJPY":4,"NZDJPY":7,"CADJPY":5}\n\n'
-        "Replace the example numbers with your actual scores. Return only the JSON object."
-    )
-
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    resp = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=200,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw    = resp.content[0].text.strip()
-    scores = json.loads(_strip_json(raw))
-    for pair in PAIRS:
-        key = pair.replace("/", "")
-        if key not in scores:
-            scores[key] = 5
-        else:
-            scores[key] = max(1, min(10, int(scores[key])))
-    print(f"  [Claude edge] scores: {scores}")
-    return scores
-
-
 
 def call_regime_sentiment(macro_text, themes_data):
     """
