@@ -1,6 +1,4 @@
-"""alerts/telegram.py — Level alert notifications only.
-build_message is kept as a no-op stub so existing scan imports don't break.
-"""
+"""alerts/telegram.py — Trade and level alert notifications."""
 import os, requests
 
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -33,8 +31,24 @@ def build_message(*args, **kwargs) -> str:
     return ""
 
 
+def send_level_alert(pair: str, direction: str, alert_price: float, current_price: float) -> bool:
+    display = pair.replace("/", "")
+    arrow   = "↑" if direction == "above" else "↓"
+    emoji   = "🟢" if direction == "above" else "🔴"
+    dec     = 2 if "JPY" in pair else 5
+    lines = [
+        f"{emoji} <b>Level Alert — {display}</b>",
+        "",
+        f"Price crossed <b>{arrow} {alert_price:.{dec}f}</b>",
+        f"Current: <b>{current_price:.{dec}f}</b>",
+        "",
+        f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>',
+    ]
+    return send_telegram("\n".join(lines))
+
+
 def send_trade_alert(pair: str, event: str, price: float, result: str = None, rr: float = None) -> bool:
-    """Send Telegram alert for trade events: tp_hit, sl_hit, level_hit, pending_filled."""
+    """Send Telegram alert for trade events: tp_hit, sl_hit, pending_filled."""
     display = pair.replace("/", "")
     dec = 2 if "JPY" in pair else 5
     if event == "tp_hit":
@@ -59,19 +73,6 @@ def send_trade_alert(pair: str, event: str, price: float, result: str = None, rr
         f"{emoji} <b>{title}</b>",
         "",
         body,
-        "",
-        f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>',
-    ]
-    return send_telegram("\n".join(lines))
-    display = pair.replace("/", "")
-    arrow   = "↑" if direction == "above" else "↓"
-    emoji   = "🟢" if direction == "above" else "🔴"
-    dec     = 2 if "JPY" in pair else 5
-    lines = [
-        f"{emoji} <b>Level Alert — {display}</b>",
-        "",
-        f"Price crossed <b>{arrow} {alert_price:.{dec}f}</b>",
-        f"Current: <b>{current_price:.{dec}f}</b>",
         "",
         f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>',
     ]
