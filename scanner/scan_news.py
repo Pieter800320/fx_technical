@@ -639,7 +639,8 @@ def main():
                 try:
                     h4_reg = regime.get("h4") or {}
                     mb = regime.get("macro_bias")
-                    final_reg = compute_final_regime(h4_reg, mb, ai_sentiment)
+                    w1_reg = regime.get("w1_regime")  # written by scan_d1.py
+                    final_reg = compute_final_regime(h4_reg, mb, ai_sentiment, w1_regime=w1_reg)
                     regime_path = BASE_DIR / "data" / "regime.json"
                     reg_doc = {}
                     if regime_path.exists():
@@ -650,7 +651,8 @@ def main():
                         reg_doc["ai_sentiment"] = ai_sentiment
                     with open(regime_path, "w") as _f:
                         json.dump(reg_doc, _f, indent=2)
-                    print(f"  Final regime: {final_reg['regime']} {final_reg['confidence']} (score={final_reg['score']})")
+                    w1_label = w1_reg.get("regime", "—") if w1_reg else "—"
+                    print(f"  Final regime: {final_reg['regime']} {final_reg['confidence']} (score={final_reg['score']}) | W1={w1_label}")
                 except Exception as e:
                     print(f"  Final regime error: {e}")
 
