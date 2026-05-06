@@ -796,13 +796,16 @@ function openRegimeSheet(){
   if(fr){
     const comps=fr.components||{};
     h+=`<div style="display:flex;gap:6px;font-size:var(--xs);font-weight:700;">`;
+    const w1c=comps.w1;
+    const w1col=w1c?(w1c.label==='Risk-On'?'var(--buy)':w1c.label==='Risk-Off'?'var(--sell)':'var(--amber)'):'var(--muted)';
+    h+=`<span style="color:${w1col};">W1 ${(comps.w1?.score||5).toFixed(0)}</span>`;
     h+=`<span style="color:${c.c};">H4 ${(comps.h4?.score||5).toFixed(0)}</span>`;
     const mbC=mb?(mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)'):'var(--muted)';
     h+=`<span style="color:${mbC};">M ${(comps.macro?.score||5).toFixed(0)}</span>`;
     const aiC=ai?(ai.score>=7?'var(--buy)':ai.score<=4?'var(--sell)':'var(--amber)'):'var(--muted)';
     h+=`<span style="color:${aiC};">AI ${(comps.ai?.score||5).toFixed(0)}</span>`;
     h+=`</div>`;
-    h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">3-Source Combined</span>`;
+    h+=`<span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.04em;">W1·H4·Macro·AI</span>`;
   } else {
     h+=`<span style="font-size:var(--sm);color:var(--muted);">Pending full data</span>`;
   }
@@ -811,6 +814,20 @@ function openRegimeSheet(){
 
   if(spreading){
     h+=`<div style="display:flex;align-items:center;padding:7px var(--pad);background:rgba(227,179,65,.06);border-bottom:1px solid rgba(227,179,65,.25);"><span style="font-size:var(--sm);font-weight:700;color:var(--amber);">⚠ Sources disagree — regime uncertain (spread ${spread})</span></div>`;
+  }
+  // ── Section 0: W1 Macro Anchor
+  const w1=D.regime&&D.regime.w1_regime;
+  if(w1){
+    const w1c=RC[w1.regime]||RC['Mixed'];
+    const w1pend=w1.pending?`<span style="color:var(--amber);font-size:var(--xs);"> → ${w1.pending} pending (${w1.pending_count}/2)</span>`:'';
+    h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;align-items:center;"><span>W1 Macro Anchor</span><span style="color:${w1c.c};font-weight:700;">${w1.regime} ${w1.score?.toFixed(1)}/10</span></div>`;
+    h+=`<div style="padding:8px var(--pad);border-bottom:1px solid var(--border2);">`;
+    h+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="font-size:var(--md);font-weight:700;color:${w1c.c};">${w1.regime}</span><span style="font-size:var(--xs);color:var(--muted);">${w1.confidence} conf${w1.confirmed===false?' · unconfirmed':''}</span>${w1pend}</div>`;
+    const w1comps=w1.components||{};
+    const w1Labels={spx:'S&P 500',vix:'VIX',us10y:'US10Y',gold:'Gold',dxy:'DXY'};
+    h+=`<div style="display:flex;flex-wrap:wrap;gap:4px;">`;
+    Object.entries(w1Labels).forEach(([k,lbl])=>{const comp=w1comps[k];if(!comp)return;const sc=comp.score;const col=sc>0?'var(--buy)':sc<0?'var(--sell)':'var(--muted)';const chg=comp.change_pct!=null?`${comp.change_pct>0?'+':''}${comp.change_pct?.toFixed(2)}%`:'—';h+=`<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:4px;padding:3px 7px;font-size:var(--xs);"><span style="color:var(--muted);">${lbl}</span> <span style="color:${col};font-weight:700;">${chg}</span></div>`;});
+    h+=`</div></div>`;
   }
   // H4 structural signals for the sheet body
   const s=h4r&&h4r.signals?h4r.signals:{};
@@ -870,11 +887,14 @@ function renderRegime(r){
   const aiCol=ai?(ai.score>=7?'var(--buy)':ai.score<=4?'var(--sell)':'var(--amber)'):'var(--muted)';
   const sep='<span style="color:var(--border2);padding:0 2px;">│</span>';
   const confShortR=conf==='HIGH'?'Hi':conf==='MEDIUM'?'Med':conf==='LOW'?'Lo':'';
+  const w1reg=D.regime&&D.regime.w1_regime;
+  const w1col=w1reg?(RC[w1reg.regime]||RC['Mixed']).c:'var(--muted)';
+  const w1str=w1reg?regAbbr(w1reg.regime)+(w1reg.confirmed===false?'*':''):'—';
   const items=[
+    {lbl:'W1',val:w1str,col:w1col},
     {lbl:'Regime',val:regAbbr(regName)+' '+confShortR+' '+dirArr,col:c.c},
     {lbl:'Macro',val:mb?mb.score+'/'+mb.max:'—',col:macroCol},
     {lbl:'AI',val:ai?ai.score+'/10':'—',col:aiCol},
-    {lbl:'Score',val:fr?fr.score.toFixed(1):mb?(mb.score>=3?'R-On':mb.score<=-3?'R-Off':'Mix'):'—',col:fr?c.c:mb?macroCol:'var(--muted)'},
   ];
   el.innerHTML=`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${c.b};border-radius:var(--r-sm);padding:8px 6px;">${items.map((x,i)=>`${i>0?sep:''}<div style="display:flex;flex-direction:column;align-items:center;flex:1;"><span style="font-size:var(--sm);font-weight:700;color:${x.col};">${x.val}</span><span style="font-size:var(--xs);color:var(--muted);margin-top:2px;">${x.lbl}</span></div>`).join('')}</div>`;
 }
