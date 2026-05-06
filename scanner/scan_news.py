@@ -325,6 +325,12 @@ def build_tech_text(h4, d1, csm, regime):
             arr = "up" if c["change_pct"] > 0 else "down" if c["change_pct"] < 0 else "flat"
             lines.append(f"  {c['label']}: {c['value']} {arr} {abs(c['change_pct']):.1f}% (signal: {c['score']:+d})")
 
+    # W1 macro anchor — gives Sonnet explicit weekly regime context
+    w1 = regime.get("w1_regime", {})
+    if w1 and w1.get("regime"):
+        conf = w1.get("confirmed", True)
+        lines.append(f"W1 Macro Anchor: {w1['regime']} ({w1.get('confidence','Low')}) score={w1.get('score',5):.1f}/10" + ('' if conf else ' [unconfirmed — pending flip]'))
+
     return "\n".join(lines)
 
 
