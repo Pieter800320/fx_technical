@@ -20,16 +20,15 @@ JSON fields
 
 AI pipeline
   Themes    : claude-haiku  (structured extraction — fast, cheap)
-  Narrative : claude-sonnet (reasoning + synthesis)
-  Edge      : claude-haiku  (scoring — structured output)
+  Narrative : claude-sonnet (reasoning + synthesis + edge scores combined)
+  Regime    : claude-haiku  (risk sentiment scoring)
 """
 
-import json, os, re, sys, urllib.request
+import json, os, re, urllib.request
 from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 import xml.etree.ElementTree as ET
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 try:
     import anthropic
@@ -382,7 +381,7 @@ def build_corr_text(corr):
 
 
 def call_narrative(macro, themes_data, tech_text, corr_text):
-    """Generate structured five-section FX narrative. Plain text only — no markdown."""
+    """Generate structured five-section FX narrative + edge scores in one Sonnet call."""
 
     macro_lines = []
     for key, _, label, invert in STOOQ_INSTRUMENTS:
@@ -405,7 +404,6 @@ def call_narrative(macro, themes_data, tech_text, corr_text):
         + "\n".join(t_lines)
     )
 
-    # FIX: explicit no-markdown instruction in both system and user prompts
     system = (
         "You are a professional macro FX trader. "
         "Your task is to synthesize multi-source market data into a clear, internally consistent narrative. "
@@ -451,24 +449,64 @@ Secondary: Pair up or down - reason in max 15 words - Conviction X/10
 Avoid: Pair - reason in max 10 words
 Watch: One trigger that confirms or invalidates the primary trade
 
+EDGE SCORES
+Score each of the 12 pairs 1-10 on how coherently all four sources agree on a tradeable direction right now.
+10=all sources fully aligned, 7-9=three sources agree, 4-6=mixed, 1-3=contradictory.
+Output ONLY valid JSON on the last line, no label, no explanation:
+{{"EURUSD":7,"GBPUSD":5,"USDJPY":9,"USDCHF":6,"AUDUSD":4,"USDCAD":5,"NZDUSD":8,"EURJPY":6,"GBPJPY":5,"AUDJPY":4,"NZDJPY":7,"CADJPY":5}}
+
 RULES:
 - Correlation overrides fundamentals if they conflict
 - Conviction score: 10 means all four sources aligned, 1 means all sources conflicted
 - No generic statements such as markets are uncertain
 - No hedging language. Be decisive.
-- NO markdown formatting of any kind. No asterisks, no hash symbols, no bold, no bullet dashes."""
+- NO markdown formatting of any kind. No asterisks, no hash symbols, no bold, no bullet dashes.
+- The EDGE SCORES JSON must be the very last line of your response."""
 
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resp = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=700,
+        max_tokens=900,
         system=system,
         messages=[{"role": "user", "content": user}],
     )
-    narrative = resp.content[0].text.strip()
+    full_text = resp.content[0].text.strip()
+
+    # Split narrative from edge scores JSON (last line)
+    lines = full_text.splitlines()
+    edge_scores = {}
+    narrative_lines = lines
+
+    # Find the JSON line — work backwards from end
+    for i in range(len(lines) - 1, max(len(lines) - 5, -1), -1):
+        line = lines[i].strip()
+        if line.startswith("{") and line.endswith("}"):
+            try:
+                raw_scores = json.loads(line)
+                edge_scores = {}
+                for pair in PAIRS:
+                    key = pair.replace("/", "")
+                    edge_scores[key] = max(1, min(10, int(raw_scores.get(key, 5))))
+                # Remove EDGE SCORES section header + JSON from narrative
+                narrative_lines = lines[:i]
+                # Also remove the "EDGE SCORES" header line if present
+                while narrative_lines and narrative_lines[-1].strip().upper() in ("EDGE SCORES", ""):
+                    narrative_lines.pop()
+                break
+            except Exception:
+                pass
+
+    # Fallback: fill missing pairs with 5
+    for pair in PAIRS:
+        key = pair.replace("/", "")
+        if key not in edge_scores:
+            edge_scores[key] = 5
+
+    narrative = "\n".join(narrative_lines).strip()
     wc = len(narrative.split())
     print(f"  [Claude narrative] {wc} words")
-    return narrative
+    print(f"  [Claude edge] scores: {edge_scores}")
+    return narrative, edge_scores
 
 
 def call_edge_scores(macro, themes_data, tech_text, corr_text):
@@ -635,13 +673,9 @@ def main():
 
         if result["status"] == "ok":
             try:
-                result["narrative"] = call_narrative(macro, result, tech_text, corr_text)
+                result["narrative"], result["edge_scores"] = call_narrative(macro, result, tech_text, corr_text)
             except Exception as e:
                 print(f"  Claude narrative error: {e}")
-            try:
-                result["edge_scores"] = call_edge_scores(macro, result, tech_text, corr_text)
-            except Exception as e:
-                print(f"  Claude edge error: {e}")
 
             # AI regime sentiment — independent of price, news-only
             ai_sentiment = None
