@@ -165,7 +165,6 @@ tr:last-child td{border-bottom:none;}
       <button class="ssp" id="ssp-h1" onclick="openSignalSheet('h1')"><span class="ssp-tf">H1</span><div class="ssp-pill pill-N" id="ssp-h1-pill">—</div><span class="ssp-score" id="ssp-h1-score"></span></button>
     </div>
     <div id="ind-strip">
-      <div class="ic" id="ic-h4-reg" onclick="openRegimeSheet()"><span class="ic-val" id="ic-h4reg-val">—</span><span class="ic-lbl">Regime</span></div>
       <div class="ic" id="ic-d1pct"><span class="ic-val" id="ic-d1pct-val">—</span><span class="ic-lbl">D1 %</span></div>
       <div class="ic" onclick="openQAISheet()"><span class="ic-val" id="ic-qai-val">—</span><span class="ic-lbl">Setup</span></div>
       <div class="ic" id="ic-edge"><span class="ic-val" id="ic-edge-val">—</span><span class="ic-lbl">Edge</span></div>
@@ -552,19 +551,6 @@ function renderSignalStrip(pair){
 }
 function regAbbr(r){return r==='Risk-On'?'R-On':r==='Risk-Off'?'R-Off':r==='Ranging'?'Rang':r==='Mixed'?'Mix':'—';}
 function renderIndStrip(pair){
-  // H4 Regime cell — shows H4 regime in its natural colour, no amber
-  const h4regData=D.regime&&D.regime.h4,h4reg=h4regData&&h4regData.regime?h4regData.regime:'—';
-  const fr=D.regime&&D.regime.final_regime||null;
-  const direction=fr?fr.direction:(D.regime&&D.regime.direction||'Stable');
-  const h4RC=RC[h4reg]||RC['Mixed'];
-  const dirArr=direction==='Strengthening'?'↑':direction==='Deteriorating'?'↓':'→';
-  const h4RegEl=document.getElementById('ic-h4reg-val');
-  if(h4RegEl){
-    h4RegEl.textContent=regAbbr(h4reg)+' '+dirArr;
-    h4RegEl.style.color=h4RC.c;
-    const h4el=document.getElementById('ic-h4-reg');
-    if(h4el){h4el.style.outline='none';h4el.title=direction;}
-  }
   // D1 %
   const h1d=D.h1&&D.h1[pair],nowClose=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
   const d1Ohlcv=D.d1&&D.d1._ohlcv&&D.d1._ohlcv[pair];
@@ -814,10 +800,8 @@ function openRegimeSheet(){
       <div style="height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
         <div style="width:${pct.toFixed(1)}%;height:100%;background:${barCol};border-radius:2px;transition:width .3s;"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;margin-top:2px;">
-        <span style="font-size:var(--xs);color:var(--sell);">Risk-Off</span>
+      <div style="text-align:right;margin-top:2px;">
         <span style="font-size:var(--xs);color:var(--muted);">${score.toFixed(1)}/10</span>
-        <span style="font-size:var(--xs);color:var(--buy);">Risk-On</span>
       </div>
     </div>`;
   }
@@ -896,23 +880,19 @@ function renderRegime(r){
   const primary=fr||r;
   const regName=primary.regime||'—';
   const dir=fr?fr.direction:(r.direction||'Stable');
-  const dirArr=dir==='Strengthening'?'↑':dir==='Deteriorating'?'↓':'→';
+  const conf=(primary.confidence||'').toLowerCase();
+  const confFull=conf==='high'?'High':conf==='medium'?'Medium':conf==='low'?'Low':'';
   const c=RC[regName]||RC['Mixed'];
   const fr_score=fr?fr.score:null;
-  const conf=(primary.confidence||'').toLowerCase();
-  const confShort=conf==='high'?'Hi':conf==='medium'?'Med':conf==='low'?'Lo':'';
-  el.innerHTML=`<div style="display:flex;align-items:center;background:#0d1117;border:1px solid ${c.b};border-radius:var(--r-sm);padding:8px var(--pad);gap:8px;">
-    <span style="font-size:var(--md);font-weight:700;color:${c.c};">${regName}</span>
-    <span style="font-size:var(--xs);color:var(--muted);">${confShort}</span>
-    <span style="font-size:var(--md);font-weight:700;color:${dir==='Strengthening'?'var(--buy)':dir==='Deteriorating'?'var(--sell)':'var(--muted)'};">${dirArr}</span>
-    ${fr_score!==null?`<span style="font-size:var(--xs);color:var(--muted);margin-left:auto;">${fr_score.toFixed(1)}/10</span>`:''}
-  </div>`;
-  // Update signal strip regime cell
-  const h4RegEl=document.getElementById('ic-h4reg-val');
-  if(h4RegEl){
-    h4RegEl.textContent=regAbbr(regName)+' '+dirArr;
-    h4RegEl.style.color=c.c;
-  }
+  const dirCol=dir==='Strengthening'?'var(--buy)':dir==='Deteriorating'?'var(--sell)':'var(--muted)';
+  el.innerHTML='<div style="display:flex;align-items:center;background:#0d1117;border:1px solid '+c.b+';border-radius:var(--r-sm);padding:8px var(--pad);gap:6px;cursor:pointer;" onclick="openRegimeSheet()">'+
+    '<span style="font-size:var(--sm);font-weight:700;color:'+c.c+';">'+regName+'</span>'+
+    '<span style="color:var(--border2);">·</span>'+
+    '<span style="font-size:var(--xs);color:var(--muted);">'+confFull+'</span>'+
+    '<span style="color:var(--border2);">·</span>'+
+    '<span style="font-size:var(--xs);color:'+dirCol+';">'+dir+'</span>'+
+    (fr_score!==null?'<span style="font-size:var(--xs);color:var(--muted);margin-left:auto;">'+fr_score.toFixed(1)+'/10</span>':'')+
+    '</div>';
 }
 // ── CSM SHEET — FIX 4: conviction composite removed, COT data kept, section renamed
 function buildCSMSheet(ccy){
