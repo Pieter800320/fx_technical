@@ -253,7 +253,9 @@ tr:last-child td{border-bottom:none;}
     </div>
   </div>
   <div id="cht-canvas-area" style="flex:1;min-height:0;display:flex;flex-direction:column;">
-    <div id="cht-price" style="flex:1;min-height:0;"></div>
+    <div id="cht-price" style="flex:1;min-height:0;position:relative;">
+      <div id="cht-ohlc" style="position:absolute;top:6px;left:8px;z-index:10;font-family:'VT323',monospace;font-size:14px;line-height:1.4;pointer-events:none;display:none;background:rgba(13,17,23,.75);padding:3px 7px;border-radius:4px;border:1px solid rgba(48,54,61,.6);"></div>
+    </div>
     <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
   </div>
   <div id="cht-controls">
@@ -924,7 +926,8 @@ function getEdgeScore(pair){const es=D.newsBrief&&D.newsBrief.edge_scores;if(!es
 function buildDrumRows(){
   const ranked=PAIRS.map(pair=>{
     const h4d=D.h4&&D.h4[pair],setup=computeQAI(pair).score,edge=getEdgeScore(pair)??5;
-    const combined=setup*0.6+edge*4,adx=h4d&&h4d.raw?h4d.raw.adx||0:0;
+    const edgeMult=edge>=7?1.0:edge>=5?0.75:0.50;
+    const combined=setup*edgeMult,adx=h4d&&h4d.raw?h4d.raw.adx||0:0;
     return{pair,combined,adx,setup,edge};
   }).sort((a,b)=>b.combined-a.combined||b.adx-a.adx);
 
@@ -1204,6 +1207,28 @@ async function renderChtPrice(){
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:priceEl.clientWidth,height:priceEl.clientHeight});}).observe(priceEl);
   chtMainInst=chart;
   if(_wsLastPrice&&_wsPair===selectedPair)wsUpdatePrice(_wsLastPrice);
+  // OHLC HUD — updates on crosshair move
+  const ohlcEl=document.getElementById('cht-ohlc');
+  const isJpyP=selectedPair.includes('JPY');
+  const decP=isJpyP?3:5;
+  chart.subscribeCrosshairMove(param=>{
+    if(!ohlcEl)return;
+    if(!param||!param.time||!param.seriesData||!param.seriesData.size){
+      ohlcEl.style.display='none';return;
+    }
+    const data=param.seriesData.get(candles);
+    if(!data){ohlcEl.style.display='none';return;}
+    const {open,high,low,close}=data;
+    const chg=close-open,chgPct=(chg/open*100);
+    const col=chg>=0?CHT_UP:CHT_DN;
+    ohlcEl.style.display='block';
+    ohlcEl.innerHTML=
+      `<span style="color:var(--muted);">O</span><span style="color:${col};margin:0 6px 0 2px;">${open.toFixed(decP)}</span>`+
+      `<span style="color:var(--muted);">H</span><span style="color:${col};margin:0 6px 0 2px;">${high.toFixed(decP)}</span>`+
+      `<span style="color:var(--muted);">L</span><span style="color:${col};margin:0 6px 0 2px;">${low.toFixed(decP)}</span>`+
+      `<span style="color:var(--muted);">C</span><span style="color:${col};margin:0 6px 0 2px;">${close.toFixed(decP)}</span>`+
+      `<span style="color:${col};">${chg>=0?'+':''}${chg.toFixed(decP)} (${chgPct>=0?'+':''}${chgPct.toFixed(2)}%)</span>`;
+  });
 }
 function updateCloseTradeBtn(){const btn=document.getElementById('cht-close-trade-btn');if(!btn)return;const has=tradesLoad().some(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending'));btn.style.display=has?'inline-flex':'none';}
 
