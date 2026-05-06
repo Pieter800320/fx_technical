@@ -968,11 +968,10 @@ function buildDrumRows(){
     let dirArrow='';
     if(activeTrades.length){
       dirArrow=activeTrades.map(t=>{
-        const isBuy=t.direction==='BUY';
-        const base=t.status==='open'?20:12;
-        const arrow=isBuy?'▲':'▼';
-        const sz=base+'px';
-        return`<span style="font-family:Arial,sans-serif;font-size:${sz};line-height:1;display:inline-block;">${arrow}</span>`;
+        const baseSize=t.status==='open'?10:6;
+        const color=t.direction==='BUY'?'#00cc44':'#f85149';
+        if(t.direction==='BUY')return`<span style="display:inline-block;width:0;height:0;border-left:${baseSize}px solid transparent;border-right:${baseSize}px solid transparent;border-bottom:${Math.round(baseSize*1.6)}px solid ${color};vertical-align:middle;margin:0 1px;"></span>`;
+        return`<span style="display:inline-block;width:0;height:0;border-left:${baseSize}px solid transparent;border-right:${baseSize}px solid transparent;border-top:${Math.round(baseSize*1.6)}px solid ${color};vertical-align:middle;margin:0 1px;"></span>`;
       }).join('');
     }
     const topLine=
