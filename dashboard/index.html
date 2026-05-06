@@ -1215,8 +1215,9 @@ async function renderChtPrice(){
     if(!param||!param.time||!param.seriesData||!param.seriesData.size){
       ohlcEl.style.display='none';return;
     }
-    const data=param.seriesData.get(candles);
-    if(!data){ohlcEl.style.display='none';return;}
+    // Use first series entry — works across all browsers including mobile
+    const data=param.seriesData.values().next().value;
+    if(!data||data.open===undefined){ohlcEl.style.display='none';return;}
     const {open,high,low,close}=data;
     const chg=close-open,chgPct=(chg/open*100);
     const col=chg>=0?CHT_UP:CHT_DN;
