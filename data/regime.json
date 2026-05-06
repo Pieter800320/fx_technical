@@ -1,17 +1,17 @@
 {
-  "regime": "Mixed",
+  "regime": "Risk-Off",
   "confidence": "Low",
   "data_source": "H4",
   "signals": {
-    "sh_divergence": -1.5,
+    "sh_divergence": 11.0,
     "usd_proxy": 0.0,
     "risk_basket": 0.0,
     "trend_ratio": 0.62,
     "dispersion": 100.0,
-    "risk_off_votes": 0,
+    "risk_off_votes": 2,
     "risk_on_votes": 0
   },
-  "updated": "2026-05-06T13:03:02.836061",
+  "updated": "2026-05-06T19:13:12.440131",
   "h4": {
     "regime": "Risk-Off",
     "confidence": "Medium",
@@ -112,5 +112,35 @@
     "score": 7,
     "label": "Risk-On Leaning",
     "rationale": "Geopolitical tensions easing, USD weakening, equity/commodity rallies, and safe-haven outflows (gold up but VIX down sharply) indicate strong risk appetite despite Eurozone weakness headwinds."
+  },
+  "w1_regime": {
+    "score": 6.25,
+    "regime": "Risk-On",
+    "confidence": "Medium",
+    "components": {
+      "spx": {
+        "score": 1,
+        "change_pct": 1.22
+      },
+      "vix": {
+        "score": 0,
+        "change_pct": -2.13
+      },
+      "us10y": {
+        "score": 0,
+        "change_pct": -1.4
+      },
+      "gold": {
+        "score": -1,
+        "change_pct": 3.01
+      },
+      "dxy": {
+        "score": 1,
+        "change_pct": -0.44
+      }
+    },
+    "pending": null,
+    "pending_count": 0,
+    "confirmed": true
   }
 }
