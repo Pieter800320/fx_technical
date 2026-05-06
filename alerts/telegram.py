@@ -33,7 +33,36 @@ def build_message(*args, **kwargs) -> str:
     return ""
 
 
-def send_level_alert(pair: str, direction: str, alert_price: float, current_price: float) -> bool:
+def send_trade_alert(pair: str, event: str, price: float, result: str = None, rr: float = None) -> bool:
+    """Send Telegram alert for trade events: tp_hit, sl_hit, level_hit, pending_filled."""
+    display = pair.replace("/", "")
+    dec = 2 if "JPY" in pair else 5
+    if event == "tp_hit":
+        emoji = "✅"
+        title = f"TP Hit — {display}"
+        body  = f"Take Profit reached at <b>{price:.{dec}f}</b>"
+        if rr: body += f"\nResult: <b>+{rr:.2f}R WIN</b>"
+    elif event == "sl_hit":
+        emoji = "❌"
+        title = f"SL Hit — {display}"
+        body  = f"Stop Loss hit at <b>{price:.{dec}f}</b>"
+        if rr: body += f"\nResult: <b>-{rr:.2f}R LOSS</b>"
+    elif event == "pending_filled":
+        emoji = "⚡"
+        title = f"Order Filled — {display}"
+        body  = f"Pending order triggered at <b>{price:.{dec}f}</b>"
+    else:
+        emoji = "🔔"
+        title = f"Trade Alert — {display}"
+        body  = f"Event: {event} at <b>{price:.{dec}f}</b>"
+    lines = [
+        f"{emoji} <b>{title}</b>",
+        "",
+        body,
+        "",
+        f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>',
+    ]
+    return send_telegram("\n".join(lines))
     display = pair.replace("/", "")
     arrow   = "↑" if direction == "above" else "↓"
     emoji   = "🟢" if direction == "above" else "🔴"
