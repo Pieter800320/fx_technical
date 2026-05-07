@@ -207,7 +207,7 @@ def load_tech():
                 return json.load(f)
         except Exception:
             return {}
-    return lj("h4_scores.json"), lj("d1_scores.json"), lj("csm.json"), lj("regime.json"), lj("correlation.json")
+    return lj("h4_scores.json"), lj("d1_scores.json"), lj("csm.json"), lj("regime.json"), lj("correlation.json"), lj("calendar.json")
 
 
 
@@ -259,7 +259,7 @@ def compute_macro_bias(macro):
     }
 
 
-def build_tech_text(h4, d1, csm, regime):
+def build_tech_text(h4, d1, csm, regime, calendar=None):
     lines   = []
     reg     = regime.get("regime", "Unknown")
     conf    = regime.get("confidence", "")
@@ -330,6 +330,28 @@ def build_tech_text(h4, d1, csm, regime):
     if w1 and w1.get("regime"):
         conf = w1.get("confirmed", True)
         lines.append(f"W1 Macro Anchor: {w1['regime']} ({w1.get('confidence','Low')}) score={w1.get('score',5):.1f}/10" + ('' if conf else ' [unconfirmed — pending flip]'))
+
+    # Economic calendar — next 12 hours of high-impact events
+    # Critical for Sonnet to avoid recommending trades into major releases
+    if calendar and calendar.get("events"):
+        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
+        cutoff  = now_utc + timedelta(hours=12)
+        upcoming = []
+        for ev in calendar["events"]:
+            try:
+                ev_dt = datetime.fromisoformat(ev["datetime"])
+                if now_utc <= ev_dt <= cutoff:
+                    mins_away = int((ev_dt - now_utc).total_seconds() / 60)
+                    upcoming.append(f"{ev['currency']} {ev['event']} in {mins_away}min ({ev_dt.strftime('%H:%M')} UTC)")
+            except Exception:
+                pass
+        if upcoming:
+            lines.append(f"HIGH-IMPACT EVENTS NEXT 12H ({len(upcoming)} events):")
+            for u in upcoming:
+                lines.append(f"  ⚠ {u}")
+            lines.append("NOTE: Reduce conviction on pairs with upcoming releases. Flag affected pairs in trade implications.")
+        else:
+            lines.append("Economic calendar: No high-impact events in next 12 hours.")
 
     return "\n".join(lines)
 
@@ -566,7 +588,7 @@ def main():
     print(f"  Total headlines after dedup: {len(all_items)}")
 
     # 3. Technical data + macro bias
-    h4, d1, csm, regime, corr = load_tech()
+    h4, d1, csm, regime, corr, calendar = load_tech()
 
     macro_bias = compute_macro_bias(macro)
     if macro_bias:
@@ -585,7 +607,7 @@ def main():
         except Exception as _e:
             print(f"  Macro bias write failed: {_e}")
 
-    tech_text = build_tech_text(h4, d1, csm, regime)
+    tech_text = build_tech_text(h4, d1, csm, regime, calendar=calendar)
     corr_text = build_corr_text(corr)
 
     # 4. Default stub — macro always present even if Claude is unavailable
