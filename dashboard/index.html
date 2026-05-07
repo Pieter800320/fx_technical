@@ -812,27 +812,27 @@ function openRegimeSheet(){
   // W1
   if(w1){
     const w1pend=w1.pending&&!w1.confirmed?` → ${w1.pending}?`:'';
-    h+=stackRow('W1 Weekly','Macro anchor',w1.score||5,w1.regime,w1pend);
+    h+=stackRow('Macro Trend','Multi-week cross-asset backdrop',w1.score||5,w1.regime,w1pend);
   }
   // H4
   const h4score=comps.h4?comps.h4.score:5;
   const h4label=comps.h4?comps.h4.label:(h4r?h4r.regime:'Mixed');
-  h+=stackRow('H4 Structural','Price action',h4score,h4label);
+  h+=stackRow('Price Structure','D1+H4 combined price action',h4score,h4label);
   // Macro
   const macroScore=comps.macro?comps.macro.score:5;
   const macroLabel=macroScore>=7?'Risk-On':macroScore<=3?'Risk-Off':'Mixed';
-  const macroSub=mb?`${mb.score>0?'+':''}${mb.score}/${mb.max} signals`:'Tactical overlay';
-  h+=stackRow('Macro Overlay',macroSub,macroScore,macroLabel);
+  const macroSub=mb?`${mb.score>0?'+':''}${mb.score}/${mb.max} signals`:'Daily instrument moves';
+  h+=stackRow('Macro Momentum',macroSub,macroScore,macroLabel);
   // AI
   const aiScore=ai?parseFloat(ai.score)||5:5;
   const aiLabel=aiScore>=7?'Risk-On':aiScore<=3?'Risk-Off':'Mixed';
-  h+=stackRow('AI Sentiment','News-based',aiScore,aiLabel,ai?` (${ai.label||''})`.trim():'');
+  h+=stackRow('News Sentiment','AI narrative read',aiScore,aiLabel,ai?` (${ai.label||''})`.trim():'');
   h+=`</div>`;
 
   // ── ZONE 3: Detail — collapsible sections
   // Macro components
   if(mb&&mb.components&&mb.components.length){
-    h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;"><span>Macro Detail</span><span style="color:${mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)'};">${mb.score>0?'+':''}${mb.score}/${mb.max} — ${mb.interpretation}</span></div>`;
+    h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;"><span>Macro Momentum Detail</span><span style="color:${mb.score>=2?'var(--buy)':mb.score<=-2?'var(--sell)':'var(--amber)'};">${mb.score>0?'+':''}${mb.score}/${mb.max} — ${mb.interpretation}</span></div>`;
     mb.components.forEach(comp=>{
       const compArr2=arr(comp.change_pct>0?true:comp.change_pct<0?false:null,comp.change_pct>0?'var(--buy)':comp.change_pct<0?'var(--sell)':'var(--muted)',4);
       const scoreCol2=comp.score>0?'var(--buy)':comp.score<0?'var(--sell)':'var(--muted)';
@@ -851,13 +851,13 @@ function openRegimeSheet(){
   const d1rows=[["Safe-haven div",s.sh_divergence],["USD proxy",s.usd_proxy],["Risk basket",s.risk_basket],["Trend ratio",s.trend_ratio!==undefined?Math.round(s.trend_ratio*100)+"%":null],["Dispersion",s.dispersion]];
   const signalRows=d1rows.filter(([,v])=>v!==null&&v!==undefined);
   if(signalRows.length){
-    h+=`<div class="sh-hdr">H4 Structural Signals</div>`;
+    h+=`<div class="sh-hdr">Price Structure Signals</div>`;
     h+=signalRows.map(([k,v])=>{const vStr=String(v),n=parseFloat(vStr),col=!isNaN(n)?n>0?'var(--buy)':n<0?'var(--sell)':'var(--muted)':'var(--muted)';return`<div class="sh-dr"><span class="sh-dn">${k}</span><span class="sh-dv" style="color:${col};">${vStr}</span></div>`;}).join('');
   }
   // AI rationale
   if(ai&&ai.rationale){
     const aiC2=aiScore>=7?'var(--buy)':aiScore<=4?'var(--sell)':'var(--amber)';
-    h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;"><span>AI News Sentiment</span><span style="color:${aiC2};">${aiScore}/10 — ${ai.label||''}</span></div>`;
+    h+=`<div class="sh-hdr" style="display:flex;justify-content:space-between;"><span>News Sentiment Detail</span><span style="color:${aiC2};">${aiScore}/10 — ${ai.label||''}</span></div>`;
     h+=`<div style="padding:7px var(--pad);font-size:var(--sm);color:var(--muted);line-height:1.5;">${ai.rationale}</div>`;
   }
   // W1 component chips
@@ -866,7 +866,7 @@ function openRegimeSheet(){
     const w1Labels={spx:'S&P 500',vix:'VIX',us10y:'US10Y',gold:'Gold',dxy:'DXY'};
     const hasW1Data=Object.keys(w1Labels).some(k=>w1comps[k]);
     if(hasW1Data){
-      h+=`<div class="sh-hdr">W1 Component Detail</div>`;
+      h+=`<div class="sh-hdr">Macro Trend Components</div>`;
       h+=`<div style="display:flex;flex-wrap:wrap;gap:6px;padding:8px var(--pad);border-bottom:1px solid var(--border2);">`;
       Object.entries(w1Labels).forEach(([k,lbl])=>{const comp=w1comps[k];if(!comp)return;const sc=comp.score;const col=sc>0?'var(--buy)':sc<0?'var(--sell)':'var(--muted)';const chg=comp.change_pct!=null?`${comp.change_pct>0?'+':''}${comp.change_pct?.toFixed(2)}%`:'—';h+=`<div style="background:var(--surface2);border:1px solid var(--border2);border-radius:4px;padding:4px 10px;font-size:var(--xs);"><div style="color:var(--muted);margin-bottom:2px;">${lbl}</div><div style="color:${col};font-weight:700;">${chg}</div></div>`;});
       h+=`</div>`;
