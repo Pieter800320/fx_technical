@@ -2,7 +2,15 @@ name: News Brief
 
 on:
   schedule:
-    - cron: "0 5,9,13,17 * * *"   # 7/11/15/19 Germany summer time (CEST=UTC+2)
+    # Session-aligned scans — UTC times
+    # 06:00 UTC = 08:00 Germany (CEST) — London open, live data
+    # 11:00 UTC = 13:00 Germany — 1h before NY open
+    # 15:00 UTC = 17:00 Germany — mid-NY session
+    # 21:00 UTC = 23:00 Germany — 1h before Asian session opens
+    - cron: "0 6,11,15,21 * * *"
+    # Keep-alive: dummy trigger every Sunday to prevent GitHub from
+    # deprioritising the workflow on low-activity repos
+    - cron: "0 7 * * 0"
   workflow_dispatch:
 
 permissions:
