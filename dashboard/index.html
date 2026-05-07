@@ -774,7 +774,7 @@ function openRegimeSheet(){
   // ── ZONE 1: The Verdict
   let h=`<div style="padding:var(--pad);border-bottom:1px solid var(--border2);">`;
   h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">`;
-  h+=`<span style="font-size:22px;font-weight:700;color:${c.c};">${regName} <span style="color:${dirCol};">${dirArr}</span></span>`;
+  h+=`<span style="font-size:22px;font-weight:700;color:${c.c};">${regName}</span>`;
   h+=`<span style="font-size:var(--lg);font-weight:700;color:var(--muted);">${fr?fr.score.toFixed(1)+'/10':''}</span>`;
   h+=`</div>`;
   const confFull=conf==='HIGH'?'High Confidence':conf==='MEDIUM'?'Medium Confidence':conf==='LOW'?'Low Confidence':'';
