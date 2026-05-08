@@ -1211,13 +1211,14 @@ function wsUpdatePrice(price){
   }catch(e){}
 }
 
-// ── DRAWING TOOLS — native LightweightCharts rendering ───────────────────────
-const DRAW_KEY='fx1212_drawings_v2';
+// ── DRAWING TOOLS ─────────────────────────────────────────────────────────────
+const DRAW_KEY='fx1212_drawings_v3';
 const DRAW_COL='rgba(227,179,65,0.9)';
-let _drawTool=null,_drawStart=null;
-let _drawClickHandler=null;
-let _activePriceLines=[];   // {id, priceLine} for hlines
-let _activeDrawSeries=[];   // {id, series} for tlines/rects
+let _drawTool=null;
+let _drawState=null;  // active creation state
+let _editState=null;  // active edit/drag state
+let _activePriceLines=[];
+let _activeDrawSeries=[];
 
 function drawingsLoad(){try{return JSON.parse(localStorage.getItem(DRAW_KEY)||'[]');}catch{return[];}}
 function drawingsSave(d){localStorage.setItem(DRAW_KEY,JSON.stringify(d));}
@@ -1231,63 +1232,78 @@ function setDrawTool(tool){
     b.style.color=_drawTool===t?'var(--amber)':'var(--muted)';
     b.style.borderColor=_drawTool===t?'rgba(227,179,65,.4)':'var(--border)';
   });
-  _drawStart=null;
+  _drawState=null;
+}
+
+function _disengage(){
+  _drawTool=null;_drawState=null;
+  ['hline','tline','rect'].forEach(t=>{
+    const b=document.getElementById('draw-btn-'+t);
+    if(!b)return;
+    b.style.background='transparent';
+    b.style.color='var(--muted)';
+    b.style.borderColor='var(--border)';
+  });
 }
 
 function clearDrawings(){
   drawingsSave(drawingsLoad().filter(d=>!(d.pair===selectedPair&&d.tf===chtTf)));
-  // Remove all live price lines
   _activePriceLines.forEach(({priceLine})=>{try{_chtCandles&&_chtCandles.removePriceLine(priceLine);}catch(e){}});
   _activePriceLines=[];
-  // Remove all live draw series
   _activeDrawSeries.forEach(({series})=>{try{chtMainInst&&chtMainInst.removeSeries(series);}catch(e){}});
   _activeDrawSeries=[];
+  _drawState=null;_editState=null;
 }
 
+// ── Native chart helpers ───────────────────────────────────────────────────
 function _addHlineNative(price){
   if(!_chtCandles)return null;
   const dec=selectedPair.includes('JPY')?3:5;
-  try{
-    return _chtCandles.createPriceLine({
-      price,color:DRAW_COL,lineWidth:1,
-      lineStyle:LightweightCharts.LineStyle.Dashed,
-      axisLabelVisible:true,title:price.toFixed(dec)
-    });
-  }catch(e){return null;}
+  try{return _chtCandles.createPriceLine({price,color:DRAW_COL,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:price.toFixed(dec)});}catch(e){return null;}
 }
 
-function _addLineSeriesNative(ohlcv,p1l,p1p,p2l,p2p){
+function _addLineSeriesNative(ohlcv,l1,p1,l2,p2){
   if(!chtMainInst||!ohlcv.length)return null;
   try{
     const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
-    const t1=ohlcv[clamp(p1l)].time,t2=ohlcv[clamp(p2l)].time;
+    const t1=ohlcv[clamp(l1)].time,t2=ohlcv[clamp(l2)].time;
     const s=chtMainInst.addLineSeries({color:DRAW_COL,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
-    s.setData([{time:t1,value:p1p},{time:t2,value:p2p}]);
+    s.setData([{time:t1,value:p1},{time:t2,value:p2}]);
     return s;
   }catch(e){return null;}
 }
 
-function _addRectNative(ohlcv,p1l,p1p,p2l,p2p){
+function _addRectNative(ohlcv,l1,p1,l2,p2){
   if(!chtMainInst||!ohlcv.length)return null;
   try{
     const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
-    const t1=ohlcv[clamp(Math.min(p1l,p2l))].time;
-    const t2=ohlcv[clamp(Math.max(p1l,p2l))].time;
-    const hi=Math.max(p1p,p2p),lo=Math.min(p1p,p2p);
-    // Top line
-    const s1=chtMainInst.addLineSeries({color:DRAW_COL,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
-    s1.setData([{time:t1,value:hi},{time:t2,value:hi}]);
-    // Bottom line
-    const s2=chtMainInst.addLineSeries({color:DRAW_COL,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
-    s2.setData([{time:t1,value:lo},{time:t2,value:lo}]);
-    // Left line
-    const s3=chtMainInst.addLineSeries({color:DRAW_COL,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
-    s3.setData([{time:t1,value:hi},{time:t1,value:lo}]);
-    // Right line
-    const s4=chtMainInst.addLineSeries({color:DRAW_COL,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
-    s4.setData([{time:t2,value:hi},{time:t2,value:lo}]);
-    return[s1,s2,s3,s4];
+    const tL=ohlcv[clamp(Math.min(l1,l2))].time,tR=ohlcv[clamp(Math.max(l1,l2))].time;
+    const hi=Math.max(p1,p2),lo=Math.min(p1,p2);
+    const mk=(a,b,c,d)=>{const s=chtMainInst.addLineSeries({color:DRAW_COL,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData([{time:a,value:b},{time:c,value:d}]);return s;};
+    return[mk(tL,hi,tR,hi),mk(tL,lo,tR,lo),mk(tL,hi,tL,lo),mk(tR,hi,tR,lo)];
   }catch(e){return null;}
+}
+
+function _updateTlineNative(seriesArr,ohlcv,l1,p1,l2,p2){
+  if(!seriesArr||!seriesArr[0]||!ohlcv.length)return;
+  try{
+    const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
+    const t1=ohlcv[clamp(l1)].time,t2=ohlcv[clamp(l2)].time;
+    seriesArr[0].setData([{time:t1,value:p1},{time:t2,value:p2}]);
+  }catch(e){}
+}
+
+function _updateRectNative(seriesArr,ohlcv,l1,p1,l2,p2){
+  if(!seriesArr||seriesArr.length<4||!ohlcv.length)return;
+  try{
+    const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
+    const tL=ohlcv[clamp(Math.min(l1,l2))].time,tR=ohlcv[clamp(Math.max(l1,l2))].time;
+    const hi=Math.max(p1,p2),lo=Math.min(p1,p2);
+    seriesArr[0].setData([{time:tL,value:hi},{time:tR,value:hi}]);
+    seriesArr[1].setData([{time:tL,value:lo},{time:tR,value:lo}]);
+    seriesArr[2].setData([{time:tL,value:hi},{time:tL,value:lo}]);
+    seriesArr[3].setData([{time:tR,value:hi},{time:tR,value:lo}]);
+  }catch(e){}
 }
 
 function restoreDrawings(){
@@ -1299,266 +1315,341 @@ function restoreDrawings(){
     if(d.type==='hline'){
       const pl=_addHlineNative(d.p1.price);
       if(pl)_activePriceLines.push({id:d.id,priceLine:pl});
-    } else if(d.type==='tline'){
+    }else if(d.type==='tline'){
       const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
       if(s)_activeDrawSeries.push({id:d.id,series:s});
-    } else if(d.type==='rect'){
+    }else if(d.type==='rect'){
       const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
       if(ss)ss.forEach(s=>_activeDrawSeries.push({id:d.id,series:s}));
     }
   });
 }
 
+// ── Coordinate helpers ─────────────────────────────────────────────────────
+function _bounds(){const el=document.getElementById('cht-price');return el?el.getBoundingClientRect():null;}
+function _toPrice(clientY){const r=_bounds();if(!r||!_chtCandles)return null;try{return _chtCandles.coordinateToPrice(clientY-r.top);}catch(e){return null;}}
+function _toLogical(clientX){const r=_bounds();if(!r||!chtMainInst)return null;try{const l=chtMainInst.timeScale().coordinateToLogical(clientX-r.left);return l??null;}catch(e){return null;}}
+function _priceToY(price){const r=_bounds();if(!r||!_chtCandles)return null;try{const c=_chtCandles.priceToCoordinate(price);return c!==null?c+r.top:null;}catch(e){return null;}}
+function _logicalToX(logical){const r=_bounds();if(!r||!chtMainInst)return null;try{const c=chtMainInst.timeScale().logicalToCoordinate(logical);return c!==null?c+r.left:null;}catch(e){return null;}}
 
-let _dragState=null; // {id, type, priceLine?, series?, startY, startPrice, p1, p2, ohlcv}
-let _longPressTimer=null;
+const HIT=24; // hit radius px
 
-function _chartBounds(){
-  const el=document.getElementById('cht-price');
-  return el?el.getBoundingClientRect():null;
+function _hitHline(d,clientY){
+  const y=_priceToY(d.p1.price);
+  return y!==null&&Math.abs(clientY-y)<HIT;
 }
-
-function _findNearHline(clientY){
-  // Returns {id, priceLine, drawingData} if within 18px of a stored hline
-  if(!_chtCandles)return null;
-  const rect=_chartBounds();if(!rect)return null;
-  const y=clientY-rect.top;
-  const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf&&d.type==='hline');
-  for(const d of all){
-    let py=null;
-    try{py=_chtCandles.priceToCoordinate(d.p1.price);}catch(e){}
-    if(py!==null&&Math.abs(y-py)<18){
-      const pl=_activePriceLines.find(p=>p.id===d.id);
-      return{id:d.id,priceLine:pl?pl.priceLine:null,drawingData:d};
-    }
-  }
+function _hitEndpoint(d,clientX,clientY){
+  // Returns 'p1','p2', or null
+  const y1=_priceToY(d.p1.price),x1=_logicalToX(d.p1.logical);
+  const y2=_priceToY(d.p2.price),x2=_logicalToX(d.p2.logical);
+  if(y1!==null&&x1!==null&&Math.hypot(clientX-x1,clientY-y1)<HIT)return'p1';
+  if(y2!==null&&x2!==null&&Math.hypot(clientX-x2,clientY-y2)<HIT)return'p2';
   return null;
 }
-
-function _findNearLine(clientX,clientY){
-  // Returns {id, seriesArr, drawingData} if within 18px of a tline or rect edge
-  if(!chtMainInst)return null;
-  const rect=_chartBounds();if(!rect)return null;
-  const px=clientX-rect.left,py=clientY-rect.top;
-  const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf&&(d.type==='tline'||d.type==='rect'));
-  for(const d of all){
-    let x1=null,y1=null,x2=null,y2=null;
-    try{
-      x1=chtMainInst.timeScale().logicalToCoordinate(d.p1.logical);
-      y1=_chtCandles.priceToCoordinate(d.p1.price);
-      x2=chtMainInst.timeScale().logicalToCoordinate(d.p2.logical);
-      y2=_chtCandles.priceToCoordinate(d.p2.price);
-    }catch(e){}
-    if(x1===null||y1===null||x2===null||y2===null)continue;
-    // Distance from point to line segment
-    const dx=x2-x1,dy2=y2-y1,len=Math.sqrt(dx*dx+dy2*dy2);
-    if(len<1)continue;
-    const t2=Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy2)/(len*len)));
-    const dist=Math.sqrt(Math.pow(px-x1-t2*dx,2)+Math.pow(py-y1-t2*dy2,2));
-    if(dist<18){
-      const seriesArr=_activeDrawSeries.filter(s=>s.id===d.id);
-      return{id:d.id,seriesArr:seriesArr.map(s=>s.series),drawingData:d};
-    }
+function _hitBody(d,clientX,clientY){
+  if(d.type==='hline')return _hitHline(d,clientY);
+  const y1=_priceToY(d.p1.price),x1=_logicalToX(d.p1.logical);
+  const y2=_priceToY(d.p2.price),x2=_logicalToX(d.p2.logical);
+  if(y1===null||x1===null||y2===null||x2===null)return false;
+  if(d.type==='tline'){
+    const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+    if(len<1)return false;
+    const t=Math.max(0,Math.min(1,((clientX-x1)*dx+(clientY-y1)*dy)/(len*len)));
+    return Math.hypot(clientX-(x1+t*dx),clientY-(y1+t*dy))<HIT;
   }
-  return null;
+  if(d.type==='rect'){
+    const minX=Math.min(x1,x2),maxX=Math.max(x1,x2);
+    const minY=Math.min(y1,y2),maxY=Math.max(y1,y2);
+    return clientX>=minX-HIT&&clientX<=maxX+HIT&&clientY>=minY-HIT&&clientY<=maxY+HIT;
+  }
+  return false;
 }
 
-function _saveDrawingPrice(id,newPrice){
-  const all=drawingsLoad();
-  const d=all.find(x=>x.id===id);
-  if(d){d.p1.price=newPrice;d.p2.price=newPrice;drawingsSave(all);}
+// ── Live preview series during creation ────────────────────────────────────
+let _previewSeries=null;
+
+function _clearPreview(){
+  if(_previewSeries){
+    if(Array.isArray(_previewSeries)){_previewSeries.forEach(s=>{try{chtMainInst&&chtMainInst.removeSeries(s);}catch(e){}});}
+    else{try{chtMainInst&&chtMainInst.removeSeries(_previewSeries);}catch(e){}}
+    _previewSeries=null;
+  }
 }
 
-function _saveDrawingMove(id,dy){
-  // Move tline/rect by dy pixels (converted to price delta)
-  if(!_chtCandles)return;
-  const all=drawingsLoad();
-  const d=all.find(x=>x.id===id);
-  if(!d)return;
-  try{
-    const p1y=_chtCandles.priceToCoordinate(d.p1.price);
-    const p2y=_chtCandles.priceToCoordinate(d.p2.price);
-    if(p1y===null||p2y===null)return;
-    const newP1=_chtCandles.coordinateToPrice(p1y+dy);
-    const newP2=_chtCandles.coordinateToPrice(p2y+dy);
-    if(newP1===null||newP2===null)return;
-    d.p1.price=newP1;d.p2.price=newP2;
-    drawingsSave(all);
-  }catch(e){}
+function _updatePreview(type,p1,p2,ohlcv){
+  _clearPreview();
+  if(!chtMainInst||!ohlcv.length)return;
+  if(type==='tline'){
+    _previewSeries=_addLineSeriesNative(ohlcv,p1.logical,p1.price,p2.logical,p2.price);
+    if(_previewSeries){try{_previewSeries.applyOptions({color:'rgba(227,179,65,0.45)'});}catch(e){}}
+  }else if(type==='rect'){
+    const ss=_addRectNative(ohlcv,p1.logical,p1.price,p2.logical,p2.price);
+    if(ss){ss.forEach(s=>{try{s.applyOptions({color:'rgba(227,179,65,0.45)'});}catch(e){}});_previewSeries=ss;}
+  }
 }
 
+// ── Main event init ────────────────────────────────────────────────────────
 function initDrawingSvg(){
   if(window._drawListenersAttached)return;
   window._drawListenersAttached=true;
   let _ts={x:0,y:0,t:0};
+  let _longPressTimer=null;
 
-  // ── TOUCHSTART — detect drag target or record tap start
+  // ── TOUCH ──────────────────────────────────────────────────────────────
   document.addEventListener('touchstart',function(e){
     if(!chtMainInst)return;
     const t=e.touches[0];
     _ts={x:t.clientX,y:t.clientY,t:Date.now()};
-    if(_drawTool)return; // creating mode — don't start drag
-    // Check proximity to existing drawing for long-press drag
-    _longPressTimer=setTimeout(()=>{
-      const near=_findNearHline(t.clientY)||_findNearLine(t.clientX,t.clientY);
-      if(near){
-        _dragState={...near,startY:t.clientY,lastY:t.clientY,startX:t.clientX,lastX:t.clientX,moved:0};
-      }
-    },350);
-  },true);
 
-  // ── TOUCHMOVE — update drawing position
-  document.addEventListener('touchmove',function(e){
-    if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
-    if(!_dragState||!chtMainInst)return;
-    const t=e.touches[0];
-    const dy=t.clientY-_dragState.lastY;
-    _dragState.moved+=Math.abs(dy);
-    _dragState.lastY=t.clientY;
-    _dragState.lastX=t.clientX;
-    if(_dragState.priceLine){
-      // Drag hline
-      let newPrice=null;
-      const rect=_chartBounds();if(!rect)return;
-      try{newPrice=_chtCandles.coordinateToPrice(t.clientY-rect.top);}catch(er){}
-      if(newPrice!==null){
-        try{_dragState.priceLine.applyOptions({price:newPrice,title:newPrice.toFixed(selectedPair.includes('JPY')?3:5)});}catch(er){}
-        _dragState.currentPrice=newPrice;
-      }
-    } else if(_dragState.seriesArr&&_dragState.seriesArr.length){
-      // Drag tline/rect — shift all prices by dy
-      const ohlcv=getOhlcv(selectedPair,chtTf);
-      const d=_dragState.drawingData;
-      try{
-        const rect=_chartBounds();if(!rect)return;
-        const p1y=_chtCandles.priceToCoordinate(d.p1.price);
-        const p2y=_chtCandles.priceToCoordinate(d.p2.price);
-        if(p1y===null||p2y===null)return;
-        const newP1=_chtCandles.coordinateToPrice(p1y+dy);
-        const newP2=_chtCandles.coordinateToPrice(p2y+dy);
-        if(newP1===null||newP2===null)return;
-        d.p1.price=newP1;d.p2.price=newP2;
-        if(d.type==='tline'&&_dragState.seriesArr[0]){
-          const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
-          const t1=ohlcv[clamp(d.p1.logical)].time,t2=ohlcv[clamp(d.p2.logical)].time;
-          _dragState.seriesArr[0].setData([{time:t1,value:newP1},{time:t2,value:newP2}]);
-        } else if(d.type==='rect'&&_dragState.seriesArr.length>=4){
-          const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
-          const t1=ohlcv[clamp(Math.min(d.p1.logical,d.p2.logical))].time;
-          const t2=ohlcv[clamp(Math.max(d.p1.logical,d.p2.logical))].time;
-          const hi=Math.max(newP1,newP2),lo=Math.min(newP1,newP2);
-          _dragState.seriesArr[0].setData([{time:t1,value:hi},{time:t2,value:hi}]);
-          _dragState.seriesArr[1].setData([{time:t1,value:lo},{time:t2,value:lo}]);
-          _dragState.seriesArr[2].setData([{time:t1,value:hi},{time:t1,value:lo}]);
-          _dragState.seriesArr[3].setData([{time:t2,value:hi},{time:t2,value:lo}]);
-        }
-      }catch(er){}
-    }
-    if(_dragState.moved>4)e.preventDefault(); // suppress chart pan only once dragging
-  },{passive:false,capture:true});
-
-  // ── TOUCHEND — finalise drag or handle tap
-  document.addEventListener('touchend',function(e){
-    if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
-    if(_dragState){
-      // Save final position
-      const d=_dragState;
-      const all=drawingsLoad();
-      const stored=all.find(x=>x.id===d.id);
-      if(stored){
-        if(d.priceLine&&d.currentPrice!==undefined){
-          stored.p1.price=d.currentPrice;stored.p2.price=d.currentPrice;
-        } else if(d.drawingData){
-          stored.p1.price=d.drawingData.p1.price;
-          stored.p2.price=d.drawingData.p2.price;
-        }
-        drawingsSave(all);
-      }
-      _dragState=null;
+    if(_drawTool==='tline'||_drawTool==='rect'){
+      // During tline/rect creation, track moves for live preview
       return;
     }
-    if(!_drawTool||!chtMainInst)return;
-    const t=e.changedTouches[0];
-    const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
-    if(dx>12||dy>12||Date.now()-_ts.t>600)return;
-    const rect=_chartBounds();if(!rect)return;
-    if(t.clientX<rect.left||t.clientX>rect.right||t.clientY<rect.top||t.clientY>rect.bottom)return;
-    _handleDrawPoint(_ts.x-rect.left,_ts.y-rect.top);
+    if(_drawTool)return; // hline uses touchend only
+
+    // No tool active — check for long-press on existing drawing
+    _longPressTimer=setTimeout(()=>{
+      _longPressTimer=null;
+      const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
+      for(const d of all.slice().reverse()){
+        // Check endpoints first (for tline/rect)
+        if(d.type!=='hline'){
+          const ep=_hitEndpoint(d,t.clientX,t.clientY);
+          if(ep){
+            _editState={mode:'endpoint',id:d.id,endpoint:ep,drawing:{...d,p1:{...d.p1},p2:{...d.p2}}};
+            return;
+          }
+        }
+        if(_hitBody(d,t.clientX,t.clientY)){
+          _editState={mode:'body',id:d.id,lastX:t.clientX,lastY:t.clientY,drawing:{...d,p1:{...d.p1},p2:{...d.p2}}};
+          return;
+        }
+      }
+    },320);
   },true);
 
-  // Desktop mouse drag
-  let _mouseDown=false,_mouseDragState=null;
+  document.addEventListener('touchmove',function(e){
+    if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
+    const t=e.touches[0];
+
+    // Live preview during tline/rect creation
+    if(_drawTool==='tline'||_drawTool==='rect'){
+      if(_drawState&&_drawState.p1){
+        const p2price=_toPrice(t.clientY);
+        const p2logical=_toLogical(t.clientX);
+        if(p2price!==null&&p2logical!==null){
+          const ohlcv=getOhlcv(selectedPair,chtTf);
+          _updatePreview(_drawTool,_drawState.p1,{price:p2price,logical:p2logical},ohlcv);
+        }
+      }
+      return;
+    }
+
+    if(!_editState)return;
+    const ohlcv=getOhlcv(selectedPair,chtTf);
+    const d=_editState.drawing;
+
+    if(_editState.mode==='endpoint'){
+      const ep=_editState.endpoint;
+      const newPrice=_toPrice(t.clientY);
+      const newLogical=_toLogical(t.clientX);
+      if(newPrice===null||newLogical===null)return;
+      d[ep].price=newPrice;d[ep].logical=newLogical;
+      const seriesArr=_activeDrawSeries.filter(s=>s.id===_editState.id).map(s=>s.series);
+      if(d.type==='tline')_updateTlineNative(seriesArr,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+      else if(d.type==='rect')_updateRectNative(seriesArr,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+    }else if(_editState.mode==='body'){
+      const dy=t.clientY-_editState.lastY;
+      const dx=t.clientX-_editState.lastX;
+      _editState.lastY=t.clientY;_editState.lastX=t.clientX;
+      if(d.type==='hline'){
+        const r=_bounds();if(!r)return;
+        const curY=_chtCandles.priceToCoordinate(d.p1.price);
+        if(curY===null)return;
+        const np=_chtCandles.coordinateToPrice(curY+dy);
+        if(np===null)return;
+        d.p1.price=np;d.p2.price=np;
+        const pl=_activePriceLines.find(p=>p.id===_editState.id);
+        if(pl){const dec=selectedPair.includes('JPY')?3:5;try{pl.priceLine.applyOptions({price:np,title:np.toFixed(dec)});}catch(e){}}
+      }else{
+        const dLogical=dx?(()=>{try{const r=_bounds();const c0=chtMainInst.timeScale().logicalToCoordinate(d.p1.logical);return chtMainInst.timeScale().coordinateToLogical(c0+dx)-d.p1.logical;}catch(e){return 0;}})():0;
+        const r=_bounds();if(!r)return;
+        const np1=_chtCandles.coordinateToPrice(_chtCandles.priceToCoordinate(d.p1.price)+dy);
+        const np2=_chtCandles.coordinateToPrice(_chtCandles.priceToCoordinate(d.p2.price)+dy);
+        if(np1===null||np2===null)return;
+        d.p1.price=np1;d.p2.price=np2;
+        d.p1.logical+=dLogical;d.p2.logical+=dLogical;
+        const seriesArr=_activeDrawSeries.filter(s=>s.id===_editState.id).map(s=>s.series);
+        if(d.type==='tline')_updateTlineNative(seriesArr,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+        else if(d.type==='rect')_updateRectNative(seriesArr,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+      }
+    }
+    if(Math.abs(t.clientX-_ts.x)>6||Math.abs(t.clientY-_ts.y)>6)e.preventDefault();
+  },{passive:false,capture:true});
+
+  document.addEventListener('touchend',function(e){
+    if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
+    const t=e.changedTouches[0];
+    const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
+    const isTap=dx<12&&dy<12&&(Date.now()-_ts.t)<500;
+
+    // Save edit state
+    if(_editState){
+      const all=drawingsLoad();
+      const stored=all.find(x=>x.id===_editState.id);
+      if(stored){stored.p1=_editState.drawing.p1;stored.p2=_editState.drawing.p2;drawingsSave(all);}
+      _editState=null;
+      return;
+    }
+
+    if(!_drawTool||!chtMainInst)return;
+    const r=_bounds();if(!r)return;
+    const inChart=t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom;
+
+    if(_drawTool==='hline'){
+      if(!isTap||!inChart)return;
+      const price=_toPrice(_ts.y);if(price===null)return;
+      const id=Date.now();
+      const pl=_addHlineNative(price);
+      if(pl)_activePriceLines.push({id,priceLine:pl});
+      const all=drawingsLoad();all.push({id,type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
+      drawingsSave(all);
+      _disengage();
+      return;
+    }
+
+    // tline / rect — two-tap with live drag preview
+    if(_drawTool==='tline'||_drawTool==='rect'){
+      if(!isTap||!inChart){
+        // Non-tap during creation = finishing drag (touchend after touchmove)
+        if(_drawState&&_drawState.p1&&!isTap){
+          _clearPreview();
+          const price=_toPrice(t.clientY);
+          const logical=_toLogical(t.clientX);
+          if(price===null||logical===null)return;
+          const id=Date.now();
+          const ohlcv=getOhlcv(selectedPair,chtTf);
+          const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,p1:_drawState.p1,p2:{price,logical}};
+          if(_drawTool==='tline'){
+            const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+            if(s)_activeDrawSeries.push({id,series:s});
+          }else{
+            const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+            if(ss)ss.forEach(s=>_activeDrawSeries.push({id,series:s}));
+          }
+          const all=drawingsLoad();all.push(d);drawingsSave(all);
+          _disengage();
+        }
+        return;
+      }
+      if(!_drawState){
+        const price=_toPrice(_ts.y);const logical=_toLogical(_ts.x);
+        if(price===null||logical===null)return;
+        _drawState={p1:{price,logical}};
+      }else{
+        _clearPreview();
+        const price=_toPrice(_ts.y);const logical=_toLogical(_ts.x);
+        if(price===null||logical===null)return;
+        const id=Date.now();
+        const ohlcv=getOhlcv(selectedPair,chtTf);
+        const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,p1:_drawState.p1,p2:{price,logical}};
+        if(_drawTool==='tline'){
+          const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+          if(s)_activeDrawSeries.push({id,series:s});
+        }else{
+          const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+          if(ss)ss.forEach(s=>_activeDrawSeries.push({id,series:s}));
+        }
+        const all=drawingsLoad();all.push(d);drawingsSave(all);
+        _disengage();
+      }
+    }
+  },true);
+
+  // ── DESKTOP mouse ─────────────────────────────────────────────────────
+  let _mouseDown=false,_mouseEdit=null,_mouseLongTimer=null;
   document.addEventListener('mousedown',function(e){
     if(!chtMainInst||_drawTool)return;
-    const near=_findNearHline(e.clientY)||_findNearLine(e.clientX,e.clientY);
-    if(near){_mouseDragState={...near,lastY:e.clientY,lastX:e.clientX};_mouseDown=true;}
+    _mouseLongTimer=setTimeout(()=>{
+      _mouseLongTimer=null;
+      const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
+      for(const d of all.slice().reverse()){
+        if(d.type!=='hline'){
+          const ep=_hitEndpoint(d,e.clientX,e.clientY);
+          if(ep){_mouseEdit={mode:'endpoint',id:d.id,endpoint:ep,drawing:{...d,p1:{...d.p1},p2:{...d.p2}}};_mouseDown=true;return;}
+        }
+        if(_hitBody(d,e.clientX,e.clientY)){_mouseEdit={mode:'body',id:d.id,lastX:e.clientX,lastY:e.clientY,drawing:{...d,p1:{...d.p1},p2:{...d.p2}}};_mouseDown=true;return;}
+      }
+    },200);
   },true);
   document.addEventListener('mousemove',function(e){
-    if(!_mouseDown||!_mouseDragState||!chtMainInst)return;
-    const dy=e.clientY-_mouseDragState.lastY;
-    _mouseDragState.lastY=e.clientY;
-    if(_mouseDragState.priceLine){
-      const rect=_chartBounds();if(!rect)return;
-      let np=null;try{np=_chtCandles.coordinateToPrice(e.clientY-rect.top);}catch(er){}
-      if(np!==null){try{_mouseDragState.priceLine.applyOptions({price:np,title:np.toFixed(selectedPair.includes('JPY')?3:5)});}catch(er){}_mouseDragState.currentPrice=np;}
+    if(_mouseLongTimer&&(Math.abs(e.movementX)>3||Math.abs(e.movementY)>3)){clearTimeout(_mouseLongTimer);_mouseLongTimer=null;}
+    if(!_mouseDown||!_mouseEdit||!chtMainInst)return;
+    const ohlcv=getOhlcv(selectedPair,chtTf);
+    const d=_mouseEdit.drawing;
+    if(_mouseEdit.mode==='endpoint'){
+      const ep=_mouseEdit.endpoint;
+      const np=_toPrice(e.clientY);const nl=_toLogical(e.clientX);
+      if(np===null||nl===null)return;
+      d[ep].price=np;d[ep].logical=nl;
+      const sa=_activeDrawSeries.filter(s=>s.id===_mouseEdit.id).map(s=>s.series);
+      if(d.type==='tline')_updateTlineNative(sa,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+      else if(d.type==='rect')_updateRectNative(sa,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+    }else if(_mouseEdit.mode==='body'){
+      const dy=e.clientY-_mouseEdit.lastY;_mouseEdit.lastY=e.clientY;
+      if(d.type==='hline'){
+        const cy=_chtCandles.priceToCoordinate(d.p1.price);if(cy===null)return;
+        const np=_chtCandles.coordinateToPrice(cy+dy);if(np===null)return;
+        d.p1.price=np;d.p2.price=np;
+        const pl=_activePriceLines.find(p=>p.id===_mouseEdit.id);
+        if(pl){const dec=selectedPair.includes('JPY')?3:5;try{pl.priceLine.applyOptions({price:np,title:np.toFixed(dec)});}catch(er){}}
+      }else{
+        const np1=_chtCandles.coordinateToPrice(_chtCandles.priceToCoordinate(d.p1.price)+dy);
+        const np2=_chtCandles.coordinateToPrice(_chtCandles.priceToCoordinate(d.p2.price)+dy);
+        if(np1===null||np2===null)return;
+        d.p1.price=np1;d.p2.price=np2;
+        const sa=_activeDrawSeries.filter(s=>s.id===_mouseEdit.id).map(s=>s.series);
+        if(d.type==='tline')_updateTlineNative(sa,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+        else if(d.type==='rect')_updateRectNative(sa,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+      }
     }
     e.preventDefault();
   },{passive:false,capture:true});
   document.addEventListener('mouseup',function(e){
-    if(!_mouseDown||!_mouseDragState)return;
-    const d=_mouseDragState;
-    const all=drawingsLoad();const stored=all.find(x=>x.id===d.id);
-    if(stored&&d.currentPrice!==undefined){stored.p1.price=d.currentPrice;stored.p2.price=d.currentPrice;drawingsSave(all);}
-    _mouseDown=false;_mouseDragState=null;
+    if(_mouseLongTimer){clearTimeout(_mouseLongTimer);_mouseLongTimer=null;}
+    if(_mouseEdit){
+      const all=drawingsLoad();const stored=all.find(x=>x.id===_mouseEdit.id);
+      if(stored){stored.p1=_mouseEdit.drawing.p1;stored.p2=_mouseEdit.drawing.p2;drawingsSave(all);}
+    }
+    _mouseDown=false;_mouseEdit=null;
   },true);
-
-  // Desktop click for new drawings
   document.addEventListener('click',function(e){
     if(!_drawTool||!chtMainInst)return;
-    const rect=_chartBounds();if(!rect)return;
-    if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)return;
-    _handleDrawPoint(e.clientX-rect.left,e.clientY-rect.top);
+    const r=_bounds();if(!r)return;
+    if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
+    if(_drawTool==='hline'){
+      const price=_toPrice(e.clientY);if(price===null)return;
+      const id=Date.now();
+      const pl=_addHlineNative(price);
+      if(pl)_activePriceLines.push({id,priceLine:pl});
+      const all=drawingsLoad();all.push({id,type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
+      drawingsSave(all);_disengage();
+    } else {
+      const price=_toPrice(e.clientY);const logical=_toLogical(e.clientX);
+      if(price===null||logical===null)return;
+      if(!_drawState){_drawState={p1:{price,logical}};}
+      else{
+        const id=Date.now();const ohlcv=getOhlcv(selectedPair,chtTf);
+        const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,p1:_drawState.p1,p2:{price,logical}};
+        if(_drawTool==='tline'){const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);if(s)_activeDrawSeries.push({id,series:s});}
+        else{const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);if(ss)ss.forEach(s=>_activeDrawSeries.push({id,series:s}));}
+        const all=drawingsLoad();all.push(d);drawingsSave(all);_disengage();
+      }
+    }
   },true);
 }
 
-function _handleDrawPoint(x,y){
-  if(!_chtCandles||!chtMainInst)return;
-  let price=null;
-  try{price=_chtCandles.coordinateToPrice(y);}catch(e){return;}
-  if(price===null||price===undefined||isNaN(price))return;
-  const ohlcv=getOhlcv(selectedPair,chtTf);
-  if(_drawTool==='hline'){
-    const id=Date.now();
-    const pl=_addHlineNative(price);
-    if(pl)_activePriceLines.push({id,priceLine:pl});
-    const all=drawingsLoad();
-    all.push({id,type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
-    drawingsSave(all);
-    return;
-  }
-  let logical=ohlcv.length-1;
-  try{const l=chtMainInst.timeScale().coordinateToLogical(x);if(l!==null&&l!==undefined)logical=l;}catch(e){}
-  if(!_drawStart){
-    _drawStart={price,logical};
-  } else {
-    const id=Date.now();
-    const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,
-      p1:{price:_drawStart.price,logical:_drawStart.logical},
-      p2:{price,logical}};
-    if(_drawTool==='tline'){
-      const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-      if(s)_activeDrawSeries.push({id,series:s});
-    } else if(_drawTool==='rect'){
-      const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-      if(ss)ss.forEach(s=>_activeDrawSeries.push({id,series:s}));
-    }
-    const all=drawingsLoad();all.push(d);drawingsSave(all);
-    _drawStart=null;
-  }
-}
-
-
-// renderDrawings kept as no-op stub (no longer uses SVG)
+function _handleDrawPoint(){}
 function renderDrawings(){}
 
 
