@@ -1,5 +1,5 @@
-"""scanner/scan_h1.py — H1 scan + level alert checker"""
-import json, os, sys, datetime
+"""scanner/scan_h1.py — H1 scan + level alerts + trade TP/SL alerts"""
+import json, os, sys, datetime, calendar as _calendar
 import pandas as pd
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -16,151 +16,178 @@ REGIME_FILE  = os.path.join(DATA_DIR, "regime.json")
 LEVEL_ALERTS = os.path.join(DATA_DIR, "level_alerts.json")
 TRADES_FILE  = os.path.join(DATA_DIR, "trades.json")
 
+
 def load_json(path):
     try:
         with open(path) as f: return json.load(f)
     except: return {}
 
-def check_level_alerts(ohlcv_latest: dict):
-    """Read level_alerts.json, fire Telegram for any triggered levels."""
+def load_list(path):
     try:
-        with open(LEVEL_ALERTS) as f:
-            alerts = json.load(f)
-    except FileNotFoundError:
-        return  # No alert file yet — frontend hasn't saved any
-    except Exception as e:
-        print(f"  [Alerts] Read error: {e}"); return
+        with open(path) as f: return json.load(f)
+    except: return []
+
+def save_json(path, data):
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def _current_price(ohlcv_df):
+    """Safely extract latest close from a fetched DataFrame."""
+    if ohlcv_df is None or len(ohlcv_df) == 0:
+        return None
+    row = ohlcv_df.iloc[-1]
+    # Twelvedata returns 'close' column — handle both string and float
+    try:
+        return float(row["close"])
+    except Exception:
+        return None
+
+
+# ── Level alert checker ────────────────────────────────────────────────────────
+def check_level_alerts(ohlcv: dict):
+    """Check price-level alerts against latest H1 close. Fire + deactivate on hit."""
+    alerts = load_list(LEVEL_ALERTS)
+    if not alerts:
+        return
 
     changed = False
     for a in alerts:
         if not a.get("active"):
             continue
-        pair = a.get("pair")
-        price = a.get("price")
-        direction = a.get("direction")  # "above" or "below"
-        if not pair or not price or not direction:
+        pair      = a.get("pair")
+        price     = a.get("price")
+        direction = a.get("direction")   # "above" | "below"
+        if not pair or price is None or not direction:
             continue
-        df = ohlcv_latest.get(pair)
-        if df is None or len(df) < 1:
+
+        current = _current_price(ohlcv.get(pair))
+        if current is None:
             continue
-        try:
-            current = float(df.iloc[-1]["close"])
-        except Exception:
-            continue
+
         hit = (direction == "above" and current >= price) or \
               (direction == "below" and current <= price)
+
         if hit:
-            print(f"  [Alerts] ★ {pair} {direction.upper()} {price} HIT at {current:.5f}")
-            send_level_alert(pair=pair, direction=direction,
-                             alert_price=price, current_price=current)
-            a["active"] = False
+            print(f"  [Level] ★ {pair} {direction.upper()} {price} HIT at {current}")
+            send_level_alert(
+                pair=pair, direction=direction,
+                alert_price=float(price), current_price=current,
+            )
+            a["active"]       = False
             a["triggered_at"] = datetime.datetime.utcnow().isoformat()
             changed = True
 
     if changed:
-        try:
-            with open(LEVEL_ALERTS, "w") as f:
-                json.dump(alerts, f, indent=2)
-        except Exception as e:
-            print(f"  [Alerts] Write error: {e}")
+        save_json(LEVEL_ALERTS, alerts)
+        print(f"  [Level] Updated level_alerts.json")
 
 
-def calc_rr(entry, sl, tp):
-    try:
-        risk = abs(float(entry) - float(sl))
-        reward = abs(float(tp) - float(entry))
-        return round(reward / risk, 2) if risk > 0 else None
-    except Exception:
-        return None
-
-
-def check_trades(ohlcv_latest: dict):
-    """Check open trades against latest H1 bars. Send Telegram on TP/SL/fill. Update trades.json."""
-    try:
-        with open(TRADES_FILE) as f:
-            trades = json.load(f)
-    except FileNotFoundError:
+# ── Trade TP/SL checker ────────────────────────────────────────────────────────
+def check_trades(ohlcv: dict):
+    """
+    Check open/pending trades against latest H1 OHLCV bars.
+    - Pending: filled when price touches entry
+    - Open: TP or SL hit on high/low of bar (not just close — avoids missed wicks)
+    Fires Telegram and updates trade status in trades.json.
+    """
+    trades = load_list(TRADES_FILE)
+    if not trades:
         return
-    except Exception as e:
-        print(f"  [Trades] Read error: {e}"); return
 
     changed = False
     now_iso = datetime.datetime.utcnow().isoformat()
 
     for t in trades:
-        if t.get("status") == "closed":
-            continue
-        pair   = t.get("pair")
-        entry  = t.get("entry")
-        sl     = t.get("sl")
-        tp     = t.get("tp")
-        direction = t.get("direction", "BUY")
-        created = t.get("created", "")
-
-        df = ohlcv_latest.get(pair)
-        if df is None or len(df) < 1:
+        status = t.get("status")
+        if status == "closed":
             continue
 
-        # Only check bars after trade creation
-        try:
-            created_dt = datetime.datetime.fromisoformat(created.replace("Z", "+00:00"))
-            created_ts = created_dt.timestamp()
-            df = df[df.index.astype("int64") // 10**9 >= int(created_ts)]
-        except Exception:
-            pass
-
-        if len(df) < 1:
+        pair      = t.get("pair")
+        direction = t.get("direction")   # "BUY" | "SELL"
+        entry     = t.get("entry")
+        sl        = t.get("sl")
+        tp        = t.get("tp")
+        if not pair or not direction or entry is None:
             continue
 
-        current = float(df.iloc[-1]["close"])
-        rr = calc_rr(entry, sl, tp)
+        entry = float(entry)
+        sl    = float(sl)    if sl is not None else None
+        tp    = float(tp)    if tp is not None else None
 
-        # Pending → filled
-        if t.get("status") == "pending" and entry:
-            filled = (direction == "BUY" and current >= float(entry)) or \
-                     (direction == "SELL" and current <= float(entry))
+        df = ohlcv.get(pair)
+        if df is None or len(df) == 0:
+            continue
+
+        # Use the latest bar's high/low/close for wick-accurate detection
+        bar     = df.iloc[-1]
+        bar_h   = float(bar["high"])
+        bar_l   = float(bar["low"])
+        bar_c   = float(bar["close"])
+
+        dec  = 3 if "JPY" in pair else 5
+        rr   = None
+        if sl and tp:
+            risk = abs(entry - sl)
+            rwd  = abs(tp - entry)
+            rr   = round(rwd / risk, 2) if risk > 0 else None
+
+        # ── Pending → filled ──────────────────────────────────────────────────
+        if status == "pending":
+            filled = (direction == "BUY"  and bar_h >= entry) or \
+                     (direction == "SELL" and bar_l <= entry)
             if filled:
                 t["status"] = "open"
                 t["opened"] = now_iso
                 changed = True
-                print(f"  [Trades] ⚡ {pair} pending order filled at {current:.5f}")
-                send_trade_alert(pair, "pending_filled", current)
+                print(f"  [Trade] ⚡ {pair} {direction} FILLED at {entry:.{dec}f}")
+                send_trade_alert(
+                    pair=pair, event="filled", direction=direction,
+                    price=entry, entry=entry, sl=sl, tp=tp, rr=rr,
+                )
+                # Fall through to check TP/SL on same bar
 
-        # Open → TP/SL
+        # ── Open → TP or SL ───────────────────────────────────────────────────
         if t.get("status") == "open":
-            if tp:
-                tp_hit = (direction == "BUY" and current >= float(tp)) or \
-                         (direction == "SELL" and current <= float(tp))
-                if tp_hit:
-                    t["status"] = "closed"
-                    t["result"] = "win"
-                    t["close_price"] = float(tp)
-                    t["closed"] = now_iso
-                    changed = True
-                    print(f"  [Trades] ✅ {pair} TP hit at {tp}")
-                    send_trade_alert(pair, "tp_hit", float(tp), rr=rr)
-                    continue
-            if sl:
-                sl_hit = (direction == "BUY" and current <= float(sl)) or \
-                         (direction == "SELL" and current >= float(sl))
-                if sl_hit:
-                    t["status"] = "closed"
-                    t["result"] = "loss"
-                    t["close_price"] = float(sl)
-                    t["closed"] = now_iso
-                    changed = True
-                    print(f"  [Trades] ❌ {pair} SL hit at {sl}")
-                    send_trade_alert(pair, "sl_hit", float(sl), rr=rr)
+            tp_hit = tp is not None and (
+                (direction == "BUY"  and bar_h >= tp) or
+                (direction == "SELL" and bar_l <= tp)
+            )
+            sl_hit = sl is not None and (
+                (direction == "BUY"  and bar_l <= sl) or
+                (direction == "SELL" and bar_h >= sl)
+            )
+
+            # If both on same bar (gap), TP takes priority
+            if tp_hit:
+                t["status"]      = "closed"
+                t["result"]      = "win"
+                t["close_price"] = tp
+                t["closed"]      = now_iso
+                changed = True
+                print(f"  [Trade] ✅ {pair} {direction} TP HIT at {tp:.{dec}f}")
+                send_trade_alert(
+                    pair=pair, event="tp_hit", direction=direction,
+                    price=tp, entry=entry, sl=sl, tp=tp, rr=rr,
+                )
+            elif sl_hit:
+                t["status"]      = "closed"
+                t["result"]      = "loss"
+                t["close_price"] = sl
+                t["closed"]      = now_iso
+                changed = True
+                print(f"  [Trade] ❌ {pair} {direction} SL HIT at {sl:.{dec}f}")
+                send_trade_alert(
+                    pair=pair, event="sl_hit", direction=direction,
+                    price=sl, entry=entry, sl=sl, tp=tp, rr=rr,
+                )
 
     if changed:
-        try:
-            with open(TRADES_FILE, "w") as f:
-                json.dump(trades, f, indent=2)
-            print(f"  [Trades] Updated trades.json")
-        except Exception as e:
-            print(f"  [Trades] Write error: {e}")
+        save_json(TRADES_FILE, trades)
+        print(f"  [Trade] Updated trades.json")
 
 
+# ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     print(f"\n=== H1 Scan — {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC ===")
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -171,7 +198,7 @@ def main():
     if market_closed:
         print("  Market closed (weekend) — scoring/alerts run, OHLCV frozen.")
 
-    ohlcv  = fetch_all_pairs(PAIRS, "H1")
+    ohlcv   = fetch_all_pairs(PAIRS, "H1")
     h4_data = load_json(H4_SCORES)
     d1_data = load_json(D1_SCORES)
     h1_results = {}
@@ -186,7 +213,6 @@ def main():
 
         label     = result["label"]
         direction = result["direction"]
-        display   = pair_display(pair)
         ext_data  = is_extended(df, direction)
 
         h1_results[pair] = {
@@ -199,57 +225,51 @@ def main():
             "extended":  ext_data,
             "updated":   now.isoformat(),
         }
-        print(f"  {display}: {result['score']:+d} → {label}")
+        print(f"  {pair_display(pair)}: {result['score']:+d} → {label}")
 
-    # ── Level alert check ─────────────────────────────────────────────────────
+    # ── Level alerts ──────────────────────────────────────────────────────────
     check_level_alerts(ohlcv)
 
-    # ── Embed last 100 OHLCV bars per pair inside h1_scores.json ─────────────
+    # ── Trade TP/SL alerts ────────────────────────────────────────────────────
+    if not market_closed:
+        check_trades(ohlcv)
+    else:
+        print("  [Trade] Skipped — market closed")
+
+    # ── Embed OHLCV ───────────────────────────────────────────────────────────
     if market_closed:
         h1_ohlcv = load_json(H1_OUTPUT).get("_ohlcv", {})
-        print(f"  OHLCV: frozen — {len(h1_ohlcv)} pairs retained from last market close")
+        print(f"  OHLCV: frozen — {len(h1_ohlcv)} pairs retained")
     else:
         h1_ohlcv = {}
-        try:
-            for pair in PAIRS:
-                df = ohlcv.get(pair)
-                if df is None or len(df) < 2:
-                    continue
-                bars = df.copy()
-                bars_list = []
-                for ts, row in bars.iterrows():
-                    try:
-                        import calendar, datetime as _dt
-                        dt_raw = row.get("datetime") if hasattr(row, "get") else str(ts)
-                        dt_obj = _dt.datetime.fromisoformat(str(dt_raw))
-                        t = calendar.timegm(dt_obj.timetuple())
-                        bars_list.append({
-                            "time":  t,
-                            "open":  round(float(row["open"]),  6),
-                            "high":  round(float(row["high"]),  6),
-                            "low":   round(float(row["low"]),   6),
-                            "close": round(float(row["close"]), 6),
-                        })
-                    except Exception as bar_err:
-                        print(f"    [OHLCV] bar error {pair}: {bar_err}")
-                        continue
-                if bars_list:
-                    h1_ohlcv[pair] = bars_list
-            print(f"  OHLCV: {len(h1_ohlcv)} pairs saved")
-        except Exception as e:
-            print(f"  [OHLCV] ERROR: {e}")
+        for pair in PAIRS:
+            df = ohlcv.get(pair)
+            if df is None or len(df) < 2:
+                continue
+            bars_list = []
+            for ts, row in df.tail(100).iterrows():
+                try:
+                    dt_obj = datetime.datetime.fromisoformat(
+                        str(row.get("datetime", ts) if hasattr(row, "get") else ts)
+                    )
+                    t = _calendar.timegm(dt_obj.timetuple())
+                    bars_list.append({
+                        "time":  t,
+                        "open":  round(float(row["open"]),  6),
+                        "high":  round(float(row["high"]),  6),
+                        "low":   round(float(row["low"]),   6),
+                        "close": round(float(row["close"]), 6),
+                    })
+                except Exception as e:
+                    print(f"    [OHLCV] bar error {pair}: {e}")
+            if bars_list:
+                h1_ohlcv[pair] = bars_list
+        print(f"  OHLCV: {len(h1_ohlcv)} pairs saved")
 
-    h1_output = {**h1_results, "_ohlcv": h1_ohlcv}
-    with open(H1_OUTPUT, "w") as f:
-        json.dump(h1_output, f, indent=2)
+    save_json(H1_OUTPUT, {**h1_results, "_ohlcv": h1_ohlcv})
     print(f"\n  Saved: {H1_OUTPUT}")
-
-    # Check level alerts and trades against latest bars
-    if not market_closed:
-        check_level_alerts(ohlcv)
-        check_trades(ohlcv)
-
     print("=== H1 Scan complete ===\n")
+
 
 if __name__ == "__main__":
     main()

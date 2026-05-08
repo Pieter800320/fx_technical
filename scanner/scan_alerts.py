@@ -66,7 +66,7 @@ def get_rate_diff_bps(pair, rates):
     return round((b_rate - q_rate) * 100)  # bps
 
 
-def compute_setup(pair, h1, h4, d1, csm_rankings, edge_scores, regime_str, rates=None):
+def compute_setup(pair, h1, h4, d1, csm_rankings, regime_str, rates=None):
     """
     6-component orthogonal Setup score. Mirrors computeQAI() in Index.html exactly.
     ADX is a hard gate (< 20 → cap 45), not a scoring component.
@@ -118,32 +118,8 @@ def compute_setup(pair, h1, h4, d1, csm_rankings, edge_scores, regime_str, rates
     else:
         reg_score=5
 
-    # 5. RATE DIFFERENTIAL
+    # 5. RATE DIFFERENTIAL (5%)
     rate_score=5  # computed below from rates.json
-
-    # 6. EDGE — AI cross-source coherence
-    edge_key=pair.replace("/","")
-    edge_raw=edge_scores.get(edge_key)
-    edge_score=edge_raw if edge_raw is not None else 5
-
-    # 7. SESSION FIT — is current UTC session optimal for this pair?
-    PAIR_SESS={
-        "EUR/USD":["LN","NY"],"GBP/USD":["LN","NY"],"USD/JPY":["TK","NY"],
-        "USD/CHF":["LN","NY"],"AUD/USD":["SY","TK","NY"],"USD/CAD":["NY"],
-        "NZD/USD":["SY","TK","NY"],"EUR/JPY":["LN","TK"],"GBP/JPY":["LN","TK"],
-        "AUD/JPY":["SY","TK"],"NZD/JPY":["SY","TK"],"CAD/JPY":["TK","NY"],
-    }
-    SESS_UTC={"SY":(22,7),"TK":(23,8),"LN":(7,16),"NY":(12,21)}
-    import datetime as _dt
-    _h=_dt.datetime.utcnow().hour
-    _day=_dt.datetime.utcnow().weekday()
-    _mkt_closed=(_day==5 or (_day==6 and _h<22) or (_day==4 and _h>=22))
-    if _mkt_closed:
-        sess_score=3
-    else:
-        active_sess=[s for s,(st,en) in SESS_UTC.items() if (st>en and (_h>=st or _h<en)) or (st<=en and st<=_h<en)]
-        pair_sess=PAIR_SESS.get(pair,[])
-        sess_score=10 if any(s in pair_sess for s in active_sess) else 2 if active_sess else 3
 
     # Real rate differential
     if rates:
@@ -151,10 +127,33 @@ def compute_setup(pair, h1, h4, d1, csm_rankings, edge_scores, regime_str, rates
         diff_in_dir = diff_bps if is_bull else -diff_bps if is_bear else abs(diff_bps)
         rate_score = 10 if diff_in_dir>=200 else 7 if diff_in_dir>=50 else 5 if diff_in_dir>=-50 else 3 if diff_in_dir>=-200 else 1
 
-    # Weighted sum — 7 components
-    weights={"align":.28,"entry":.18,"csm":.16,"regime":.13,"rate":.05,"edge":.12,"session":.08}
-    scores={"align":align_score,"entry":entry_score,"csm":csm_score,"regime":reg_score,"rate":rate_score,"edge":edge_score,"session":sess_score}
-    raw=round(sum(scores[k]*weights[k] for k in weights)*10)
+    # 6. SESSION FIT (8%)
+    h = datetime.datetime.utcnow().hour
+    SESS = {"Sydney":(22,7),"Tokyo":(23,8),"London":(7,16),"New York":(12,21)}
+    SESS_ABBR = {"Sydney":"SY","Tokyo":"TK","London":"LN","New York":"NY"}
+    PAIR_SESS = {
+        "EUR/USD":["LN","NY"],"GBP/USD":["LN","NY"],"USD/JPY":["TK","NY"],
+        "USD/CHF":["LN","NY"],"AUD/USD":["SY","TK","NY"],"USD/CAD":["NY"],
+        "NZD/USD":["SY","TK","NY"],"EUR/JPY":["LN","TK"],"GBP/JPY":["LN","TK"],
+        "AUD/JPY":["SY","TK"],"NZD/JPY":["SY","TK"],"CAD/JPY":["TK","NY"],
+    }
+    active_sess = []
+    for name,(s,e) in SESS.items():
+        if s>e:
+            if h>=s or h<e: active_sess.append(SESS_ABBR[name])
+        else:
+            if s<=h<e: active_sess.append(SESS_ABBR[name])
+    pair_sess = PAIR_SESS.get(pair, [])
+    sess_match = any(s in pair_sess for s in active_sess)
+    sess_score = 3 if not active_sess else (10 if sess_match else 2)
+
+    # Weighted sum — matches frontend computeQAI() exactly
+    # Edge removed from Setup (it gates drum multiplier separately — no double-count)
+    # Redistributed: Alignment 28→35%, Entry 18→23%
+    weights = {"align":.35,"entry":.23,"csm":.16,"regime":.13,"rate":.05,"session":.08}
+    scores  = {"align":align_score,"entry":entry_score,"csm":csm_score,
+               "regime":reg_score,"rate":rate_score,"session":sess_score}
+    raw = round(sum(scores[k]*weights[k] for k in weights)*10)
 
     # ADX hard gate
     adx_v=(h4d.get("raw") or {}).get("adx")
@@ -216,7 +215,7 @@ def main(trigger_tf="H4"):
         if adx<ADX_MIN: continue
         if not h4d.get("filter_ok",True): continue
         if h4d.get("conflict",False): continue
-        setup=compute_setup(pair,h1,h4,d1,csm_rankings,edge_scores,regime_str,rates)
+        setup=compute_setup(pair,h1,h4,d1,csm_rankings,regime_str,rates)
         if setup<SETUP_MIN: continue
         edge=edge_scores.get(pair.replace("/",""))
         if edge is None or edge<EDGE_MIN: continue
