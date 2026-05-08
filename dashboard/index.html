@@ -257,19 +257,16 @@ tr:last-child td{border-bottom:none;}
     <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
   </div>
   <div id="cht-controls">
-    <!-- Row 1: Indicators | Drawing tools -->
+    <!-- Row 1: Indicators -->
     <div style="display:flex;gap:1px;border-bottom:1px solid var(--border2);">
-      <button class="btn btn-muted" onclick="openIndicatorsSheet()" style="flex:2;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:9px 4px;font-size:var(--xs);">⚙ Indicators</button>
-      <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Horizontal line" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:9px 2px;font-size:10px;">—</button>
-      <button id="draw-btn-tline" class="btn btn-muted" onclick="setDrawTool('tline')" title="Trend line" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:9px 2px;font-size:10px;">╱</button>
-      <button id="draw-btn-rect" class="btn btn-muted" onclick="setDrawTool('rect')" title="Rectangle" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:9px 2px;font-size:10px;">▭</button>
-      <button class="btn btn-muted" onclick="clearDrawings()" title="Clear drawings" style="flex:1;justify-content:center;border-radius:0;border:none;padding:9px 2px;font-size:9px;letter-spacing:.04em;">CLR</button>
+      <button class="btn btn-muted" onclick="openIndicatorsSheet()" style="flex:1;justify-content:center;border-radius:0;border:none;padding:9px 4px;font-size:var(--xs);">⚙ Indicators</button>
     </div>
-    <!-- Row 2: Level alert input -->
+    <!-- Row 2: Level line + alert — unified -->
     <div style="display:flex;gap:6px;padding:6px var(--pad);border-bottom:1px solid var(--border2);align-items:center;">
-      <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;min-width:62px;">↑ Above</button>
-      <input id="cht-alert-inp" type="number" step="0.00001" placeholder="Price level…" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:5px 8px;font-size:var(--sm);"/>
-      <button class="btn" onclick="setLevelAlert()" style="padding:5px 10px;flex-shrink:0;">Set Alert</button>
+      <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Tap chart to place level line" style="padding:5px 10px;flex-shrink:0;font-size:var(--sm);">— Level</button>
+      <input id="cht-alert-inp" type="number" step="0.00001" placeholder="or type price…" oninput="_onAlertInputChange()" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:5px 8px;font-size:var(--sm);"/>
+      <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;min-width:60px;">↑ Above</button>
+      <button class="btn" onclick="setLevelAlert()" style="padding:5px 10px;flex-shrink:0;">Alert</button>
     </div>
     <!-- Active alerts -->
     <div id="cht-alerts-list" style="padding:0 var(--pad);"></div>
@@ -1198,7 +1195,7 @@ function toggleInd(key){
   renderChtPrice();
 }
 function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
-function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);if(_drawClickHandler&&chtMainInst){try{chtMainInst.unsubscribeClick(_drawClickHandler);}catch(e){}}_drawClickHandler=null;_activePriceLines=[];_activeDrawSeries=[];if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;setDrawTool(null);}
+function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);_removeStagingLine();if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;_drawTool=null;_stagingLine=null;}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
 function startCandleTimer(){if(candleTimerInt)clearInterval(candleTimerInt);function tick(){const el=document.getElementById('cht-timer');if(!el)return;if(closed()){el.textContent='';return;}const now=Math.floor(Date.now()/1000);const tfSecs={H1:3600,H4:14400,D1:86400}[chtTf]||3600;const secsLeft=tfSecs-(now%tfSecs);const h=Math.floor(secsLeft/3600),m=Math.floor((secsLeft%3600)/60),s=secsLeft%60;const pad=n=>String(n).padStart(2,'0');el.textContent=h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);el.style.color=secsLeft<=60?'var(--sell)':'var(--muted)';}tick();candleTimerInt=setInterval(tick,1000);}
 let _wsPriceLine=null,_chtCandles=null,_subChartOffset=0;
@@ -1211,446 +1208,178 @@ function wsUpdatePrice(price){
   }catch(e){}
 }
 
-// ── DRAWING TOOLS ─────────────────────────────────────────────────────────────
-const DRAW_KEY='fx1212_drawings_v3';
-const DRAW_COL='rgba(227,179,65,0.9)';
-let _drawTool=null;
-let _drawState=null;  // active creation state
-let _editState=null;  // active edit/drag state
-let _activePriceLines=[];
-let _activeDrawSeries=[];
+// ── LEVEL LINE — staging line wired to alert input ───────────────────────────
+// One amber dashed line lives on the chart while the user positions a level.
+// Tapping "— Level" activates placement mode (tap chart → line placed, input filled).
+// Typing in the input moves the line live.
+// Dragging the line updates the input live.
+// "Alert" converts the current input price to a Telegram alert.
 
-function drawingsLoad(){try{return JSON.parse(localStorage.getItem(DRAW_KEY)||'[]');}catch{return[];}}
-function drawingsSave(d){localStorage.setItem(DRAW_KEY,JSON.stringify(d));}
+let _drawTool=null;       // 'hline' or null
+let _stagingLine=null;    // active priceLine object on _chtCandles
+let _draggingLine=false;
+let _dragTS={x:0,y:0,t:0};
 
 function setDrawTool(tool){
   _drawTool=_drawTool===tool?null:tool;
-  ['hline','tline','rect'].forEach(t=>{
-    const b=document.getElementById('draw-btn-'+t);
-    if(!b)return;
-    b.style.background=_drawTool===t?'rgba(227,179,65,.15)':'transparent';
-    b.style.color=_drawTool===t?'var(--amber)':'var(--muted)';
-    b.style.borderColor=_drawTool===t?'rgba(227,179,65,.4)':'var(--border)';
-  });
-  _drawState=null;
+  const b=document.getElementById('draw-btn-hline');
+  if(!b)return;
+  const on=_drawTool==='hline';
+  b.style.background=on?'rgba(227,179,65,.15)':'transparent';
+  b.style.color=on?'var(--amber)':'var(--muted)';
+  b.style.borderColor=on?'rgba(227,179,65,.4)':'var(--border)';
 }
 
 function _disengage(){
-  _drawTool=null;_drawState=null;
-  ['hline','tline','rect'].forEach(t=>{
-    const b=document.getElementById('draw-btn-'+t);
-    if(!b)return;
-    b.style.background='transparent';
-    b.style.color='var(--muted)';
-    b.style.borderColor='var(--border)';
-  });
+  _drawTool=null;
+  const b=document.getElementById('draw-btn-hline');
+  if(b){b.style.background='transparent';b.style.color='var(--muted)';b.style.borderColor='var(--border)';}
 }
 
-function clearDrawings(){
-  drawingsSave(drawingsLoad().filter(d=>!(d.pair===selectedPair&&d.tf===chtTf)));
-  _activePriceLines.forEach(({priceLine})=>{try{_chtCandles&&_chtCandles.removePriceLine(priceLine);}catch(e){}});
-  _activePriceLines=[];
-  _activeDrawSeries.forEach(({series})=>{try{chtMainInst&&chtMainInst.removeSeries(series);}catch(e){}});
-  _activeDrawSeries=[];
-  _drawState=null;_editState=null;
-}
-
-// ── Native chart helpers ───────────────────────────────────────────────────
-function _addHlineNative(price){
-  if(!_chtCandles)return null;
+// Place or move the staging line at a given price
+function _setStagingLine(price){
+  if(!_chtCandles)return;
   const dec=selectedPair.includes('JPY')?3:5;
-  try{return _chtCandles.createPriceLine({price,color:DRAW_COL,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:price.toFixed(dec)});}catch(e){return null;}
+  if(_stagingLine){
+    try{_stagingLine.applyOptions({price,title:price.toFixed(dec)});}catch(e){_stagingLine=null;}
+  }
+  if(!_stagingLine){
+    try{
+      _stagingLine=_chtCandles.createPriceLine({
+        price,color:'rgba(227,179,65,0.9)',lineWidth:1,
+        lineStyle:LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible:true,title:price.toFixed(dec)
+      });
+    }catch(e){}
+  }
+  // Sync input
+  const inp=document.getElementById('cht-alert-inp');
+  if(inp&&document.activeElement!==inp)inp.value=price.toFixed(dec);
 }
 
-function _addLineSeriesNative(ohlcv,l1,p1,l2,p2){
-  if(!chtMainInst||!ohlcv.length)return null;
-  try{
-    const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
-    const t1=ohlcv[clamp(l1)].time,t2=ohlcv[clamp(l2)].time;
-    const s=chtMainInst.addLineSeries({color:DRAW_COL,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});
-    s.setData([{time:t1,value:p1},{time:t2,value:p2}]);
-    return s;
-  }catch(e){return null;}
+function _removeStagingLine(){
+  if(_stagingLine&&_chtCandles){
+    try{_chtCandles.removePriceLine(_stagingLine);}catch(e){}
+    _stagingLine=null;
+  }
 }
 
-function _addRectNative(ohlcv,l1,p1,l2,p2){
-  if(!chtMainInst||!ohlcv.length)return null;
-  try{
-    const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
-    const tL=ohlcv[clamp(Math.min(l1,l2))].time,tR=ohlcv[clamp(Math.max(l1,l2))].time;
-    const hi=Math.max(p1,p2),lo=Math.min(p1,p2);
-    const mk=(a,b,c,d)=>{const s=chtMainInst.addLineSeries({color:DRAW_COL,lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false});s.setData([{time:a,value:b},{time:c,value:d}]);return s;};
-    return[mk(tL,hi,tR,hi),mk(tL,lo,tR,lo),mk(tL,hi,tL,lo),mk(tR,hi,tR,lo)];
-  }catch(e){return null;}
+// Called when user types in the input — move staging line live
+function _onAlertInputChange(){
+  const inp=document.getElementById('cht-alert-inp');
+  if(!inp)return;
+  const v=parseFloat(inp.value);
+  if(!isNaN(v)&&v>0)_setStagingLine(v);
+  else _removeStagingLine();
 }
 
-function _updateTlineNative(seriesArr,ohlcv,l1,p1,l2,p2){
-  if(!seriesArr||!seriesArr[0]||!ohlcv.length)return;
-  try{
-    const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
-    const t1=ohlcv[clamp(l1)].time,t2=ohlcv[clamp(l2)].time;
-    seriesArr[0].setData([{time:t1,value:p1},{time:t2,value:p2}]);
-  }catch(e){}
-}
-
-function _updateRectNative(seriesArr,ohlcv,l1,p1,l2,p2){
-  if(!seriesArr||seriesArr.length<4||!ohlcv.length)return;
-  try{
-    const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
-    const tL=ohlcv[clamp(Math.min(l1,l2))].time,tR=ohlcv[clamp(Math.max(l1,l2))].time;
-    const hi=Math.max(p1,p2),lo=Math.min(p1,p2);
-    seriesArr[0].setData([{time:tL,value:hi},{time:tR,value:hi}]);
-    seriesArr[1].setData([{time:tL,value:lo},{time:tR,value:lo}]);
-    seriesArr[2].setData([{time:tL,value:hi},{time:tL,value:lo}]);
-    seriesArr[3].setData([{time:tR,value:hi},{time:tR,value:lo}]);
-  }catch(e){}
-}
-
-function restoreDrawings(){
-  if(!chtMainInst||!_chtCandles)return;
-  const ohlcv=getOhlcv(selectedPair,chtTf);
-  const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
-  _activePriceLines=[];_activeDrawSeries=[];
-  all.forEach(d=>{
-    if(d.type==='hline'){
-      const pl=_addHlineNative(d.p1.price);
-      if(pl)_activePriceLines.push({id:d.id,priceLine:pl});
-    }else if(d.type==='tline'){
-      const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-      if(s)_activeDrawSeries.push({id:d.id,series:s});
-    }else if(d.type==='rect'){
-      const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-      if(ss)ss.forEach(s=>_activeDrawSeries.push({id:d.id,series:s}));
-    }
-  });
-}
-
-// ── Coordinate helpers ─────────────────────────────────────────────────────
+// Coordinate helpers
 function _bounds(){const el=document.getElementById('cht-price');return el?el.getBoundingClientRect():null;}
 function _toPrice(clientY){const r=_bounds();if(!r||!_chtCandles)return null;try{return _chtCandles.coordinateToPrice(clientY-r.top);}catch(e){return null;}}
-function _toLogical(clientX){const r=_bounds();if(!r||!chtMainInst)return null;try{const l=chtMainInst.timeScale().coordinateToLogical(clientX-r.left);return l??null;}catch(e){return null;}}
-function _priceToY(price){const r=_bounds();if(!r||!_chtCandles)return null;try{const c=_chtCandles.priceToCoordinate(price);return c!==null?c+r.top:null;}catch(e){return null;}}
-function _logicalToX(logical){const r=_bounds();if(!r||!chtMainInst)return null;try{const c=chtMainInst.timeScale().logicalToCoordinate(logical);return c!==null?c+r.left:null;}catch(e){return null;}}
+function _priceToClientY(price){const r=_bounds();if(!r||!_chtCandles)return null;try{const c=_chtCandles.priceToCoordinate(price);return c!==null?c+r.top:null;}catch(e){return null;}}
 
-const HIT=24; // hit radius px
-
-function _hitHline(d,clientY){
-  const y=_priceToY(d.p1.price);
-  return y!==null&&Math.abs(clientY-y)<HIT;
-}
-function _hitEndpoint(d,clientX,clientY){
-  // Returns 'p1','p2', or null
-  const y1=_priceToY(d.p1.price),x1=_logicalToX(d.p1.logical);
-  const y2=_priceToY(d.p2.price),x2=_logicalToX(d.p2.logical);
-  if(y1!==null&&x1!==null&&Math.hypot(clientX-x1,clientY-y1)<HIT)return'p1';
-  if(y2!==null&&x2!==null&&Math.hypot(clientX-x2,clientY-y2)<HIT)return'p2';
-  return null;
-}
-function _hitBody(d,clientX,clientY){
-  if(d.type==='hline')return _hitHline(d,clientY);
-  const y1=_priceToY(d.p1.price),x1=_logicalToX(d.p1.logical);
-  const y2=_priceToY(d.p2.price),x2=_logicalToX(d.p2.logical);
-  if(y1===null||x1===null||y2===null||x2===null)return false;
-  if(d.type==='tline'){
-    const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
-    if(len<1)return false;
-    const t=Math.max(0,Math.min(1,((clientX-x1)*dx+(clientY-y1)*dy)/(len*len)));
-    return Math.hypot(clientX-(x1+t*dx),clientY-(y1+t*dy))<HIT;
-  }
-  if(d.type==='rect'){
-    const minX=Math.min(x1,x2),maxX=Math.max(x1,x2);
-    const minY=Math.min(y1,y2),maxY=Math.max(y1,y2);
-    return clientX>=minX-HIT&&clientX<=maxX+HIT&&clientY>=minY-HIT&&clientY<=maxY+HIT;
-  }
-  return false;
-}
-
-// ── Live preview series during creation ────────────────────────────────────
-let _previewSeries=null;
-
-function _clearPreview(){
-  if(_previewSeries){
-    if(Array.isArray(_previewSeries)){_previewSeries.forEach(s=>{try{chtMainInst&&chtMainInst.removeSeries(s);}catch(e){}});}
-    else{try{chtMainInst&&chtMainInst.removeSeries(_previewSeries);}catch(e){}}
-    _previewSeries=null;
-  }
-}
-
-function _updatePreview(type,p1,p2,ohlcv){
-  _clearPreview();
-  if(!chtMainInst||!ohlcv.length)return;
-  if(type==='tline'){
-    _previewSeries=_addLineSeriesNative(ohlcv,p1.logical,p1.price,p2.logical,p2.price);
-    if(_previewSeries){try{_previewSeries.applyOptions({color:'rgba(227,179,65,0.45)'});}catch(e){}}
-  }else if(type==='rect'){
-    const ss=_addRectNative(ohlcv,p1.logical,p1.price,p2.logical,p2.price);
-    if(ss){ss.forEach(s=>{try{s.applyOptions({color:'rgba(227,179,65,0.45)'});}catch(e){}});_previewSeries=ss;}
-  }
-}
-
-// ── Main event init ────────────────────────────────────────────────────────
 function initDrawingSvg(){
   if(window._drawListenersAttached)return;
   window._drawListenersAttached=true;
-  let _ts={x:0,y:0,t:0};
-  let _longPressTimer=null;
 
-  // ── TOUCH ──────────────────────────────────────────────────────────────
+  let _ts={x:0,y:0,t:0};
+  let _longTimer=null;
+
+  // Wire input to staging line
+  const inp=document.getElementById('cht-alert-inp');
+  if(inp)inp.addEventListener('input',_onAlertInputChange);
+
+  // ── TOUCH ─────────────────────────────────────────────────────────────
   document.addEventListener('touchstart',function(e){
     if(!chtMainInst)return;
     const t=e.touches[0];
     _ts={x:t.clientX,y:t.clientY,t:Date.now()};
 
-    if(_drawTool==='tline'||_drawTool==='rect'){
-      // During tline/rect creation, track moves for live preview
-      return;
-    }
-    if(_drawTool)return; // hline uses touchend only
+    if(_drawTool==='hline')return; // placement handled on touchend
 
-    // No tool active — check for long-press on existing drawing
-    _longPressTimer=setTimeout(()=>{
-      _longPressTimer=null;
-      const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
-      for(const d of all.slice().reverse()){
-        // Check endpoints first (for tline/rect)
-        if(d.type!=='hline'){
-          const ep=_hitEndpoint(d,t.clientX,t.clientY);
-          if(ep){
-            _editState={mode:'endpoint',id:d.id,endpoint:ep,drawing:{...d,p1:{...d.p1},p2:{...d.p2}}};
-            return;
-          }
-        }
-        if(_hitBody(d,t.clientX,t.clientY)){
-          _editState={mode:'body',id:d.id,lastX:t.clientX,lastY:t.clientY,drawing:{...d,p1:{...d.p1},p2:{...d.p2}}};
-          return;
+    // Long-press on staging line to drag
+    if(_stagingLine){
+      const price=_stagingLine._options?_stagingLine._options.price:null;
+      if(price!==null){
+        const ly=_priceToClientY(price);
+        if(ly!==null&&Math.abs(t.clientY-ly)<28){
+          _longTimer=setTimeout(()=>{_longTimer=null;_draggingLine=true;},280);
         }
       }
-    },320);
+    }
   },true);
 
   document.addEventListener('touchmove',function(e){
-    if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
+    if(_longTimer&&(Math.abs(e.touches[0].clientY-_ts.y)>8)){
+      clearTimeout(_longTimer);_longTimer=null;
+    }
+    if(!_draggingLine)return;
     const t=e.touches[0];
-
-    // Live preview during tline/rect creation
-    if(_drawTool==='tline'||_drawTool==='rect'){
-      if(_drawState&&_drawState.p1){
-        const p2price=_toPrice(t.clientY);
-        const p2logical=_toLogical(t.clientX);
-        if(p2price!==null&&p2logical!==null){
-          const ohlcv=getOhlcv(selectedPair,chtTf);
-          _updatePreview(_drawTool,_drawState.p1,{price:p2price,logical:p2logical},ohlcv);
-        }
-      }
-      return;
-    }
-
-    if(!_editState)return;
-    const ohlcv=getOhlcv(selectedPair,chtTf);
-    const d=_editState.drawing;
-
-    if(_editState.mode==='endpoint'){
-      const ep=_editState.endpoint;
-      const newPrice=_toPrice(t.clientY);
-      const newLogical=_toLogical(t.clientX);
-      if(newPrice===null||newLogical===null)return;
-      d[ep].price=newPrice;d[ep].logical=newLogical;
-      const seriesArr=_activeDrawSeries.filter(s=>s.id===_editState.id).map(s=>s.series);
-      if(d.type==='tline')_updateTlineNative(seriesArr,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-      else if(d.type==='rect')_updateRectNative(seriesArr,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-    }else if(_editState.mode==='body'){
-      const dy=t.clientY-_editState.lastY;
-      const dx=t.clientX-_editState.lastX;
-      _editState.lastY=t.clientY;_editState.lastX=t.clientX;
-      if(d.type==='hline'){
-        const r=_bounds();if(!r)return;
-        const curY=_chtCandles.priceToCoordinate(d.p1.price);
-        if(curY===null)return;
-        const np=_chtCandles.coordinateToPrice(curY+dy);
-        if(np===null)return;
-        d.p1.price=np;d.p2.price=np;
-        const pl=_activePriceLines.find(p=>p.id===_editState.id);
-        if(pl){const dec=selectedPair.includes('JPY')?3:5;try{pl.priceLine.applyOptions({price:np,title:np.toFixed(dec)});}catch(e){}}
-      }else{
-        const dLogical=dx?(()=>{try{const r=_bounds();const c0=chtMainInst.timeScale().logicalToCoordinate(d.p1.logical);return chtMainInst.timeScale().coordinateToLogical(c0+dx)-d.p1.logical;}catch(e){return 0;}})():0;
-        const r=_bounds();if(!r)return;
-        const np1=_chtCandles.coordinateToPrice(_chtCandles.priceToCoordinate(d.p1.price)+dy);
-        const np2=_chtCandles.coordinateToPrice(_chtCandles.priceToCoordinate(d.p2.price)+dy);
-        if(np1===null||np2===null)return;
-        d.p1.price=np1;d.p2.price=np2;
-        d.p1.logical+=dLogical;d.p2.logical+=dLogical;
-        const seriesArr=_activeDrawSeries.filter(s=>s.id===_editState.id).map(s=>s.series);
-        if(d.type==='tline')_updateTlineNative(seriesArr,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-        else if(d.type==='rect')_updateRectNative(seriesArr,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-      }
-    }
-    if(Math.abs(t.clientX-_ts.x)>6||Math.abs(t.clientY-_ts.y)>6)e.preventDefault();
+    const price=_toPrice(t.clientY);
+    if(price!==null)_setStagingLine(price);
+    e.preventDefault();
   },{passive:false,capture:true});
 
   document.addEventListener('touchend',function(e){
-    if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
+    if(_longTimer){clearTimeout(_longTimer);_longTimer=null;}
+    if(_draggingLine){_draggingLine=false;return;}
+
     const t=e.changedTouches[0];
     const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
     const isTap=dx<12&&dy<12&&(Date.now()-_ts.t)<500;
+    if(!isTap)return;
 
-    // Save edit state
-    if(_editState){
-      const all=drawingsLoad();
-      const stored=all.find(x=>x.id===_editState.id);
-      if(stored){stored.p1=_editState.drawing.p1;stored.p2=_editState.drawing.p2;drawingsSave(all);}
-      _editState=null;
-      return;
-    }
-
-    if(!_drawTool||!chtMainInst)return;
     const r=_bounds();if(!r)return;
     const inChart=t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom;
+    if(!inChart)return;
 
     if(_drawTool==='hline'){
-      if(!isTap||!inChart)return;
-      const price=_toPrice(_ts.y);if(price===null)return;
-      const id=Date.now();
-      const pl=_addHlineNative(price);
-      if(pl)_activePriceLines.push({id,priceLine:pl});
-      const all=drawingsLoad();all.push({id,type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
-      drawingsSave(all);
+      const price=_toPrice(_ts.y);
+      if(price!==null){_setStagingLine(price);}
       _disengage();
-      return;
-    }
-
-    // tline / rect — two-tap with live drag preview
-    if(_drawTool==='tline'||_drawTool==='rect'){
-      if(!isTap||!inChart){
-        // Non-tap during creation = finishing drag (touchend after touchmove)
-        if(_drawState&&_drawState.p1&&!isTap){
-          _clearPreview();
-          const price=_toPrice(t.clientY);
-          const logical=_toLogical(t.clientX);
-          if(price===null||logical===null)return;
-          const id=Date.now();
-          const ohlcv=getOhlcv(selectedPair,chtTf);
-          const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,p1:_drawState.p1,p2:{price,logical}};
-          if(_drawTool==='tline'){
-            const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-            if(s)_activeDrawSeries.push({id,series:s});
-          }else{
-            const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-            if(ss)ss.forEach(s=>_activeDrawSeries.push({id,series:s}));
-          }
-          const all=drawingsLoad();all.push(d);drawingsSave(all);
-          _disengage();
-        }
-        return;
-      }
-      if(!_drawState){
-        const price=_toPrice(_ts.y);const logical=_toLogical(_ts.x);
-        if(price===null||logical===null)return;
-        _drawState={p1:{price,logical}};
-      }else{
-        _clearPreview();
-        const price=_toPrice(_ts.y);const logical=_toLogical(_ts.x);
-        if(price===null||logical===null)return;
-        const id=Date.now();
-        const ohlcv=getOhlcv(selectedPair,chtTf);
-        const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,p1:_drawState.p1,p2:{price,logical}};
-        if(_drawTool==='tline'){
-          const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-          if(s)_activeDrawSeries.push({id,series:s});
-        }else{
-          const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-          if(ss)ss.forEach(s=>_activeDrawSeries.push({id,series:s}));
-        }
-        const all=drawingsLoad();all.push(d);drawingsSave(all);
-        _disengage();
-      }
     }
   },true);
 
-  // ── DESKTOP mouse ─────────────────────────────────────────────────────
-  let _mouseDown=false,_mouseEdit=null,_mouseLongTimer=null;
+  // ── DESKTOP ───────────────────────────────────────────────────────────
+  let _mouseDown=false,_draggingMouse=false;
   document.addEventListener('mousedown',function(e){
     if(!chtMainInst||_drawTool)return;
-    _mouseLongTimer=setTimeout(()=>{
-      _mouseLongTimer=null;
-      const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
-      for(const d of all.slice().reverse()){
-        if(d.type!=='hline'){
-          const ep=_hitEndpoint(d,e.clientX,e.clientY);
-          if(ep){_mouseEdit={mode:'endpoint',id:d.id,endpoint:ep,drawing:{...d,p1:{...d.p1},p2:{...d.p2}}};_mouseDown=true;return;}
-        }
-        if(_hitBody(d,e.clientX,e.clientY)){_mouseEdit={mode:'body',id:d.id,lastX:e.clientX,lastY:e.clientY,drawing:{...d,p1:{...d.p1},p2:{...d.p2}}};_mouseDown=true;return;}
+    if(_stagingLine){
+      // Check proximity to line
+      const inp=document.getElementById('cht-alert-inp');
+      const price=inp?parseFloat(inp.value):NaN;
+      if(!isNaN(price)){
+        const ly=_priceToClientY(price);
+        if(ly!==null&&Math.abs(e.clientY-ly)<20){_mouseDown=true;_draggingMouse=false;}
       }
-    },200);
+    }
   },true);
   document.addEventListener('mousemove',function(e){
-    if(_mouseLongTimer&&(Math.abs(e.movementX)>3||Math.abs(e.movementY)>3)){clearTimeout(_mouseLongTimer);_mouseLongTimer=null;}
-    if(!_mouseDown||!_mouseEdit||!chtMainInst)return;
-    const ohlcv=getOhlcv(selectedPair,chtTf);
-    const d=_mouseEdit.drawing;
-    if(_mouseEdit.mode==='endpoint'){
-      const ep=_mouseEdit.endpoint;
-      const np=_toPrice(e.clientY);const nl=_toLogical(e.clientX);
-      if(np===null||nl===null)return;
-      d[ep].price=np;d[ep].logical=nl;
-      const sa=_activeDrawSeries.filter(s=>s.id===_mouseEdit.id).map(s=>s.series);
-      if(d.type==='tline')_updateTlineNative(sa,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-      else if(d.type==='rect')_updateRectNative(sa,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-    }else if(_mouseEdit.mode==='body'){
-      const dy=e.clientY-_mouseEdit.lastY;_mouseEdit.lastY=e.clientY;
-      if(d.type==='hline'){
-        const cy=_chtCandles.priceToCoordinate(d.p1.price);if(cy===null)return;
-        const np=_chtCandles.coordinateToPrice(cy+dy);if(np===null)return;
-        d.p1.price=np;d.p2.price=np;
-        const pl=_activePriceLines.find(p=>p.id===_mouseEdit.id);
-        if(pl){const dec=selectedPair.includes('JPY')?3:5;try{pl.priceLine.applyOptions({price:np,title:np.toFixed(dec)});}catch(er){}}
-      }else{
-        const np1=_chtCandles.coordinateToPrice(_chtCandles.priceToCoordinate(d.p1.price)+dy);
-        const np2=_chtCandles.coordinateToPrice(_chtCandles.priceToCoordinate(d.p2.price)+dy);
-        if(np1===null||np2===null)return;
-        d.p1.price=np1;d.p2.price=np2;
-        const sa=_activeDrawSeries.filter(s=>s.id===_mouseEdit.id).map(s=>s.series);
-        if(d.type==='tline')_updateTlineNative(sa,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-        else if(d.type==='rect')_updateRectNative(sa,ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-      }
-    }
+    if(!_mouseDown)return;
+    _draggingMouse=true;
+    const price=_toPrice(e.clientY);
+    if(price!==null)_setStagingLine(price);
     e.preventDefault();
   },{passive:false,capture:true});
-  document.addEventListener('mouseup',function(e){
-    if(_mouseLongTimer){clearTimeout(_mouseLongTimer);_mouseLongTimer=null;}
-    if(_mouseEdit){
-      const all=drawingsLoad();const stored=all.find(x=>x.id===_mouseEdit.id);
-      if(stored){stored.p1=_mouseEdit.drawing.p1;stored.p2=_mouseEdit.drawing.p2;drawingsSave(all);}
-    }
-    _mouseDown=false;_mouseEdit=null;
+  document.addEventListener('mouseup',function(){
+    _mouseDown=false;_draggingMouse=false;
   },true);
   document.addEventListener('click',function(e){
-    if(!_drawTool||!chtMainInst)return;
+    if(!_drawTool||_draggingMouse||!chtMainInst)return;
     const r=_bounds();if(!r)return;
     if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
     if(_drawTool==='hline'){
-      const price=_toPrice(e.clientY);if(price===null)return;
-      const id=Date.now();
-      const pl=_addHlineNative(price);
-      if(pl)_activePriceLines.push({id,priceLine:pl});
-      const all=drawingsLoad();all.push({id,type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
-      drawingsSave(all);_disengage();
-    } else {
-      const price=_toPrice(e.clientY);const logical=_toLogical(e.clientX);
-      if(price===null||logical===null)return;
-      if(!_drawState){_drawState={p1:{price,logical}};}
-      else{
-        const id=Date.now();const ohlcv=getOhlcv(selectedPair,chtTf);
-        const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,p1:_drawState.p1,p2:{price,logical}};
-        if(_drawTool==='tline'){const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);if(s)_activeDrawSeries.push({id,series:s});}
-        else{const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);if(ss)ss.forEach(s=>_activeDrawSeries.push({id,series:s}));}
-        const all=drawingsLoad();all.push(d);drawingsSave(all);_disengage();
-      }
+      const price=_toPrice(e.clientY);
+      if(price!==null){_setStagingLine(price);}
+      _disengage();
     }
   },true);
 }
 
-function _handleDrawPoint(){}
+function clearDrawings(){_removeStagingLine();}
+function restoreDrawings(){}
 function renderDrawings(){}
+function _handleDrawPoint(){}
 
 
 
@@ -1696,7 +1425,7 @@ async function renderChtPrice(){
   if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper',0],['middle',2],['lower',0]].forEach(([k,ls])=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:ls,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
   if(indState.sma1){const sd=computeSMA(ohlcv,indState.sma1_period||21,indState.sma1_shift||0);if(sd.length)chart.addLineSeries({color:indState.sma1_color||'#e3b341',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:`SMA${indState.sma1_period}`}).setData(sd);}
   if(indState.sma2){const sd=computeSMA(ohlcv,indState.sma2_period||50,indState.sma2_shift||0);if(sd.length)chart.addLineSeries({color:indState.sma2_color||'#f85149',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:`SMA${indState.sma2_period}`}).setData(sd);}
-  laLoad().filter(a=>a.pair===selectedPair&&a.active).forEach(a=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false}).setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);});
+  laLoad().filter(a=>a.pair===selectedPair&&a.active).forEach(a=>{chart.addLineSeries({color:'rgba(227,179,65,0.7)',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false}).setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);});
   // Trade lines — start from entry bar, zone shading between SL and TP
   tradesLoad().filter(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending')&&t.entry).forEach(t=>{
     const entry=parseFloat(t.entry);
@@ -1804,7 +1533,19 @@ async function renderChtPrice(){
 function updateCloseTradeBtn(){const btn=document.getElementById('cht-close-trade-btn');if(!btn)return;const has=tradesLoad().some(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending'));btn.style.display=has?'inline-flex':'none';}
 
 function cycleAlertDir(){alertDir=alertDir==='above'?'below':'above';const b=document.getElementById('cht-dir-btn');if(b)b.textContent=alertDir==='above'?'↑ Above':'↓ Below';}
-function setLevelAlert(){const inp=document.getElementById('cht-alert-inp');if(!inp)return;const price=parseFloat(inp.value);if(!price||isNaN(price))return;const alerts=laLoad();alerts.push({id:Date.now(),pair:selectedPair,price,direction:alertDir,active:true,created:new Date().toLocaleString()});laSave(alerts);inp.value='';renderChtAlerts();pushAlertsToGitHub(alerts);}
+function setLevelAlert(){
+  const inp=document.getElementById('cht-alert-inp');
+  if(!inp)return;
+  const price=parseFloat(inp.value);
+  if(!price||isNaN(price))return;
+  const alerts=laLoad();
+  alerts.push({id:Date.now(),pair:selectedPair,price,direction:alertDir,active:true,created:new Date().toLocaleString()});
+  laSave(alerts);
+  inp.value='';
+  _removeStagingLine();  // staging line becomes the alert line
+  renderChtAlerts();
+  pushAlertsToGitHub(alerts);
+}
 function deleteAlert(id){const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);renderChtAlerts();pushAlertsToGitHub(alerts);}
 function checkLevelAlerts(){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active)return;const h1d=D.h1&&D.h1[a.pair];if(!h1d||!h1d.raw)return;const price=parseFloat(h1d.raw.close);if(!price)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;setTimeout(()=>alert('Alert: '+a.pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed)laSave(alerts);}
 function checkLevelAlertsLive(price,pair){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active||a.pair!==pair)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;renderChtAlerts();setTimeout(()=>alert('🔔 Alert: '+pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed)laSave(alerts);}
