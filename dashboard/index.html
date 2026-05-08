@@ -1310,39 +1310,40 @@ function restoreDrawings(){
 }
 
 function initDrawingSvg(){
-  if(!chtMainInst)return;
-  const priceEl=document.getElementById('cht-price');
-  if(!priceEl)return;
+  if(window._drawListenersAttached)return;
+  window._drawListenersAttached=true;
 
-  // Clone to remove any previously attached listeners
-  const fresh=priceEl.cloneNode(true);
-  priceEl.parentNode.replaceChild(fresh,priceEl);
-  // Chart renders into this div — re-insert the chart after clone
-  // (chart already rendered into the old div; we recreate in renderChtPrice so this is safe)
-  // Actually: initDrawingSvg is called after chart renders, cht-price already has chart canvas
-  // Do NOT clone — just track with a flag instead
-  if(priceEl._drawInit)return;
-  priceEl._drawInit=true;
+  let _ts={x:0,y:0,t:0};
 
-  let _ts={x:0,y:0};
-  priceEl.addEventListener('touchstart',function(e){
+  // Capture phase on document — fires BEFORE LightweightCharts' stopPropagation
+  document.addEventListener('touchstart',function(e){
     if(!_drawTool)return;
-    const t=e.touches[0];_ts={x:t.clientX,y:t.clientY};
-  },{passive:true});
+    const t=e.touches[0];
+    _ts={x:t.clientX,y:t.clientY,t:Date.now()};
+  },true);
 
-  priceEl.addEventListener('touchend',function(e){
+  document.addEventListener('touchend',function(e){
     if(!_drawTool||!chtMainInst)return;
     const t=e.changedTouches[0];
-    if(Math.abs(t.clientX-_ts.x)>10||Math.abs(t.clientY-_ts.y)>10)return;
+    const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
+    const dt=Date.now()-_ts.t;
+    if(dx>12||dy>12||dt>600)return; // not a tap
+    const priceEl=document.getElementById('cht-price');
+    if(!priceEl)return;
     const rect=priceEl.getBoundingClientRect();
+    if(t.clientX<rect.left||t.clientX>rect.right||t.clientY<rect.top||t.clientY>rect.bottom)return;
     _handleDrawPoint(_ts.x-rect.left,_ts.y-rect.top);
-  },{passive:true});
+  },true);
 
-  priceEl.addEventListener('click',function(e){
+  // Desktop
+  document.addEventListener('click',function(e){
     if(!_drawTool||!chtMainInst)return;
+    const priceEl=document.getElementById('cht-price');
+    if(!priceEl)return;
     const rect=priceEl.getBoundingClientRect();
+    if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)return;
     _handleDrawPoint(e.clientX-rect.left,e.clientY-rect.top);
-  });
+  },true);
 }
 
 function _handleDrawPoint(x,y){
