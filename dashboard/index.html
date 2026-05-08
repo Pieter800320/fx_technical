@@ -1310,31 +1310,212 @@ function restoreDrawings(){
 }
 
 
+let _dragState=null; // {id, type, priceLine?, series?, startY, startPrice, p1, p2, ohlcv}
+let _longPressTimer=null;
+
+function _chartBounds(){
+  const el=document.getElementById('cht-price');
+  return el?el.getBoundingClientRect():null;
+}
+
+function _findNearHline(clientY){
+  // Returns {id, priceLine, drawingData} if within 18px of a stored hline
+  if(!_chtCandles)return null;
+  const rect=_chartBounds();if(!rect)return null;
+  const y=clientY-rect.top;
+  const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf&&d.type==='hline');
+  for(const d of all){
+    let py=null;
+    try{py=_chtCandles.priceToCoordinate(d.p1.price);}catch(e){}
+    if(py!==null&&Math.abs(y-py)<18){
+      const pl=_activePriceLines.find(p=>p.id===d.id);
+      return{id:d.id,priceLine:pl?pl.priceLine:null,drawingData:d};
+    }
+  }
+  return null;
+}
+
+function _findNearLine(clientX,clientY){
+  // Returns {id, seriesArr, drawingData} if within 18px of a tline or rect edge
+  if(!chtMainInst)return null;
+  const rect=_chartBounds();if(!rect)return null;
+  const px=clientX-rect.left,py=clientY-rect.top;
+  const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf&&(d.type==='tline'||d.type==='rect'));
+  for(const d of all){
+    let x1=null,y1=null,x2=null,y2=null;
+    try{
+      x1=chtMainInst.timeScale().logicalToCoordinate(d.p1.logical);
+      y1=_chtCandles.priceToCoordinate(d.p1.price);
+      x2=chtMainInst.timeScale().logicalToCoordinate(d.p2.logical);
+      y2=_chtCandles.priceToCoordinate(d.p2.price);
+    }catch(e){}
+    if(x1===null||y1===null||x2===null||y2===null)continue;
+    // Distance from point to line segment
+    const dx=x2-x1,dy2=y2-y1,len=Math.sqrt(dx*dx+dy2*dy2);
+    if(len<1)continue;
+    const t2=Math.max(0,Math.min(1,((px-x1)*dx+(py-y1)*dy2)/(len*len)));
+    const dist=Math.sqrt(Math.pow(px-x1-t2*dx,2)+Math.pow(py-y1-t2*dy2,2));
+    if(dist<18){
+      const seriesArr=_activeDrawSeries.filter(s=>s.id===d.id);
+      return{id:d.id,seriesArr:seriesArr.map(s=>s.series),drawingData:d};
+    }
+  }
+  return null;
+}
+
+function _saveDrawingPrice(id,newPrice){
+  const all=drawingsLoad();
+  const d=all.find(x=>x.id===id);
+  if(d){d.p1.price=newPrice;d.p2.price=newPrice;drawingsSave(all);}
+}
+
+function _saveDrawingMove(id,dy){
+  // Move tline/rect by dy pixels (converted to price delta)
+  if(!_chtCandles)return;
+  const all=drawingsLoad();
+  const d=all.find(x=>x.id===id);
+  if(!d)return;
+  try{
+    const p1y=_chtCandles.priceToCoordinate(d.p1.price);
+    const p2y=_chtCandles.priceToCoordinate(d.p2.price);
+    if(p1y===null||p2y===null)return;
+    const newP1=_chtCandles.coordinateToPrice(p1y+dy);
+    const newP2=_chtCandles.coordinateToPrice(p2y+dy);
+    if(newP1===null||newP2===null)return;
+    d.p1.price=newP1;d.p2.price=newP2;
+    drawingsSave(all);
+  }catch(e){}
+}
+
 function initDrawingSvg(){
   if(window._drawListenersAttached)return;
   window._drawListenersAttached=true;
   let _ts={x:0,y:0,t:0};
+
+  // ── TOUCHSTART — detect drag target or record tap start
   document.addEventListener('touchstart',function(e){
-    if(!_drawTool)return;
+    if(!chtMainInst)return;
     const t=e.touches[0];
     _ts={x:t.clientX,y:t.clientY,t:Date.now()};
+    if(_drawTool)return; // creating mode — don't start drag
+    // Check proximity to existing drawing for long-press drag
+    _longPressTimer=setTimeout(()=>{
+      const near=_findNearHline(t.clientY)||_findNearLine(t.clientX,t.clientY);
+      if(near){
+        _dragState={...near,startY:t.clientY,lastY:t.clientY,startX:t.clientX,lastX:t.clientX,moved:0};
+      }
+    },350);
   },true);
+
+  // ── TOUCHMOVE — update drawing position
+  document.addEventListener('touchmove',function(e){
+    if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
+    if(!_dragState||!chtMainInst)return;
+    const t=e.touches[0];
+    const dy=t.clientY-_dragState.lastY;
+    _dragState.moved+=Math.abs(dy);
+    _dragState.lastY=t.clientY;
+    _dragState.lastX=t.clientX;
+    if(_dragState.priceLine){
+      // Drag hline
+      let newPrice=null;
+      const rect=_chartBounds();if(!rect)return;
+      try{newPrice=_chtCandles.coordinateToPrice(t.clientY-rect.top);}catch(er){}
+      if(newPrice!==null){
+        try{_dragState.priceLine.applyOptions({price:newPrice,title:newPrice.toFixed(selectedPair.includes('JPY')?3:5)});}catch(er){}
+        _dragState.currentPrice=newPrice;
+      }
+    } else if(_dragState.seriesArr&&_dragState.seriesArr.length){
+      // Drag tline/rect — shift all prices by dy
+      const ohlcv=getOhlcv(selectedPair,chtTf);
+      const d=_dragState.drawingData;
+      try{
+        const rect=_chartBounds();if(!rect)return;
+        const p1y=_chtCandles.priceToCoordinate(d.p1.price);
+        const p2y=_chtCandles.priceToCoordinate(d.p2.price);
+        if(p1y===null||p2y===null)return;
+        const newP1=_chtCandles.coordinateToPrice(p1y+dy);
+        const newP2=_chtCandles.coordinateToPrice(p2y+dy);
+        if(newP1===null||newP2===null)return;
+        d.p1.price=newP1;d.p2.price=newP2;
+        if(d.type==='tline'&&_dragState.seriesArr[0]){
+          const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
+          const t1=ohlcv[clamp(d.p1.logical)].time,t2=ohlcv[clamp(d.p2.logical)].time;
+          _dragState.seriesArr[0].setData([{time:t1,value:newP1},{time:t2,value:newP2}]);
+        } else if(d.type==='rect'&&_dragState.seriesArr.length>=4){
+          const clamp=i=>Math.max(0,Math.min(Math.round(i),ohlcv.length-1));
+          const t1=ohlcv[clamp(Math.min(d.p1.logical,d.p2.logical))].time;
+          const t2=ohlcv[clamp(Math.max(d.p1.logical,d.p2.logical))].time;
+          const hi=Math.max(newP1,newP2),lo=Math.min(newP1,newP2);
+          _dragState.seriesArr[0].setData([{time:t1,value:hi},{time:t2,value:hi}]);
+          _dragState.seriesArr[1].setData([{time:t1,value:lo},{time:t2,value:lo}]);
+          _dragState.seriesArr[2].setData([{time:t1,value:hi},{time:t1,value:lo}]);
+          _dragState.seriesArr[3].setData([{time:t2,value:hi},{time:t2,value:lo}]);
+        }
+      }catch(er){}
+    }
+    if(_dragState.moved>4)e.preventDefault(); // suppress chart pan only once dragging
+  },{passive:false,capture:true});
+
+  // ── TOUCHEND — finalise drag or handle tap
   document.addEventListener('touchend',function(e){
+    if(_longPressTimer){clearTimeout(_longPressTimer);_longPressTimer=null;}
+    if(_dragState){
+      // Save final position
+      const d=_dragState;
+      const all=drawingsLoad();
+      const stored=all.find(x=>x.id===d.id);
+      if(stored){
+        if(d.priceLine&&d.currentPrice!==undefined){
+          stored.p1.price=d.currentPrice;stored.p2.price=d.currentPrice;
+        } else if(d.drawingData){
+          stored.p1.price=d.drawingData.p1.price;
+          stored.p2.price=d.drawingData.p2.price;
+        }
+        drawingsSave(all);
+      }
+      _dragState=null;
+      return;
+    }
     if(!_drawTool||!chtMainInst)return;
     const t=e.changedTouches[0];
     const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
-    const dt=Date.now()-_ts.t;
-    if(dx>12||dy>12||dt>600)return;
-    const priceEl=document.getElementById('cht-price');
-    if(!priceEl)return;
-    const rect=priceEl.getBoundingClientRect();
+    if(dx>12||dy>12||Date.now()-_ts.t>600)return;
+    const rect=_chartBounds();if(!rect)return;
     if(t.clientX<rect.left||t.clientX>rect.right||t.clientY<rect.top||t.clientY>rect.bottom)return;
     _handleDrawPoint(_ts.x-rect.left,_ts.y-rect.top);
   },true);
+
+  // Desktop mouse drag
+  let _mouseDown=false,_mouseDragState=null;
+  document.addEventListener('mousedown',function(e){
+    if(!chtMainInst||_drawTool)return;
+    const near=_findNearHline(e.clientY)||_findNearLine(e.clientX,e.clientY);
+    if(near){_mouseDragState={...near,lastY:e.clientY,lastX:e.clientX};_mouseDown=true;}
+  },true);
+  document.addEventListener('mousemove',function(e){
+    if(!_mouseDown||!_mouseDragState||!chtMainInst)return;
+    const dy=e.clientY-_mouseDragState.lastY;
+    _mouseDragState.lastY=e.clientY;
+    if(_mouseDragState.priceLine){
+      const rect=_chartBounds();if(!rect)return;
+      let np=null;try{np=_chtCandles.coordinateToPrice(e.clientY-rect.top);}catch(er){}
+      if(np!==null){try{_mouseDragState.priceLine.applyOptions({price:np,title:np.toFixed(selectedPair.includes('JPY')?3:5)});}catch(er){}_mouseDragState.currentPrice=np;}
+    }
+    e.preventDefault();
+  },{passive:false,capture:true});
+  document.addEventListener('mouseup',function(e){
+    if(!_mouseDown||!_mouseDragState)return;
+    const d=_mouseDragState;
+    const all=drawingsLoad();const stored=all.find(x=>x.id===d.id);
+    if(stored&&d.currentPrice!==undefined){stored.p1.price=d.currentPrice;stored.p2.price=d.currentPrice;drawingsSave(all);}
+    _mouseDown=false;_mouseDragState=null;
+  },true);
+
+  // Desktop click for new drawings
   document.addEventListener('click',function(e){
     if(!_drawTool||!chtMainInst)return;
-    const priceEl=document.getElementById('cht-price');if(!priceEl)return;
-    const rect=priceEl.getBoundingClientRect();
+    const rect=_chartBounds();if(!rect)return;
     if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)return;
     _handleDrawPoint(e.clientX-rect.left,e.clientY-rect.top);
   },true);
