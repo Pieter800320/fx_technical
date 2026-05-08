@@ -20,8 +20,8 @@ JSON fields
 
 AI pipeline
   Themes    : claude-haiku  (structured extraction — fast, cheap)
-  Narrative : claude-sonnet (reasoning + synthesis + edge scores combined)
-  Regime    : claude-haiku  (risk sentiment scoring)
+  Narrative : claude-sonnet (reasoning + synthesis)
+  Edge      : claude-haiku  (scoring — structured output)
 """
 
 import json, os, re, urllib.request
@@ -160,6 +160,116 @@ def fetch_all_macro():
     return macro
 
 
+def fetch_macro_weekly():
+    """Fetch 4-week (1-month) returns for W1 regime anchor.
+    Uses same Yahoo Finance API but range=1mo instead of 5d.
+    Only needs: SPX, VIX, Gold, DXY (US10Y excluded — ambiguous without context).
+    """
+    W1_INSTRUMENTS = [
+        ("spx",  "^GSPC",     "S&P 500", False),
+        ("vix",  "^VIX",      "VIX",     True),
+        ("gold", "GC=F",      "Gold",    True),   # Gold up = risk-off
+        ("dxy",  "DX-Y.NYB",  "DXY",     True),   # DXY up = risk-off for pairs
+    ]
+    result = {}
+    for key, symbol, label, _ in W1_INSTRUMENTS:
+        url = (
+            f"https://query1.finance.yahoo.com/v8/finance/chart/"
+            f"{symbol}?interval=1d&range=1mo"
+        )
+        try:
+            req = urllib.request.Request(url, headers={
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)",
+                "Accept": "application/json",
+            })
+            with urllib.request.urlopen(req, timeout=15) as resp:
+                data = json.loads(resp.read().decode("utf-8"))
+            closes = data["chart"]["result"][0]["indicators"]["quote"][0]["close"]
+            closes = [c for c in closes if c is not None]
+            if len(closes) >= 15:
+                # 4-week change: compare latest vs 20 bars ago (or oldest available)
+                n = min(20, len(closes) - 1)
+                old, new = closes[-n-1], closes[-1]
+                if old and old != 0:
+                    result[key] = round((new - old) / old * 100, 2)
+        except Exception as e:
+            print(f"    [W1 {label}] {e}")
+    return result
+
+
+def compute_w1_regime(weekly_changes, prev_w1=None):
+    """
+    Weekly macro anchor — slow-moving regime baseline.
+    Scores 4-week returns of SPX, VIX, Gold, DXY.
+    Requires 2-scan confirmation before flipping (persistence).
+
+    Thresholds tuned for 4-week moves:
+      SPX  > +3% = risk-on, < -3% = risk-off
+      VIX  > +20% = risk-off, < -15% = risk-on  (inverted, high = fear)
+      Gold > +4% = risk-off, < -3% = risk-on    (inverted, high = safe-haven)
+      DXY  > +2% = risk-off, < -2% = risk-on    (inverted, USD strength = risk-off for G10)
+    """
+    if not weekly_changes:
+        return None
+
+    score = 0
+    components = {}
+
+    def _score(key, pos_thr, neg_thr, invert=False):
+        nonlocal score
+        v = weekly_changes.get(key)
+        if v is None:
+            return
+        s = (-1 if v > pos_thr else 1 if v < neg_thr else 0) if invert else \
+            (1 if v > pos_thr else -1 if v < neg_thr else 0)
+        score += s
+        components[key] = {"change_pct": v, "score": s}
+
+    _score("spx",  3.0,  -3.0, invert=False)
+    _score("vix",  20.0, -15.0, invert=True)
+    _score("gold", 4.0,  -3.0,  invert=True)
+    _score("dxy",  2.0,  -2.0,  invert=True)
+
+    # Classify
+    if score >= 3:
+        regime, confidence = "Risk-On", "High"
+    elif score == 2:
+        regime, confidence = "Risk-On", "Medium"
+    elif score == 1:
+        regime, confidence = "Risk-On", "Low"
+    elif score == 0:
+        regime, confidence = "Mixed", "Low"
+    elif score == -1:
+        regime, confidence = "Risk-Off", "Low"
+    elif score == -2:
+        regime, confidence = "Risk-Off", "Medium"
+    else:
+        regime, confidence = "Risk-Off", "High"
+
+    # Score on 0-10 scale for final_regime stack bar
+    w1_score = round((score / 4 + 1) / 2 * 10, 1)
+    w1_score = max(0, min(10, w1_score))
+
+    new_result = {
+        "regime":     regime,
+        "confidence": confidence,
+        "score":      w1_score,
+        "raw_score":  score,
+        "components": components,
+    }
+
+    # Persistence: require 2 consecutive different readings before confirming flip
+    if prev_w1 and prev_w1.get("regime") != regime:
+        new_result["pending"]   = regime
+        new_result["confirmed"] = False
+        new_result["regime"]    = prev_w1["regime"]   # hold previous
+        new_result["score"]     = prev_w1.get("score", w1_score)
+    else:
+        new_result["confirmed"] = True
+
+    return new_result
+
+
 # ── RSS ───────────────────────────────────────────────────────────────────────
 def fetch_rss(url):
     try:
@@ -207,7 +317,7 @@ def load_tech():
                 return json.load(f)
         except Exception:
             return {}
-    return lj("h4_scores.json"), lj("d1_scores.json"), lj("csm.json"), lj("regime.json"), lj("correlation.json"), lj("calendar.json")
+    return lj("h4_scores.json"), lj("d1_scores.json"), lj("csm.json"), lj("regime.json"), lj("correlation.json")
 
 
 
@@ -236,7 +346,7 @@ def compute_macro_bias(macro):
         })
 
     _score("vix",    "VIX",     lambda v: f"{v:.1f}",           3.0,  -3.0, invert=True)
-    _score("dxy",    "DXY",     lambda v: f"{v:.2f}",           0.3,  -0.3, invert=True)
+    _score("dxy",    "DXY",     lambda v: f"{v:.2f}",           0.5,  -0.5, invert=True)
     _score("us2y",   "US 2Y",   lambda v: f"{v:.2f}%",          1.5,  -1.5, invert=True)
     _score("gold",   "Gold",    lambda v: f"${round(v):,}",     0.5,  -0.5, invert=True)
     _score("spx",    "S&P 500", lambda v: str(round(v)),         0.3,  -0.3, invert=False)
@@ -259,7 +369,7 @@ def compute_macro_bias(macro):
     }
 
 
-def build_tech_text(h4, d1, csm, regime, calendar=None):
+def build_tech_text(h4, d1, csm, regime):
     lines   = []
     reg     = regime.get("regime", "Unknown")
     conf    = regime.get("confidence", "")
@@ -325,34 +435,6 @@ def build_tech_text(h4, d1, csm, regime, calendar=None):
             arr = "up" if c["change_pct"] > 0 else "down" if c["change_pct"] < 0 else "flat"
             lines.append(f"  {c['label']}: {c['value']} {arr} {abs(c['change_pct']):.1f}% (signal: {c['score']:+d})")
 
-    # W1 macro anchor — gives Sonnet explicit weekly regime context
-    w1 = regime.get("w1_regime", {})
-    if w1 and w1.get("regime"):
-        conf = w1.get("confirmed", True)
-        lines.append(f"W1 Macro Anchor: {w1['regime']} ({w1.get('confidence','Low')}) score={w1.get('score',5):.1f}/10" + ('' if conf else ' [unconfirmed — pending flip]'))
-
-    # Economic calendar — next 12 hours of high-impact events
-    # Critical for Sonnet to avoid recommending trades into major releases
-    if calendar and calendar.get("events"):
-        now_utc = datetime.now(timezone.utc).replace(tzinfo=None)
-        cutoff  = now_utc + timedelta(hours=12)
-        upcoming = []
-        for ev in calendar["events"]:
-            try:
-                ev_dt = datetime.fromisoformat(ev["datetime"])
-                if now_utc <= ev_dt <= cutoff:
-                    mins_away = int((ev_dt - now_utc).total_seconds() / 60)
-                    upcoming.append(f"{ev['currency']} {ev['event']} in {mins_away}min ({ev_dt.strftime('%H:%M')} UTC)")
-            except Exception:
-                pass
-        if upcoming:
-            lines.append(f"HIGH-IMPACT EVENTS NEXT 12H ({len(upcoming)} events):")
-            for u in upcoming:
-                lines.append(f"  ⚠ {u}")
-            lines.append("NOTE: Reduce conviction on pairs with upcoming releases. Flag affected pairs in trade implications.")
-        else:
-            lines.append("Economic calendar: No high-impact events in next 12 hours.")
-
     return "\n".join(lines)
 
 
@@ -409,7 +491,7 @@ def build_corr_text(corr):
 
 
 def call_narrative(macro, themes_data, tech_text, corr_text):
-    """Generate structured five-section FX narrative + edge scores in one Sonnet call."""
+    """Generate structured five-section FX narrative. Plain text only — no markdown."""
 
     macro_lines = []
     for key, _, label, invert in STOOQ_INSTRUMENTS:
@@ -432,6 +514,7 @@ def call_narrative(macro, themes_data, tech_text, corr_text):
         + "\n".join(t_lines)
     )
 
+    # FIX: explicit no-markdown instruction in both system and user prompts
     system = (
         "You are a professional macro FX trader. "
         "Your task is to synthesize multi-source market data into a clear, internally consistent narrative. "
@@ -477,64 +560,80 @@ Secondary: Pair up or down - reason in max 15 words - Conviction X/10
 Avoid: Pair - reason in max 10 words
 Watch: One trigger that confirms or invalidates the primary trade
 
-EDGE SCORES
-Score each of the 12 pairs 1-10 on how coherently all four sources agree on a tradeable direction right now.
-10=all sources fully aligned, 7-9=three sources agree, 4-6=mixed, 1-3=contradictory.
-Output ONLY valid JSON on the last line, no label, no explanation:
-{{"EURUSD":7,"GBPUSD":5,"USDJPY":9,"USDCHF":6,"AUDUSD":4,"USDCAD":5,"NZDUSD":8,"EURJPY":6,"GBPJPY":5,"AUDJPY":4,"NZDJPY":7,"CADJPY":5}}
-
 RULES:
 - Correlation overrides fundamentals if they conflict
 - Conviction score: 10 means all four sources aligned, 1 means all sources conflicted
 - No generic statements such as markets are uncertain
 - No hedging language. Be decisive.
-- NO markdown formatting of any kind. No asterisks, no hash symbols, no bold, no bullet dashes.
-- The EDGE SCORES JSON must be the very last line of your response."""
+- NO markdown formatting of any kind. No asterisks, no hash symbols, no bold, no bullet dashes."""
 
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resp = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=900,
+        max_tokens=700,
         system=system,
         messages=[{"role": "user", "content": user}],
     )
-    full_text = resp.content[0].text.strip()
-
-    # Split narrative from edge scores JSON (last line)
-    lines = full_text.splitlines()
-    edge_scores = {}
-    narrative_lines = lines
-
-    # Find the JSON line — work backwards from end
-    for i in range(len(lines) - 1, max(len(lines) - 5, -1), -1):
-        line = lines[i].strip()
-        if line.startswith("{") and line.endswith("}"):
-            try:
-                raw_scores = json.loads(line)
-                edge_scores = {}
-                for pair in PAIRS:
-                    key = pair.replace("/", "")
-                    edge_scores[key] = max(1, min(10, int(raw_scores.get(key, 5))))
-                # Remove EDGE SCORES section header + JSON from narrative
-                narrative_lines = lines[:i]
-                # Also remove the "EDGE SCORES" header line if present
-                while narrative_lines and narrative_lines[-1].strip().upper() in ("EDGE SCORES", ""):
-                    narrative_lines.pop()
-                break
-            except Exception:
-                pass
-
-    # Fallback: fill missing pairs with 5
-    for pair in PAIRS:
-        key = pair.replace("/", "")
-        if key not in edge_scores:
-            edge_scores[key] = 5
-
-    narrative = "\n".join(narrative_lines).strip()
+    narrative = resp.content[0].text.strip()
     wc = len(narrative.split())
     print(f"  [Claude narrative] {wc} words")
-    print(f"  [Claude edge] scores: {edge_scores}")
-    return narrative, edge_scores
+    return narrative
+
+
+def call_edge_scores(macro, themes_data, tech_text, corr_text):
+    """Score all 12 pairs 1-10 on cross-source coherence (Edge score)."""
+    macro_lines = []
+    for key, _, label, invert in STOOQ_INSTRUMENTS:
+        d = macro.get(key)
+        if not d:
+            continue
+        chg = d["change_pct"]
+        arr = "up" if chg > 0 else "down" if chg < 0 else "flat"
+        macro_lines.append(f"{label}: {fmt_val(d['value'])} ({arr} {abs(chg):.2f}%)")
+    macro_text = "\n".join(macro_lines) or "No macro data"
+
+    themes      = themes_data.get("themes", [])
+    themes_text = (
+        f"USD bias: {themes_data.get('usd_bias', '?')} | "
+        f"Risk: {themes_data.get('risk_sentiment', '?')}\n"
+        + "\n".join(f"- {t['theme']} [{t['direction'].upper()}]" for t in themes[:6])
+    )
+
+    prompt = (
+        "You are a professional FX analyst. Score each currency pair 1-10 on EDGE - "
+        "how coherently all four data sources (correlation, technicals, macro, news) "
+        "agree on a tradeable direction for that pair right now.\n\n"
+        "Scoring guide:\n"
+        "10 = All four sources fully aligned, clear direction, no contradictions\n"
+        "7-9 = Three sources agree, one mild conflict\n"
+        "4-6 = Mixed signals, sources partially agree\n"
+        "1-3 = Contradictory sources, no clear edge\n\n"
+        f"DATA:\nCORRELATIONS: {corr_text[:800]}\n"
+        f"TECHNICALS: {tech_text}\n"
+        f"MACRO: {macro_text}\n"
+        f"NEWS: {themes_text}\n\n"
+        "Score ALL 12 pairs. Respond ONLY with valid JSON, no markdown, no explanation:\n"
+        '{"EURUSD":7,"GBPUSD":5,"USDJPY":9,"USDCHF":6,"AUDUSD":4,"USDCAD":5,'
+        '"NZDUSD":8,"EURJPY":6,"GBPJPY":5,"AUDJPY":4,"NZDJPY":7,"CADJPY":5}\n\n'
+        "Replace the example numbers with your actual scores. Return only the JSON object."
+    )
+
+    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    resp = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=200,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    raw    = resp.content[0].text.strip()
+    scores = json.loads(_strip_json(raw))
+    for pair in PAIRS:
+        key = pair.replace("/", "")
+        if key not in scores:
+            scores[key] = 5
+        else:
+            scores[key] = max(1, min(10, int(scores[key])))
+    print(f"  [Claude edge] scores: {scores}")
+    return scores
 
 
 
@@ -588,7 +687,7 @@ def main():
     print(f"  Total headlines after dedup: {len(all_items)}")
 
     # 3. Technical data + macro bias
-    h4, d1, csm, regime, corr, calendar = load_tech()
+    h4, d1, csm, regime, corr = load_tech()
 
     macro_bias = compute_macro_bias(macro)
     if macro_bias:
@@ -607,7 +706,29 @@ def main():
         except Exception as _e:
             print(f"  Macro bias write failed: {_e}")
 
-    tech_text = build_tech_text(h4, d1, csm, regime, calendar=calendar)
+    # W1 regime — weekly macro anchor (computed here, written to regime.json)
+    try:
+        weekly = fetch_macro_weekly()
+        prev_w1 = regime.get("w1_regime")
+        w1_result = compute_w1_regime(weekly, prev_w1)
+        if w1_result:
+            regime_path = BASE_DIR / "data" / "regime.json"
+            reg_doc = {}
+            if regime_path.exists():
+                with open(regime_path) as _f:
+                    reg_doc = json.load(_f)
+            reg_doc["w1_regime"] = w1_result
+            with open(regime_path, "w") as _f:
+                json.dump(reg_doc, _f, indent=2)
+            regime["w1_regime"] = w1_result
+            conf_str = "confirmed" if w1_result.get("confirmed") else f"pending → {w1_result.get('pending')}"
+            print(f"  W1 regime: {w1_result['regime']} ({w1_result['confidence']}) [{conf_str}]")
+        else:
+            print("  W1 regime: skipped (no weekly data)")
+    except Exception as _e:
+        print(f"  W1 regime error: {_e}")
+
+    tech_text = build_tech_text(h4, d1, csm, regime)
     corr_text = build_corr_text(corr)
 
     # 4. Default stub — macro always present even if Claude is unavailable
@@ -645,9 +766,13 @@ def main():
 
         if result["status"] == "ok":
             try:
-                result["narrative"], result["edge_scores"] = call_narrative(macro, result, tech_text, corr_text)
+                result["narrative"] = call_narrative(macro, result, tech_text, corr_text)
             except Exception as e:
                 print(f"  Claude narrative error: {e}")
+            try:
+                result["edge_scores"] = call_edge_scores(macro, result, tech_text, corr_text)
+            except Exception as e:
+                print(f"  Claude edge error: {e}")
 
             # AI regime sentiment — independent of price, news-only
             ai_sentiment = None
@@ -667,8 +792,7 @@ def main():
                 try:
                     h4_reg = regime.get("h4") or {}
                     mb = regime.get("macro_bias")
-                    w1_reg = regime.get("w1_regime")  # written by scan_d1.py
-                    final_reg = compute_final_regime(h4_reg, mb, ai_sentiment, w1_regime=w1_reg)
+                    final_reg = compute_final_regime(h4_reg, mb, ai_sentiment)
                     regime_path = BASE_DIR / "data" / "regime.json"
                     reg_doc = {}
                     if regime_path.exists():
@@ -679,8 +803,7 @@ def main():
                         reg_doc["ai_sentiment"] = ai_sentiment
                     with open(regime_path, "w") as _f:
                         json.dump(reg_doc, _f, indent=2)
-                    w1_label = w1_reg.get("regime", "—") if w1_reg else "—"
-                    print(f"  Final regime: {final_reg['regime']} {final_reg['confidence']} (score={final_reg['score']}) | W1={w1_label}")
+                    print(f"  Final regime: {final_reg['regime']} {final_reg['confidence']} (score={final_reg['score']})")
                 except Exception as e:
                     print(f"  Final regime error: {e}")
 
