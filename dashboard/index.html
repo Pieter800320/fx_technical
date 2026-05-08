@@ -253,7 +253,6 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div id="cht-canvas-area" style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;">
     <div id="cht-ohlc" style="position:absolute;top:6px;left:8px;z-index:20;font-family:'VT323',monospace;font-size:14px;line-height:1.4;pointer-events:none;display:none;background:rgba(13,17,23,.82);padding:3px 8px;border-radius:4px;border:1px solid rgba(48,54,61,.7);white-space:nowrap;"></div>
-    <div id="cht-dbg" style="position:absolute;top:6px;right:8px;z-index:25;font-size:10px;color:var(--amber);background:rgba(0,0,0,.8);padding:3px 6px;border-radius:4px;pointer-events:none;display:none;white-space:pre;line-height:1.5;"></div>
     <div id="cht-price" style="flex:1;min-height:0;"></div>
     <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
   </div>
@@ -1310,7 +1309,6 @@ function restoreDrawings(){
   });
 }
 
-function _dbg(msg){const el=document.getElementById('cht-dbg');if(!el)return;el.style.display='block';el.textContent=msg;}
 
 function initDrawingSvg(){
   if(window._drawListenersAttached)return;
@@ -1320,20 +1318,17 @@ function initDrawingSvg(){
     if(!_drawTool)return;
     const t=e.touches[0];
     _ts={x:t.clientX,y:t.clientY,t:Date.now()};
-    _dbg('touchstart\n'+_ts.x.toFixed(0)+','+_ts.y.toFixed(0));
   },true);
   document.addEventListener('touchend',function(e){
-    if(!_drawTool||!chtMainInst){_dbg('touchend\nno tool/chart');return;}
+    if(!_drawTool||!chtMainInst)return;
     const t=e.changedTouches[0];
     const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
     const dt=Date.now()-_ts.t;
-    _dbg('touchend\ndx='+dx.toFixed(0)+' dy='+dy.toFixed(0)+' dt='+dt);
-    if(dx>12||dy>12||dt>600){_dbg('rejected\ndx='+dx.toFixed(0)+' dt='+dt);return;}
+    if(dx>12||dy>12||dt>600)return;
     const priceEl=document.getElementById('cht-price');
-    if(!priceEl){_dbg('no priceEl');return;}
+    if(!priceEl)return;
     const rect=priceEl.getBoundingClientRect();
-    _dbg('rect\n'+rect.left.toFixed(0)+','+rect.top.toFixed(0)+'\n'+rect.right.toFixed(0)+','+rect.bottom.toFixed(0));
-    if(t.clientX<rect.left||t.clientX>rect.right||t.clientY<rect.top||t.clientY>rect.bottom){_dbg('outside\nchart bounds');return;}
+    if(t.clientX<rect.left||t.clientX>rect.right||t.clientY<rect.top||t.clientY>rect.bottom)return;
     _handleDrawPoint(_ts.x-rect.left,_ts.y-rect.top);
   },true);
   document.addEventListener('click',function(e){
@@ -1346,16 +1341,14 @@ function initDrawingSvg(){
 }
 
 function _handleDrawPoint(x,y){
-  _dbg('handleDrawPoint\nx='+x.toFixed(1)+' y='+y.toFixed(1));
+  if(!_chtCandles||!chtMainInst)return;
   let price=null;
-  try{price=chtMainInst.priceScale('right').coordinateToPrice(y);}catch(e){_dbg('price err\n'+e.message);return;}
-  if(price===null||price===undefined||isNaN(price)){_dbg('price null\ny='+y.toFixed(1));return;}
-  _dbg('price='+price.toFixed(5));
+  try{price=_chtCandles.coordinateToPrice(y);}catch(e){return;}
+  if(price===null||price===undefined||isNaN(price))return;
   const ohlcv=getOhlcv(selectedPair,chtTf);
   if(_drawTool==='hline'){
     const id=Date.now();
     const pl=_addHlineNative(price);
-    _dbg('hline\n'+(pl?'OK':'FAIL')+'\n'+price.toFixed(5));
     if(pl)_activePriceLines.push({id,priceLine:pl});
     const all=drawingsLoad();
     all.push({id,type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
@@ -1366,7 +1359,6 @@ function _handleDrawPoint(x,y){
   try{const l=chtMainInst.timeScale().coordinateToLogical(x);if(l!==null&&l!==undefined)logical=l;}catch(e){}
   if(!_drawStart){
     _drawStart={price,logical};
-    _dbg('start set\n'+price.toFixed(5));
   } else {
     const id=Date.now();
     const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,
@@ -1381,7 +1373,6 @@ function _handleDrawPoint(x,y){
     }
     const all=drawingsLoad();all.push(d);drawingsSave(all);
     _drawStart=null;
-    _dbg('drawn\n'+_drawTool);
   }
 }
 
