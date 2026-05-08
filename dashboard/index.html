@@ -1198,7 +1198,7 @@ function toggleInd(key){
   }
   renderChtPrice();
 }
-function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>{renderChtPrice();setTimeout(initDrawingSvg,300);}));}
+function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
 function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);if(_drawClickHandler&&chtMainInst){try{chtMainInst.unsubscribeClick(_drawClickHandler);}catch(e){}}_drawClickHandler=null;if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;setDrawTool(null);}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
 function startCandleTimer(){if(candleTimerInt)clearInterval(candleTimerInt);function tick(){const el=document.getElementById('cht-timer');if(!el)return;if(closed()){el.textContent='';return;}const now=Math.floor(Date.now()/1000);const tfSecs={H1:3600,H4:14400,D1:86400}[chtTf]||3600;const secsLeft=tfSecs-(now%tfSecs);const h=Math.floor(secsLeft/3600),m=Math.floor((secsLeft%3600)/60),s=secsLeft%60;const pad=n=>String(n).padStart(2,'0');el.textContent=h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);el.style.color=secsLeft<=60?'var(--sell)':'var(--muted)';}tick();candleTimerInt=setInterval(tick,1000);}
@@ -1249,26 +1249,27 @@ function initDrawingSvg(){
   _drawClickHandler=function(param){
     if(!_drawTool||!param||!param.point)return;
     const price=svgPxToPrice(param.point.y);
-    if(price===null)return;
-    // Always derive logical from x coordinate — param.logical is optional and often undefined
-    let logical=null;
-    try{logical=chtMainInst.timeScale().coordinateToLogical(param.point.x);}catch(e){}
-    if(logical===null||logical===undefined)return;
+    if(price===null||price===undefined)return;
     if(_drawTool==='hline'){
+      // Hline only needs price — no logical required
       const all=drawingsLoad();
       all.push({type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
       drawingsSave(all);renderDrawings();
+      return;
+    }
+    // Two-tap tools need logical for x position
+    let logical=null;
+    try{logical=chtMainInst.timeScale().coordinateToLogical(param.point.x);}catch(e){}
+    if(logical===null||logical===undefined)return;
+    if(!_drawStart){
+      _drawStart={price,logical};
+      renderDrawings();
     } else {
-      if(!_drawStart){
-        _drawStart={price,logical};
-        renderDrawings();
-      } else {
-        const all=drawingsLoad();
-        all.push({type:_drawTool,pair:selectedPair,tf:chtTf,
-          p1:{price:_drawStart.price,logical:_drawStart.logical},
-          p2:{price,logical}});
-        drawingsSave(all);_drawStart=null;renderDrawings();
-      }
+      const all=drawingsLoad();
+      all.push({type:_drawTool,pair:selectedPair,tf:chtTf,
+        p1:{price:_drawStart.price,logical:_drawStart.logical},
+        p2:{price,logical}});
+      drawingsSave(all);_drawStart=null;renderDrawings();
     }
   };
   chtMainInst.subscribeClick(_drawClickHandler);
@@ -1440,6 +1441,7 @@ async function renderChtPrice(){
   setTimeout(()=>{if(chtSubInst){try{const r=chart.timeScale().getVisibleLogicalRange();if(r)chtSubInst.timeScale().setVisibleLogicalRange({from:r.from-_subChartOffset,to:r.to-_subChartOffset});}catch(e){}}},120);
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:priceEl.clientWidth,height:priceEl.clientHeight});}).observe(priceEl);
   chtMainInst=chart;
+  initDrawingSvg();  // Subscribe click handler now that chart is live
   if(_wsLastPrice&&_wsPair===selectedPair)wsUpdatePrice(_wsLastPrice);
   // Re-render drawings when chart pans/zooms
   chart.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(renderDrawings));
