@@ -253,18 +253,18 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div id="cht-canvas-area" style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;">
     <div id="cht-ohlc" style="position:absolute;top:6px;left:8px;z-index:20;font-family:'VT323',monospace;font-size:14px;line-height:1.4;pointer-events:none;display:none;background:rgba(13,17,23,.82);padding:3px 8px;border-radius:4px;border:1px solid rgba(48,54,61,.7);white-space:nowrap;"></div>
-    <div id="cht-draw-hint" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:20;font-size:var(--xs);color:var(--amber);background:rgba(13,17,23,.85);padding:3px 10px;border-radius:10px;border:1px solid rgba(227,179,65,.3);pointer-events:none;white-space:nowrap;"></div>
+    <svg id="cht-draw-svg" style="position:absolute;inset:0;z-index:15;pointer-events:none;overflow:visible;"></svg>
     <div id="cht-price" style="flex:1;min-height:0;"></div>
     <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
   </div>
   <div id="cht-controls">
     <!-- Row 1: Indicators | Drawing tools -->
     <div style="display:flex;gap:1px;border-bottom:1px solid var(--border2);">
-      <button class="btn btn-muted" onclick="openIndicatorsSheet()" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:8px 4px;">⚙ Indicators</button>
-      <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Horizontal line" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:8px 4px;">—</button>
-      <button id="draw-btn-tline" class="btn btn-muted" onclick="setDrawTool('tline')" title="Trend line" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:8px 4px;">╱</button>
-      <button id="draw-btn-rect" class="btn btn-muted" onclick="setDrawTool('rect')" title="Rectangle" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:8px 4px;">▭</button>
-      <button class="btn btn-muted" onclick="clearDrawings()" title="Clear drawings" style="flex:1;justify-content:center;border-radius:0;border:none;padding:8px 4px;font-size:10px;">CLR</button>
+      <button class="btn btn-muted" onclick="openIndicatorsSheet()" style="flex:2;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:9px 4px;font-size:var(--xs);">⚙ Indicators</button>
+      <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Horizontal line" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:9px 2px;font-size:10px;">—</button>
+      <button id="draw-btn-tline" class="btn btn-muted" onclick="setDrawTool('tline')" title="Trend line" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:9px 2px;font-size:10px;">╱</button>
+      <button id="draw-btn-rect" class="btn btn-muted" onclick="setDrawTool('rect')" title="Rectangle" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:9px 2px;font-size:10px;">▭</button>
+      <button class="btn btn-muted" onclick="clearDrawings()" title="Clear drawings" style="flex:1;justify-content:center;border-radius:0;border:none;padding:9px 2px;font-size:9px;letter-spacing:.04em;">CLR</button>
     </div>
     <!-- Row 2: Level alert input -->
     <div style="display:flex;gap:6px;padding:6px var(--pad);border-bottom:1px solid var(--border2);align-items:center;">
@@ -1230,86 +1230,74 @@ function setDrawTool(tool){
     b.style.borderColor=_drawTool===t?'rgba(227,179,65,.4)':'var(--border)';
   });
   _drawStart=null;
-  // Show hint when tool active
-  const hint=document.getElementById('cht-draw-hint');
-  if(hint){
-    if(_drawTool==='hline')hint.textContent='Tap chart to place horizontal line';
-    else if(_drawTool==='tline')hint.textContent='Tap start point, then end point';
-    else if(_drawTool==='rect')hint.textContent='Tap first corner, then opposite corner';
-    else hint.textContent='';
-    hint.style.display=_drawTool?'block':'none';
-  }
 }
 
 function clearDrawings(){
-  let d=drawingsLoad().filter(x=>!(x.pair===selectedPair&&x.tf===chtTf));
+  const d=drawingsLoad().filter(x=>!(x.pair===selectedPair&&x.tf===chtTf));
   drawingsSave(d);renderDrawings();
 }
 
 function svgPxToPrice(y){if(!chtMainInst)return null;try{return chtMainInst.priceScale('right').coordinateToPrice(y);}catch{return null;}}
-function svgPxToTime(x){if(!chtMainInst)return null;try{return chtMainInst.timeScale().coordinateToTime(x);}catch{return null;}}
 function priceToPx(price){if(!chtMainInst)return null;try{return chtMainInst.priceScale('right').priceToCoordinate(price);}catch{return null;}}
-function timeToPx(time){if(!chtMainInst)return null;try{return chtMainInst.timeScale().timeToCoordinate(time);}catch{return null;}}
+function logicalToPx(logical){if(!chtMainInst)return null;try{return chtMainInst.timeScale().logicalToCoordinate(logical);}catch{return null;}}
 
 let _drawClickHandler=null;
 
 function initDrawingSvg(){
-  // Subscribe to chart clicks for drawing — no overlay needed
   if(!chtMainInst)return;
   if(_drawClickHandler){try{chtMainInst.unsubscribeClick(_drawClickHandler);}catch(e){}}
   _drawClickHandler=function(param){
     if(!_drawTool||!param||!param.point)return;
     const price=svgPxToPrice(param.point.y);
-    const time=param.time;
     if(price===null)return;
+    // Always derive logical from x coordinate — param.logical is optional and often undefined
+    let logical=null;
+    try{logical=chtMainInst.timeScale().coordinateToLogical(param.point.x);}catch(e){}
+    if(logical===null||logical===undefined)return;
     if(_drawTool==='hline'){
-      // Single tap — draw immediately
-      const d={type:'hline',pair:selectedPair,tf:chtTf,
-        p1:{price,time},p2:{price,time}};
-      const all=drawingsLoad();all.push(d);drawingsSave(all);
-      renderDrawings();
+      const all=drawingsLoad();
+      all.push({type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
+      drawingsSave(all);renderDrawings();
     } else {
-      // Two-tap tools: tline, rect
       if(!_drawStart){
-        _drawStart={price,time,x:param.point.x,y:param.point.y};
-        // Show preview point
-        renderDrawings(true,{x:param.point.x,y:param.point.y});
-      } else {
-        const d={type:_drawTool,pair:selectedPair,tf:chtTf,
-          p1:{price:_drawStart.price,time:_drawStart.time},
-          p2:{price,time}};
-        const all=drawingsLoad();all.push(d);drawingsSave(all);
-        _drawStart=null;
+        _drawStart={price,logical};
         renderDrawings();
+      } else {
+        const all=drawingsLoad();
+        all.push({type:_drawTool,pair:selectedPair,tf:chtTf,
+          p1:{price:_drawStart.price,logical:_drawStart.logical},
+          p2:{price,logical}});
+        drawingsSave(all);_drawStart=null;renderDrawings();
       }
     }
   };
   chtMainInst.subscribeClick(_drawClickHandler);
 }
 
-function renderDrawings(withStart,previewPt){
+function renderDrawings(){
   const svg=document.getElementById('cht-draw-svg');
   const priceEl=document.getElementById('cht-price');
   if(!svg||!priceEl||!chtMainInst)return;
   const rect=priceEl.getBoundingClientRect();
-  const W=rect.width,H=rect.height;
+  const W=rect.width||window.innerWidth,H=rect.height||300;
   svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
   svg.setAttribute('width',W);svg.setAttribute('height',H);
-  const STROKE='rgba(227,179,65,0.85)',SW=1.5;
+  const STROKE='rgba(227,179,65,0.9)',SW=1.5;
   const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
   let m='';
   all.forEach((d,i)=>{
-    const y1=priceToPx(d.p1.price);
-    const x1=timeToPx(d.p1.time);
-    if(y1===null)return;
     if(d.type==='hline'){
-      if(y1<-20||y1>H+20)return;
+      const y=priceToPx(d.p1.price);
+      if(y===null||y<-20||y>H+20)return;
       const dec=selectedPair.includes('JPY')?3:5;
-      m+=`<g data-draw-idx="${i}"><line x1="0" y1="${y1.toFixed(1)}" x2="${W}" y2="${y1.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}" stroke-dasharray="5,3"/>`;
-      m+=`<text x="4" y="${Math.max(10,y1-3).toFixed(1)}" fill="${STROKE}" font-size="9" font-family="monospace">${d.p1.price.toFixed(dec)}</text></g>`;
+      m+=`<g data-draw-idx="${i}">`;
+      m+=`<line x1="0" y1="${y.toFixed(1)}" x2="${W}" y2="${y.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}" stroke-dasharray="5,3"/>`;
+      m+=`<text x="4" y="${Math.max(10,y-3).toFixed(1)}" fill="${STROKE}" font-size="9" font-family="monospace">${d.p1.price.toFixed(dec)}</text>`;
+      m+=`</g>`;
     } else {
-      const y2=priceToPx(d.p2.price),x2=timeToPx(d.p2.time);
-      if(y2===null||x1===null||x2===null)return;
+      const y1=priceToPx(d.p1.price),y2=priceToPx(d.p2.price);
+      const x1=logicalToPx(d.p1.logical),x2=logicalToPx(d.p2.logical);
+      if(y1===null||y2===null||x1===null||x2===null)return;
       if(d.type==='tline'){
         m+=`<line data-draw-idx="${i}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}"/>`;
       } else if(d.type==='rect'){
@@ -1318,32 +1306,20 @@ function renderDrawings(withStart,previewPt){
       }
     }
   });
-  // Show first-tap point while waiting for second tap
-  if(withStart&&_drawStart){
-    const sx=timeToPx(_drawStart.time),sy=priceToPx(_drawStart.price);
-    if(sx!==null&&sy!==null){
-      m+=`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="4" fill="${STROKE}" opacity="0.7"/>`;
-      if(previewPt){
-        const px=previewPt.x,py=previewPt.y;
-        if(_drawTool==='tline'){
-          m+=`<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}" opacity="0.4" stroke-dasharray="3,3"/>`;
-        } else if(_drawTool==='rect'){
-          const rx2=Math.min(sx,px),ry2=Math.min(sy,py),rw2=Math.abs(px-sx),rh2=Math.abs(py-sy);
-          m+=`<rect x="${rx2.toFixed(1)}" y="${ry2.toFixed(1)}" width="${rw2.toFixed(1)}" height="${rh2.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}" fill="rgba(227,179,65,0.04)" opacity="0.4" stroke-dasharray="3,3"/>`;
-        }
-      }
-    }
+  // First-tap dot for two-tap tools
+  if(_drawStart){
+    const sx=logicalToPx(_drawStart.logical),sy=priceToPx(_drawStart.price);
+    if(sx!==null&&sy!==null)m+=`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="4" fill="${STROKE}"/>`;
   }
   svg.innerHTML=m;
-  // Double-tap to delete — attach once
   svg.ondblclick=function(e){
     if(_drawTool)return;
     const el=e.target.closest('[data-draw-idx]');
     if(!el)return;
     const idx=parseInt(el.dataset.drawIdx);
-    const pairDrawings=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
+    const pairD=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
     const allD=drawingsLoad();
-    const target=pairDrawings[idx];
+    const target=pairD[idx];
     if(target){const gi=allD.indexOf(target);if(gi>=0){allD.splice(gi,1);drawingsSave(allD);renderDrawings();}}
   };
 }
