@@ -316,7 +316,7 @@ const GH_OWNER='Pieter800320',GH_REPO='fx_technical';
 
 let D={},selectedPair=PAIRS[0],corrSelectedPair=null,csmMode='d1';
 let alertDir='above',ratesLocal={};
-let indState=JSON.parse(localStorage.getItem(IND_KEY)||'{"ema200":true,"ema50":false,"bb":false,"macd":false,"rsi":false,"sma1":false,"sma1_period":21,"sma1_shift":0,"sma1_color":"#e3b341","sma2":false,"sma2_period":50,"sma2_shift":-3,"sma2_color":"#f85149"}');
+let indState=JSON.parse(localStorage.getItem(IND_KEY)||'{"ema200":true,"ema50":false,"bb":false,"macd":false,"rsi":false,"sma1":false,"sma1_period":21,"sma1_shift":0,"sma1_color":"#e3b341","sma2":false,"sma2_period":50,"sma2_shift":-3,"sma2_color":"#f85149","vwap":false,"asian_range":false,"rsi_div":false}');
 function goNav(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nb').forEach(b=>b.classList.remove('active'));
@@ -428,6 +428,17 @@ function buildSignalSheetContent(data,pair,tfLabel){
   if(struct&&struct.event&&struct.event!=='none'){h+=`<div class="sh-hdr">Structure</div>`;h+=`<div class="sh-dr"><span class="sh-dn">Event</span><span class="sh-dv" style="color:${struct.event==='BOS'?'var(--buy)':'var(--amber)'}">${struct.event} (${struct.direction})</span></div>`;h+=`<div class="sh-dr"><span class="sh-dn">Strength</span><span class="sh-dv">${Math.round((struct.strength||0)*100)}%</span></div>`;}
   if(cf)h+=`<div class="sh-dr" style="background:rgba(227,179,65,.04)"><span class="sh-dn" style="color:var(--amber)">⚠ Conflict</span><span class="sh-dv" style="color:var(--amber)">Struct vs Momentum</span></div>`;
   if(ext)h+=`<div class="sh-dr" style="background:rgba(227,179,65,.04)"><span class="sh-dn" style="color:var(--amber)">⚠ Extended</span><span class="sh-dv" style="color:var(--amber)">Yes</span></div>`;
+  // Divergence
+  const div=data.divergence;
+  if(div&&div.type!=='none'){
+    const divCol=div.type==='bullish'?'var(--buy)':'var(--sell)';
+    const divEmoji=div.type==='bullish'?'↗':'↘';
+    const divConf=div.confirmed?'⚡ Confirmed':'Unconfirmed';
+    h+=`<div class="sh-hdr">RSI Divergence</div>`;
+    h+=`<div class="sh-dr" style="background:${div.type==='bullish'?'rgba(63,185,80,.04)':'rgba(248,81,73,.04)'}">`;
+    h+=`<span class="sh-dn" style="color:${divCol};">${divEmoji} ${div.type.charAt(0).toUpperCase()+div.type.slice(1)}</span>`;
+    h+=`<span class="sh-dv" style="color:${divCol};">${divConf} · RSI ${div.rsi||'—'} · ${Math.round((div.strength||0)*100)}%</span></div>`;
+  }
   return h;
 }
 function openSignalSheet(tf){
@@ -1110,18 +1121,108 @@ function getOhlcv(pair,tf){
   return _filterChartSpikes(raw);
 }
 function computeEMA(vals,period){if(!vals.length)return[];const k=2/(period+1);const r=[vals[0]];for(let i=1;i<vals.length;i++)r.push(vals[i]*k+r[i-1]*(1-k));return r;}
+
+// ── VWAP — session VWAP resetting at UTC midnight ─────────────────────────────
+// Uses tick volume if available; falls back to typical-price TWAP if not.
+function computeVWAP(ohlcv){
+  if(!ohlcv||!ohlcv.length)return[];
+  const out=[];
+  let cumPV=0,cumV=0,lastDay=-1;
+  for(const b of ohlcv){
+    const day=Math.floor(b.time/86400);
+    if(day!==lastDay){cumPV=0;cumV=0;lastDay=day;}
+    const tp=(b.high+b.low+b.close)/3;
+    const vol=b.volume&&b.volume>0?b.volume:1; // fallback to 1 = TWAP
+    cumPV+=tp*vol;cumV+=vol;
+    out.push({time:b.time,value:cumPV/cumV});
+  }
+  return out;
+}
+
+// ── RSI Divergence — bullish or bearish ──────────────────────────────────────
+// Bullish: price lower low + RSI higher low  → reversal signal in downtrend
+// Bearish: price higher high + RSI lower high → reversal signal in uptrend
+// Returns {bull:bool, bear:bool, bullIdx:int|null, bearIdx:int|null}
+function detectRSIDivergence(ohlcv,lookback=60){
+  if(!ohlcv||ohlcv.length<30)return{bull:false,bear:false};
+  const slice=ohlcv.slice(-lookback);
+  const rsiArr=computeRSI(slice,14);
+  if(rsiArr.length<20)return{bull:false,bear:false};
+  // Align RSI to slice (RSI has 14-bar offset)
+  const offset=slice.length-rsiArr.length;
+  const N=swing=>5; // window each side
+  // Find swing highs and lows in price
+  const swH=[],swL=[];
+  for(let i=N();i<slice.length-N();i++){
+    const h=slice[i].high;
+    if(slice.slice(i-N(),i).every(b=>b.high<=h)&&slice.slice(i+1,i+N()+1).every(b=>b.high<=h))
+      swH.push(i);
+    const l=slice[i].low;
+    if(slice.slice(i-N(),i).every(b=>b.low>=l)&&slice.slice(i+1,i+N()+1).every(b=>b.low>=l))
+      swL.push(i);
+  }
+  const rsiAt=idx=>{const ri=idx-offset;return ri>=0&&ri<rsiArr.length?rsiArr[ri].value:null;};
+  let bull=false,bear=false,bullIdx=null,bearIdx=null;
+  // Bearish: last two swing highs — price higher, RSI lower
+  if(swH.length>=2){
+    const i1=swH[swH.length-2],i2=swH[swH.length-1];
+    const r1=rsiAt(i1),r2=rsiAt(i2);
+    if(r1!==null&&r2!==null&&slice[i2].high>slice[i1].high&&r2<r1-2){
+      bear=true;bearIdx=i2;
+    }
+  }
+  // Bullish: last two swing lows — price lower, RSI higher
+  if(swL.length>=2){
+    const i1=swL[swL.length-2],i2=swL[swL.length-1];
+    const r1=rsiAt(i1),r2=rsiAt(i2);
+    if(r1!==null&&r2!==null&&slice[i2].low<slice[i1].low&&r2>r1+2){
+      bull=true;bullIdx=i2;
+    }
+  }
+  return{bull,bear,bullIdx,bearIdx,slice,rsiArr,offset};
+}
+
+// ── Asian Range ───────────────────────────────────────────────────────────────
+// Asian session = 22:00–07:00 UTC (previous evening to this morning)
+// Returns {high, low, broken: 'above'|'below'|null, formed: bool}
 function computeSMA(ohlcv,period,shift){
   if(!ohlcv||ohlcv.length<period)return[];
   const closes=ohlcv.map(d=>d.close);
   const out=[];
   for(let i=period-1;i<closes.length;i++){
     const mean=closes.slice(i-period+1,i+1).reduce((a,b)=>a+b,0)/period;
-    // shift: positive = shift right (forward in time), negative = shift left (backward)
     const barIdx=i+shift;
     if(barIdx<0||barIdx>=ohlcv.length)continue;
     out.push({time:ohlcv[barIdx].time,value:mean});
   }
   return out;
+}
+
+
+function computeAsianRange(ohlcv){
+  // Asian session: 22:00–07:00 UTC (Sydney + Tokyo)
+  // Returns {high, low, startTime, endTime} of the most recent session
+  if(!ohlcv||ohlcv.length<2)return null;
+  const isAsian=h=>(h>=22||h<7);
+  // Walk backwards — find the last completed session
+  let i=ohlcv.length-1;
+  // Skip current non-asian bars to find end of last session
+  while(i>0&&!isAsian(new Date(ohlcv[i].time*1000).getUTCHours()))i--;
+  if(i<=0)return null;
+  const sessionEnd=ohlcv[i].time;
+  // Collect consecutive asian bars backwards
+  let high=ohlcv[i].high,low=ohlcv[i].low,startTime=ohlcv[i].time;
+  i--;
+  while(i>=0&&isAsian(new Date(ohlcv[i].time*1000).getUTCHours())){
+    high=Math.max(high,ohlcv[i].high);
+    low=Math.min(low,ohlcv[i].low);
+    startTime=ohlcv[i].time;
+    i--;
+  }
+  // Need at least 3 bars to be meaningful
+  const barCount=(sessionEnd-startTime)/3600+1;
+  if(barCount<3)return null;
+  return{high,low,startTime,endTime:sessionEnd};
 }
 function computeMACD(ohlcv,fast=12,slow=26,sig=9){if(!ohlcv||ohlcv.length<slow+sig)return[];const closes=ohlcv.map(d=>d.close);const ema12=computeEMA(closes,fast),ema26=computeEMA(closes,slow);const macdLine=ema12.map((v,i)=>v-ema26[i]);const macdTrimmed=macdLine.slice(slow-1);const signalLine=computeEMA(macdTrimmed,sig);const out=[];for(let i=0;i<signalLine.length;i++){const oi=i+(slow-1);const mac=macdLine[oi],si=signalLine[i];out.push({time:ohlcv[oi].time,macd:mac,signal:si,histogram:mac-si});}return out;}
 function computeBB(ohlcv,period=20,mult=2){if(!ohlcv||ohlcv.length<period)return[];const closes=ohlcv.map(d=>d.close);const out=[];for(let i=period-1;i<closes.length;i++){const slice=closes.slice(i-period+1,i+1);const mean=slice.reduce((a,b)=>a+b,0)/period;const std=Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/period);out.push({time:ohlcv[i].time,upper:mean+mult*std,middle:mean,lower:mean-mult*std});}return out;}
@@ -1172,6 +1273,17 @@ function openIndicatorsSheet(){
   });
   h+=smaRow(1);
   h+=smaRow(2);
+  // VWAP
+  h+='<div data-key="vwap" onclick="toggleInd(this.dataset.key)" id="ind-row-vwap" style="padding:14px var(--pad);border-bottom:1px solid var(--border2);cursor:pointer;background:'+(indState.vwap?'rgba(56,139,253,.08)':'transparent')+';border-left:3px solid '+(indState.vwap?'rgba(56,139,253,.6)':'transparent')+';">'+
+    '<span style="font-size:var(--md);font-weight:600;color:'+(indState.vwap?'var(--accent)':'var(--text)')+';">VWAP</span>'+
+    '<span style="font-size:var(--xs);color:var(--muted);display:block;margin-top:2px;">Daily reset · teal line</span></div>';
+  // Asian Range
+  h+='<div data-key="asian_range" onclick="toggleInd(this.dataset.key)" id="ind-row-asian_range" style="padding:14px var(--pad);border-bottom:1px solid var(--border2);cursor:pointer;background:'+(indState.asian_range?'rgba(56,139,253,.08)':'transparent')+';border-left:3px solid '+(indState.asian_range?'rgba(56,139,253,.6)':'transparent')+';">'+
+    '<span style="font-size:var(--md);font-weight:600;color:'+(indState.asian_range?'var(--accent)':'var(--text)')+';">Asian Range</span>'+
+    '<span style="font-size:var(--xs);color:var(--muted);display:block;margin-top:2px;">22:00–07:00 UTC · H1/H4 only</span></div>';
+  h+='<div data-key="rsi_div" onclick="toggleInd(this.dataset.key)" id="ind-row-rsi_div" style="padding:14px var(--pad);border-bottom:1px solid var(--border2);cursor:pointer;background:'+(indState.rsi_div?'rgba(56,139,253,.08)':'transparent')+';border-left:3px solid '+(indState.rsi_div?'rgba(56,139,253,.6)':'transparent')+';">'+
+    '<span style="font-size:var(--md);font-weight:600;color:'+(indState.rsi_div?'var(--accent)':'var(--text)')+';">RSI Divergence</span>'+
+    '<span style="font-size:var(--xs);color:var(--muted);display:block;margin-top:2px;">Markers on RSI · RSI must be on</span></div>';
   h+='</div>';
   openSheet('Indicators',h);
 }
@@ -1466,7 +1578,60 @@ async function renderChtPrice(){
   if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper',0],['middle',2],['lower',0]].forEach(([k,ls])=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:ls,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
   if(indState.sma1){const sd=computeSMA(ohlcv,indState.sma1_period||21,indState.sma1_shift||0);if(sd.length)chart.addLineSeries({color:indState.sma1_color||'#e3b341',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:`SMA${indState.sma1_period}`}).setData(sd);}
   if(indState.sma2){const sd=computeSMA(ohlcv,indState.sma2_period||50,indState.sma2_shift||0);if(sd.length)chart.addLineSeries({color:indState.sma2_color||'#f85149',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:`SMA${indState.sma2_period}`}).setData(sd);}
-  // Alert lines rendered via _renderAlertLines() after chart init
+
+  // VWAP — daily reset, teal line
+  if(indState.vwap){
+    const h1Ohlcv=getOhlcv(selectedPair,'H1');
+    const vwapSrc=h1Ohlcv.length?h1Ohlcv:ohlcv; // always use H1 bars for accuracy
+    const vd=computeVWAP(vwapSrc);
+    if(vd.length){
+      // Filter to visible timeframe range if not H1
+      const vdFiltered=chtTf==='H1'?vd:vd.filter(p=>ohlcv.some(b=>b.time===p.time));
+      const vdOut=chtTf==='H1'?vd:vdFiltered.length?vdFiltered:vd;
+      if(vdOut.length)chart.addLineSeries({color:'rgba(0,200,180,0.8)',lineWidth:1,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'VWAP'}).setData(vdOut);
+    }
+  }
+
+  // Asian Range — horizontal high/low lines + shaded zone (H1 and H4 only)
+  if(indState.asian_range&&chtTf!=='D1'){
+    const h1Ohlcv=getOhlcv(selectedPair,'H1');
+    const ar=computeAsianRange(h1Ohlcv.length?h1Ohlcv:ohlcv);
+    if(ar&&ohlcv.length){
+      const t0=ohlcv[0].time,t1=ohlcv[ohlcv.length-1].time;
+      const ACOL='rgba(227,179,65,0.55)';
+      chart.addLineSeries({color:ACOL,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'Asia H'}).setData([{time:t0,value:ar.high},{time:t1,value:ar.high}]);
+      chart.addLineSeries({color:ACOL,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'Asia L'}).setData([{time:t0,value:ar.low},{time:t1,value:ar.low}]);
+      // Shaded zone between high and low
+      const zone=chart.addHistogramSeries({color:'rgba(227,179,65,0.05)',priceScaleId:'right',priceLineVisible:false,lastValueVisible:false,base:ar.low});
+      zone.setData(ohlcv.map(b=>({time:b.time,value:ar.high})));
+      // Break label via price line
+      if(ar.broken){
+        const bCol=ar.broken==='above'?'rgba(63,185,80,0.7)':'rgba(248,81,73,0.7)';
+        const bPrice=ar.broken==='above'?ar.high:ar.low;
+        try{candles.createPriceLine({price:bPrice,color:bCol,lineWidth:1,lineStyle:0,axisLabelVisible:true,title:ar.broken==='above'?'ARB ↑':'ARB ↓'});}catch(e){}
+      }
+    }
+  }
+
+  // RSI Divergence markers — shown on price chart as dots at swing points
+  if(indState.rsi_div){
+    const div=detectRSIDivergence(ohlcv,Math.min(80,ohlcv.length));
+    if((div.bull||div.bear)&&div.slice){
+      // Map slice indices back to full ohlcv time
+      const sliceStart=ohlcv.length-div.slice.length;
+      const mkSeries=(idx,price,col,title)=>{
+        const bar=ohlcv[sliceStart+idx];
+        if(!bar)return;
+        const ms=chart.addLineSeries({color:col,lineWidth:0,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:true,crosshairMarkerRadius:6,crosshairMarkerBorderColor:col,crosshairMarkerBackgroundColor:col});
+        ms.setData([{time:bar.time,value:price}]);
+        ms.setMarkers([{time:bar.time,position:div.bull?'belowBar':'aboveBar',color:col,shape:'circle',text:title}]);
+      };
+      if(div.bull&&div.bullIdx!==null)
+        mkSeries(div.bullIdx,div.slice[div.bullIdx].low,'rgba(63,185,80,0.9)','Bull Div');
+      if(div.bear&&div.bearIdx!==null)
+        mkSeries(div.bearIdx,div.slice[div.bearIdx].high,'rgba(248,81,73,0.9)','Bear Div');
+    }
+  }
   // Trade lines — start from entry bar, zone shading between SL and TP
   tradesLoad().filter(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending')&&t.entry).forEach(t=>{
     const entry=parseFloat(t.entry);
