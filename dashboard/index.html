@@ -494,19 +494,16 @@ function computeQAI(pair){
   if(rd){const diffInDir=isBull?rd.diff:isBear?-rd.diff:Math.abs(rd.diff);
     rateScore=diffInDir>=200?10:diffInDir>=50?7:diffInDir>=-50?5:diffInDir>=-200?3:1;}
 
-  // 6. EDGE — AI cross-source coherence
-  const edgeRaw=getEdgeScore(pair);
-  const edgeScore=edgeRaw!==null?edgeRaw:5;
-
-  // 7. SESSION FIT — is current session optimal for this pair?
+  // 6. SESSION FIT — is current session optimal for this pair?
   const activeSess=getActiveSessions();
   const pairSess=PAIR_SESS[pair]||[];
   const sessMatch=activeSess.some(s=>pairSess.includes(s));
   const sessScore=closed()?3:activeSess.length===0?3:sessMatch?10:2;
 
-  // Weighted sum
-  const comps={align:alignScore,entry:entryScore,csm:csmScore,regime:regScore,rate:rateScore,edge:edgeScore,session:sessScore};
-  const weights={align:.28,entry:.18,csm:.16,regime:.13,rate:.05,edge:.12,session:.08};
+  // Weighted sum — Edge removed from Setup (it gates drum multiplier separately)
+  // Redistributed: Alignment +7% → 35%, Entry +5% → 23%
+  const comps={align:alignScore,entry:entryScore,csm:csmScore,regime:regScore,rate:rateScore,session:sessScore};
+  const weights={align:.35,entry:.23,csm:.16,regime:.13,rate:.05,session:.08};
   const raw=Math.round(Object.keys(weights).reduce((s,k)=>s+comps[k]*weights[k],0)*10);
 
   // ADX hard gate — < 20 caps score at 45 (below alert threshold)
@@ -525,9 +522,8 @@ function computeQAI(pair){
 }
 function openQAISheet(){
   const pair=selectedPair,qai=computeQAI(pair);
-  const labels={align:'TF Alignment',entry:'Entry Position',csm:'CSM Divergence',regime:'Regime Fit',rate:'Rate Differential',edge:'Edge (AI)',session:'Session Fit'};
-  const wts={align:28,entry:18,csm:16,regime:13,rate:5,edge:12,session:8};
-  const descs={align:'D1+H4+H1 unified direction',entry:'Reset×0.6 + ATR×0.4',csm:'Base vs quote strength',regime:'Macro context fit',rate:'Interest rate tailwind',edge:'Cross-source coherence',session:'Active session match'};
+  const labels={align:'TF Alignment',entry:'Entry Position',csm:'CSM Divergence',regime:'Regime Fit',rate:'Rate Differential',session:'Session Fit'};
+  const wts={align:35,entry:23,csm:16,regime:13,rate:5,session:8};
   let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Setup Score</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
   h+=Object.keys(labels).map(k=>{
     const v=qai.comps[k],pct=v*10;
