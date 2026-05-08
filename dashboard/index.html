@@ -268,8 +268,8 @@ tr:last-child td{border-bottom:none;}
       <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;min-width:60px;">↑ Above</button>
       <button class="btn" onclick="setLevelAlert()" style="padding:5px 10px;flex-shrink:0;">Alert</button>
     </div>
-    <!-- Active alerts -->
-    <div id="cht-alerts-list" style="padding:0 var(--pad);"></div>
+    <!-- Active alerts — shown on chart as amber lines, deleted by long-press -->
+    <div id="cht-alerts-list" style="display:none;"></div>
     <!-- Row 3: Trade actions -->
     <div style="display:flex;gap:6px;padding:6px var(--pad);">
       <button class="btn btn-green" onclick="openEnterTradeSheet()" style="flex:1;justify-content:center;">+ Enter Trade</button>
@@ -1208,17 +1208,12 @@ function wsUpdatePrice(price){
   }catch(e){}
 }
 
-// ── LEVEL LINE — staging line wired to alert input ───────────────────────────
-// One amber dashed line lives on the chart while the user positions a level.
-// Tapping "— Level" activates placement mode (tap chart → line placed, input filled).
-// Typing in the input moves the line live.
-// Dragging the line updates the input live.
-// "Alert" converts the current input price to a Telegram alert.
-
-let _drawTool=null;       // 'hline' or null
-let _stagingLine=null;    // active priceLine object on _chtCandles
+// ── LEVEL LINE — staging line + alert lines ──────────────────────────────────
+let _drawTool=null;
+let _stagingLine=null;
+let _stagingPrice=null;      // track separately — can't read from priceLine object
+let _alertLineRefs=[];       // [{id, priceLine, price}] — live alert lines on chart
 let _draggingLine=false;
-let _dragTS={x:0,y:0,t:0};
 
 function setDrawTool(tool){
   _drawTool=_drawTool===tool?null:tool;
@@ -1229,16 +1224,14 @@ function setDrawTool(tool){
   b.style.color=on?'var(--amber)':'var(--muted)';
   b.style.borderColor=on?'rgba(227,179,65,.4)':'var(--border)';
 }
-
 function _disengage(){
   _drawTool=null;
   const b=document.getElementById('draw-btn-hline');
   if(b){b.style.background='transparent';b.style.color='var(--muted)';b.style.borderColor='var(--border)';}
 }
-
-// Place or move the staging line at a given price
 function _setStagingLine(price){
   if(!_chtCandles)return;
+  _stagingPrice=price;
   const dec=selectedPair.includes('JPY')?3:5;
   if(_stagingLine){
     try{_stagingLine.applyOptions({price,title:price.toFixed(dec)});}catch(e){_stagingLine=null;}
@@ -1252,19 +1245,34 @@ function _setStagingLine(price){
       });
     }catch(e){}
   }
-  // Sync input
   const inp=document.getElementById('cht-alert-inp');
   if(inp&&document.activeElement!==inp)inp.value=price.toFixed(dec);
 }
-
 function _removeStagingLine(){
-  if(_stagingLine&&_chtCandles){
-    try{_chtCandles.removePriceLine(_stagingLine);}catch(e){}
-    _stagingLine=null;
-  }
+  if(_stagingLine&&_chtCandles){try{_chtCandles.removePriceLine(_stagingLine);}catch(e){}}
+  _stagingLine=null;_stagingPrice=null;
 }
 
-// Called when user types in the input — move staging line live
+// Render saved alerts as createPriceLine (with axis label + deleteable by long-press)
+function _renderAlertLines(){
+  // Remove old
+  _alertLineRefs.forEach(({priceLine})=>{try{_chtCandles&&_chtCandles.removePriceLine(priceLine);}catch(e){}});
+  _alertLineRefs=[];
+  if(!_chtCandles)return;
+  const dec=selectedPair.includes('JPY')?3:5;
+  laLoad().filter(a=>a.pair===selectedPair&&a.active).forEach(a=>{
+    try{
+      const pl=_chtCandles.createPriceLine({
+        price:a.price,color:'rgba(227,179,65,0.7)',lineWidth:1,
+        lineStyle:LightweightCharts.LineStyle.Dashed,
+        axisLabelVisible:true,
+        title:(a.direction==='above'?'↑ ':'↓ ')+a.price.toFixed(dec)
+      });
+      _alertLineRefs.push({id:a.id,priceLine:pl,price:a.price});
+    }catch(e){}
+  });
+}
+
 function _onAlertInputChange(){
   const inp=document.getElementById('cht-alert-inp');
   if(!inp)return;
@@ -1272,47 +1280,62 @@ function _onAlertInputChange(){
   if(!isNaN(v)&&v>0)_setStagingLine(v);
   else _removeStagingLine();
 }
-
-// Coordinate helpers
 function _bounds(){const el=document.getElementById('cht-price');return el?el.getBoundingClientRect():null;}
 function _toPrice(clientY){const r=_bounds();if(!r||!_chtCandles)return null;try{return _chtCandles.coordinateToPrice(clientY-r.top);}catch(e){return null;}}
 function _priceToClientY(price){const r=_bounds();if(!r||!_chtCandles)return null;try{const c=_chtCandles.priceToCoordinate(price);return c!==null?c+r.top:null;}catch(e){return null;}}
 
+// Find which line (staging or alert) is within 28px of clientY
+function _nearLine(clientY){
+  // Check staging line first
+  if(_stagingPrice!==null){
+    const ly=_priceToClientY(_stagingPrice);
+    if(ly!==null&&Math.abs(clientY-ly)<28)return{type:'staging'};
+  }
+  // Check alert lines
+  for(const ref of _alertLineRefs){
+    const ly=_priceToClientY(ref.price);
+    if(ly!==null&&Math.abs(clientY-ly)<28)return{type:'alert',id:ref.id,price:ref.price};
+  }
+  return null;
+}
+
 function initDrawingSvg(){
   if(window._drawListenersAttached)return;
   window._drawListenersAttached=true;
-
   let _ts={x:0,y:0,t:0};
   let _longTimer=null;
 
-  // Wire input to staging line
   const inp=document.getElementById('cht-alert-inp');
   if(inp)inp.addEventListener('input',_onAlertInputChange);
 
-  // ── TOUCH ─────────────────────────────────────────────────────────────
   document.addEventListener('touchstart',function(e){
     if(!chtMainInst)return;
     const t=e.touches[0];
     _ts={x:t.clientX,y:t.clientY,t:Date.now()};
-
-    if(_drawTool==='hline')return; // placement handled on touchend
-
-    // Long-press on staging line to drag
-    if(_stagingLine){
-      const price=_stagingLine._options?_stagingLine._options.price:null;
-      if(price!==null){
-        const ly=_priceToClientY(price);
-        if(ly!==null&&Math.abs(t.clientY-ly)<28){
-          _longTimer=setTimeout(()=>{_longTimer=null;_draggingLine=true;},280);
+    if(_drawTool==='hline')return;
+    // Long-press: drag staging OR delete alert
+    const near=_nearLine(t.clientY);
+    if(near){
+      _longTimer=setTimeout(()=>{
+        _longTimer=null;
+        if(near.type==='staging'){
+          _draggingLine=true;
+        } else if(near.type==='alert'){
+          // Delete this alert
+          const alerts=laLoad().filter(a=>a.id!==near.id);
+          laSave(alerts);
+          pushAlertsToGitHub(alerts);
+          _renderAlertLines();
+          renderChtAlerts();
+          // Brief haptic feedback if available
+          if(navigator.vibrate)navigator.vibrate(40);
         }
-      }
+      },350);
     }
   },true);
 
   document.addEventListener('touchmove',function(e){
-    if(_longTimer&&(Math.abs(e.touches[0].clientY-_ts.y)>8)){
-      clearTimeout(_longTimer);_longTimer=null;
-    }
+    if(_longTimer&&Math.abs(e.touches[0].clientY-_ts.y)>8){clearTimeout(_longTimer);_longTimer=null;}
     if(!_draggingLine)return;
     const t=e.touches[0];
     const price=_toPrice(t.clientY);
@@ -1323,61 +1346,54 @@ function initDrawingSvg(){
   document.addEventListener('touchend',function(e){
     if(_longTimer){clearTimeout(_longTimer);_longTimer=null;}
     if(_draggingLine){_draggingLine=false;return;}
-
     const t=e.changedTouches[0];
     const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
     const isTap=dx<12&&dy<12&&(Date.now()-_ts.t)<500;
-    if(!isTap)return;
-
+    if(!isTap||!_drawTool)return;
     const r=_bounds();if(!r)return;
     const inChart=t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom;
     if(!inChart)return;
-
     if(_drawTool==='hline'){
       const price=_toPrice(_ts.y);
-      if(price!==null){_setStagingLine(price);}
+      if(price!==null)_setStagingLine(price);
       _disengage();
     }
   },true);
 
-  // ── DESKTOP ───────────────────────────────────────────────────────────
-  let _mouseDown=false,_draggingMouse=false;
+  // Desktop
+  let _mouseDown=false;
   document.addEventListener('mousedown',function(e){
     if(!chtMainInst||_drawTool)return;
-    if(_stagingLine){
-      // Check proximity to line
-      const inp=document.getElementById('cht-alert-inp');
-      const price=inp?parseFloat(inp.value):NaN;
-      if(!isNaN(price)){
-        const ly=_priceToClientY(price);
-        if(ly!==null&&Math.abs(e.clientY-ly)<20){_mouseDown=true;_draggingMouse=false;}
-      }
-    }
+    const near=_nearLine(e.clientY);
+    if(near&&near.type==='staging')_mouseDown=true;
   },true);
   document.addEventListener('mousemove',function(e){
     if(!_mouseDown)return;
-    _draggingMouse=true;
     const price=_toPrice(e.clientY);
     if(price!==null)_setStagingLine(price);
     e.preventDefault();
   },{passive:false,capture:true});
-  document.addEventListener('mouseup',function(){
-    _mouseDown=false;_draggingMouse=false;
-  },true);
+  document.addEventListener('mouseup',function(){_mouseDown=false;},true);
   document.addEventListener('click',function(e){
-    if(!_drawTool||_draggingMouse||!chtMainInst)return;
+    if(!_drawTool||!chtMainInst)return;
     const r=_bounds();if(!r)return;
     if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
     if(_drawTool==='hline'){
       const price=_toPrice(e.clientY);
-      if(price!==null){_setStagingLine(price);}
+      if(price!==null)_setStagingLine(price);
       _disengage();
     }
   },true);
 }
 
-function clearDrawings(){_removeStagingLine();}
-function restoreDrawings(){}
+function clearDrawings(){
+  _removeStagingLine();
+  // Also clear all alerts for this pair
+  const alerts=laLoad().filter(a=>a.pair!==selectedPair);
+  laSave(alerts);pushAlertsToGitHub(alerts);
+  _renderAlertLines();renderChtAlerts();
+}
+function restoreDrawings(){_renderAlertLines();}
 function renderDrawings(){}
 function _handleDrawPoint(){}
 
@@ -1425,7 +1441,7 @@ async function renderChtPrice(){
   if(indState.bb){const bb=computeBB(ohlcv);if(bb.length){[['upper',0],['middle',2],['lower',0]].forEach(([k,ls])=>{chart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:ls,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false}).setData(bb.map(d=>({time:d.time,value:d[k]})));});}}
   if(indState.sma1){const sd=computeSMA(ohlcv,indState.sma1_period||21,indState.sma1_shift||0);if(sd.length)chart.addLineSeries({color:indState.sma1_color||'#e3b341',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:`SMA${indState.sma1_period}`}).setData(sd);}
   if(indState.sma2){const sd=computeSMA(ohlcv,indState.sma2_period||50,indState.sma2_shift||0);if(sd.length)chart.addLineSeries({color:indState.sma2_color||'#f85149',lineWidth:1,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false,title:`SMA${indState.sma2_period}`}).setData(sd);}
-  laLoad().filter(a=>a.pair===selectedPair&&a.active).forEach(a=>{chart.addLineSeries({color:'rgba(227,179,65,0.7)',lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false}).setData([{time:ohlcv[0].time,value:a.price},{time:ohlcv[ohlcv.length-1].time,value:a.price}]);});
+  // Alert lines rendered via _renderAlertLines() after chart init
   // Trade lines — start from entry bar, zone shading between SL and TP
   tradesLoad().filter(t=>t.pair===selectedPair&&(t.status==='open'||t.status==='pending')&&t.entry).forEach(t=>{
     const entry=parseFloat(t.entry);
@@ -1542,11 +1558,12 @@ function setLevelAlert(){
   alerts.push({id:Date.now(),pair:selectedPair,price,direction:alertDir,active:true,created:new Date().toLocaleString()});
   laSave(alerts);
   inp.value='';
-  _removeStagingLine();  // staging line becomes the alert line
-  renderChtAlerts();
+  _removeStagingLine();   // staging line consumed
+  _renderAlertLines();    // rerender alert lines including new one
+  renderChtAlerts();      // update list (now hidden but keeps state)
   pushAlertsToGitHub(alerts);
 }
-function deleteAlert(id){const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);renderChtAlerts();pushAlertsToGitHub(alerts);}
+function deleteAlert(id){const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);_renderAlertLines();renderChtAlerts();pushAlertsToGitHub(alerts);}
 function checkLevelAlerts(){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active)return;const h1d=D.h1&&D.h1[a.pair];if(!h1d||!h1d.raw)return;const price=parseFloat(h1d.raw.close);if(!price)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;setTimeout(()=>alert('Alert: '+a.pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed)laSave(alerts);}
 function checkLevelAlertsLive(price,pair){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active||a.pair!==pair)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;renderChtAlerts();setTimeout(()=>alert('🔔 Alert: '+pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed)laSave(alerts);}
 async function pushTradesToGitHub(trades){
