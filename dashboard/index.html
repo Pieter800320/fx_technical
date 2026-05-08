@@ -253,8 +253,7 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div id="cht-canvas-area" style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;">
     <div id="cht-ohlc" style="position:absolute;top:6px;left:8px;z-index:20;font-family:'VT323',monospace;font-size:14px;line-height:1.4;pointer-events:none;display:none;background:rgba(13,17,23,.82);padding:3px 8px;border-radius:4px;border:1px solid rgba(48,54,61,.7);white-space:nowrap;"></div>
-    <svg id="cht-draw-svg" style="position:absolute;inset:0;z-index:15;pointer-events:none;overflow:visible;"></svg>
-    <div id="cht-draw-capture" style="position:absolute;inset:0;z-index:16;display:none;cursor:crosshair;touch-action:none;"></div>
+    <div id="cht-draw-hint" style="display:none;position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:20;font-size:var(--xs);color:var(--amber);background:rgba(13,17,23,.85);padding:3px 10px;border-radius:10px;border:1px solid rgba(227,179,65,.3);pointer-events:none;white-space:nowrap;"></div>
     <div id="cht-price" style="flex:1;min-height:0;"></div>
     <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
   </div>
@@ -1200,7 +1199,7 @@ function toggleInd(key){
   renderChtPrice();
 }
 function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>{renderChtPrice();setTimeout(initDrawingSvg,300);}));}
-function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;setDrawTool(null);}
+function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);if(_drawClickHandler&&chtMainInst){try{chtMainInst.unsubscribeClick(_drawClickHandler);}catch(e){}}_drawClickHandler=null;if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;setDrawTool(null);}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
 function startCandleTimer(){if(candleTimerInt)clearInterval(candleTimerInt);function tick(){const el=document.getElementById('cht-timer');if(!el)return;if(closed()){el.textContent='';return;}const now=Math.floor(Date.now()/1000);const tfSecs={H1:3600,H4:14400,D1:86400}[chtTf]||3600;const secsLeft=tfSecs-(now%tfSecs);const h=Math.floor(secsLeft/3600),m=Math.floor((secsLeft%3600)/60),s=secsLeft%60;const pad=n=>String(n).padStart(2,'0');el.textContent=h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);el.style.color=secsLeft<=60?'var(--sell)':'var(--muted)';}tick();candleTimerInt=setInterval(tick,1000);}
 let _wsPriceLine=null,_chtCandles=null,_subChartOffset=0;
@@ -1228,182 +1227,128 @@ function setDrawTool(tool){
     if(!b)return;
     b.style.background=_drawTool===t?'rgba(227,179,65,.15)':'transparent';
     b.style.color=_drawTool===t?'var(--amber)':'var(--muted)';
+    b.style.borderColor=_drawTool===t?'rgba(227,179,65,.4)':'var(--border)';
   });
-  // Capture div sits above chart canvas ONLY when tool is active
-  const cap=document.getElementById('cht-draw-capture');
-  if(cap)cap.style.display=_drawTool?'block':'none';
-  _drawStart=null;_drawInProgress=false;
-}
-
-function clearDrawings(){
-  _drawings=drawingsLoad().filter(d=>!(d.pair===selectedPair&&d.tf===chtTf));
-  drawingsSave(_drawings);
-  renderDrawings();
-}
-
-function svgPxToPrice(y){
-  if(!chtMainInst)return null;
-  try{return chtMainInst.priceScale('right').coordinateToPrice(y);}catch{return null;}
-}
-function svgPxToTime(x){
-  if(!chtMainInst)return null;
-  try{return chtMainInst.timeScale().coordinateToTime(x);}catch{return null;}
-}
-function priceToPx(price){
-  if(!chtMainInst)return null;
-  try{return chtMainInst.priceScale('right').priceToCoordinate(price);}catch{return null;}
-}
-function timeToPx(time){
-  if(!chtMainInst)return null;
-  try{return chtMainInst.timeScale().timeToCoordinate(time);}catch{return null;}
-}
-
-function initDrawingSvg(){
-  const cap=document.getElementById('cht-draw-capture');
-  const priceEl=document.getElementById('cht-price');
-  if(!cap||!priceEl)return;
-
-  // Remove old listeners by replacing element
-  const fresh=cap.cloneNode(false);
-  cap.parentNode.replaceChild(fresh,cap);
-  const c=document.getElementById('cht-draw-capture');
-
-  c.addEventListener('mousedown',onDrawStart);
-  c.addEventListener('touchstart',e=>{
-    if(e.touches.length!==1)return;
-    e.preventDefault();
-    const t=e.touches[0];
-    onDrawStart({clientX:t.clientX,clientY:t.clientY});
-  },{passive:false});
-  c.addEventListener('mousemove',onDrawMove);
-  c.addEventListener('touchmove',e=>{
-    if(e.touches.length!==1)return;
-    const t=e.touches[0];
-    onDrawMove({clientX:t.clientX,clientY:t.clientY});
-  },{passive:true});
-  c.addEventListener('mouseup',onDrawEnd);
-  c.addEventListener('touchend',e=>{
-    const t=e.changedTouches[0];
-    onDrawEnd({clientX:t.clientX,clientY:t.clientY});
-  },{passive:true});
-
-  // Double-tap on SVG drawing to delete
-  const svg=document.getElementById('cht-draw-svg');
-  if(svg){
-    svg.addEventListener('dblclick',e=>{
-      if(_drawTool)return;
-      const el=e.target.closest('[data-draw-idx]');
-      if(el){
-        const idx=parseInt(el.dataset.drawIdx);
-        _drawings=drawingsLoad();
-        const pairDrawings=_drawings.filter(d=>d.pair===selectedPair&&d.tf===chtTf);
-        if(pairDrawings[idx]){
-          const gi=_drawings.indexOf(pairDrawings[idx]);
-          if(gi>=0)_drawings.splice(gi,1);
-          drawingsSave(_drawings);
-          renderDrawings();
-        }
-      }
-    });
+  _drawStart=null;
+  // Show hint when tool active
+  const hint=document.getElementById('cht-draw-hint');
+  if(hint){
+    if(_drawTool==='hline')hint.textContent='Tap chart to place horizontal line';
+    else if(_drawTool==='tline')hint.textContent='Tap start point, then end point';
+    else if(_drawTool==='rect')hint.textContent='Tap first corner, then opposite corner';
+    else hint.textContent='';
+    hint.style.display=_drawTool?'block':'none';
   }
 }
 
-function _svgCoords(e){
-  const priceEl=document.getElementById('cht-price');
-  if(!priceEl)return{x:0,y:0};
-  const rect=priceEl.getBoundingClientRect();
-  return{x:e.clientX-rect.left,y:e.clientY-rect.top};
+function clearDrawings(){
+  let d=drawingsLoad().filter(x=>!(x.pair===selectedPair&&x.tf===chtTf));
+  drawingsSave(d);renderDrawings();
 }
 
-function onDrawStart(e){
-  if(!_drawTool||!chtMainInst)return;
-  const{x,y}=_svgCoords(e);
-  const price=svgPxToPrice(y);
-  const time=svgPxToTime(x);
-  if(price===null||time===null)return;
-  _drawStart={x,y,price,time};
-  _drawInProgress=true;
+function svgPxToPrice(y){if(!chtMainInst)return null;try{return chtMainInst.priceScale('right').coordinateToPrice(y);}catch{return null;}}
+function svgPxToTime(x){if(!chtMainInst)return null;try{return chtMainInst.timeScale().coordinateToTime(x);}catch{return null;}}
+function priceToPx(price){if(!chtMainInst)return null;try{return chtMainInst.priceScale('right').priceToCoordinate(price);}catch{return null;}}
+function timeToPx(time){if(!chtMainInst)return null;try{return chtMainInst.timeScale().timeToCoordinate(time);}catch{return null;}}
+
+let _drawClickHandler=null;
+
+function initDrawingSvg(){
+  // Subscribe to chart clicks for drawing — no overlay needed
+  if(!chtMainInst)return;
+  if(_drawClickHandler){try{chtMainInst.unsubscribeClick(_drawClickHandler);}catch(e){}}
+  _drawClickHandler=function(param){
+    if(!_drawTool||!param||!param.point)return;
+    const price=svgPxToPrice(param.point.y);
+    const time=param.time;
+    if(price===null)return;
+    if(_drawTool==='hline'){
+      // Single tap — draw immediately
+      const d={type:'hline',pair:selectedPair,tf:chtTf,
+        p1:{price,time},p2:{price,time}};
+      const all=drawingsLoad();all.push(d);drawingsSave(all);
+      renderDrawings();
+    } else {
+      // Two-tap tools: tline, rect
+      if(!_drawStart){
+        _drawStart={price,time,x:param.point.x,y:param.point.y};
+        // Show preview point
+        renderDrawings(true,{x:param.point.x,y:param.point.y});
+      } else {
+        const d={type:_drawTool,pair:selectedPair,tf:chtTf,
+          p1:{price:_drawStart.price,time:_drawStart.time},
+          p2:{price,time}};
+        const all=drawingsLoad();all.push(d);drawingsSave(all);
+        _drawStart=null;
+        renderDrawings();
+      }
+    }
+  };
+  chtMainInst.subscribeClick(_drawClickHandler);
 }
 
-function onDrawMove(e){
-  if(!_drawInProgress||!_drawStart||!chtMainInst)return;
-  const{x,y}=_svgCoords(e);
-  renderDrawings(true,{x,y});
-}
-
-function onDrawEnd(e){
-  if(!_drawInProgress||!_drawStart||!chtMainInst)return;
-  _drawInProgress=false;
-  const{x,y}=_svgCoords(e);
-  const price=svgPxToPrice(y);
-  const time=svgPxToTime(x);
-  if(price===null)return;
-  _drawings=drawingsLoad();
-  const d={type:_drawTool,pair:selectedPair,tf:chtTf,
-    p1:{price:_drawStart.price,time:_drawStart.time},
-    p2:{price,time}};
-  _drawings.push(d);
-  drawingsSave(_drawings);
-  renderDrawings();
-}
-
-function renderDrawings(withPreview,previewEnd){
+function renderDrawings(withStart,previewPt){
   const svg=document.getElementById('cht-draw-svg');
   const priceEl=document.getElementById('cht-price');
   if(!svg||!priceEl||!chtMainInst)return;
   const rect=priceEl.getBoundingClientRect();
   const W=rect.width,H=rect.height;
   svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  svg.setAttribute('width',W);
-  svg.setAttribute('height',H);
-
+  svg.setAttribute('width',W);svg.setAttribute('height',H);
+  const STROKE='rgba(227,179,65,0.85)',SW=1.5;
   const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
-  let markup='';
-
-  const STROKE='rgba(227,179,65,0.85)';
-  const STROKE_W=1.5;
-
+  let m='';
   all.forEach((d,i)=>{
     const y1=priceToPx(d.p1.price);
     const x1=timeToPx(d.p1.time);
     if(y1===null)return;
-
     if(d.type==='hline'){
-      if(y1<0||y1>H)return;
-      markup+=`<line data-draw-idx="${i}" x1="0" y1="${y1.toFixed(1)}" x2="${W}" y2="${y1.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" stroke-dasharray="4,3" style="cursor:pointer;"/>`;
-      markup+=`<text x="4" y="${(y1-3).toFixed(1)}" fill="${STROKE}" font-size="9" font-family="monospace">${d.p1.price.toFixed(5)}</text>`;
-    } else if(d.type==='tline'){
-      const y2=priceToPx(d.p2.price);
-      const x2=timeToPx(d.p2.time);
-      if(y2===null||x2===null||x1===null)return;
-      markup+=`<line data-draw-idx="${i}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" style="cursor:pointer;"/>`;
-    } else if(d.type==='rect'){
-      const y2=priceToPx(d.p2.price);
-      const x2=timeToPx(d.p2.time);
-      if(y2===null||x2===null||x1===null)return;
-      const rx=Math.min(x1,x2),ry=Math.min(y1,y2),rw=Math.abs(x2-x1),rh=Math.abs(y2-y1);
-      markup+=`<rect data-draw-idx="${i}" x="${rx.toFixed(1)}" y="${ry.toFixed(1)}" width="${rw.toFixed(1)}" height="${rh.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" fill="rgba(227,179,65,0.06)" style="cursor:pointer;"/>`;
+      if(y1<-20||y1>H+20)return;
+      const dec=selectedPair.includes('JPY')?3:5;
+      m+=`<g data-draw-idx="${i}"><line x1="0" y1="${y1.toFixed(1)}" x2="${W}" y2="${y1.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}" stroke-dasharray="5,3"/>`;
+      m+=`<text x="4" y="${Math.max(10,y1-3).toFixed(1)}" fill="${STROKE}" font-size="9" font-family="monospace">${d.p1.price.toFixed(dec)}</text></g>`;
+    } else {
+      const y2=priceToPx(d.p2.price),x2=timeToPx(d.p2.time);
+      if(y2===null||x1===null||x2===null)return;
+      if(d.type==='tline'){
+        m+=`<line data-draw-idx="${i}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}"/>`;
+      } else if(d.type==='rect'){
+        const rx=Math.min(x1,x2),ry=Math.min(y1,y2),rw=Math.abs(x2-x1),rh=Math.abs(y2-y1);
+        m+=`<rect data-draw-idx="${i}" x="${rx.toFixed(1)}" y="${ry.toFixed(1)}" width="${rw.toFixed(1)}" height="${rh.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}" fill="rgba(227,179,65,0.05)"/>`;
+      }
     }
   });
-
-  // Preview while drawing
-  if(withPreview&&_drawStart&&previewEnd&&chtMainInst){
-    const px=previewEnd.x,py=previewEnd.y;
-    const sy=priceToPx(_drawStart.price);
-    const sx=timeToPx(_drawStart.time);
-    if(sy!==null){
-      if(_drawTool==='hline'){
-        markup+=`<line x1="0" y1="${sy.toFixed(1)}" x2="${W}" y2="${sy.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" stroke-dasharray="4,3" opacity="0.5"/>`;
-      } else if(_drawTool==='tline'&&sx!==null){
-        markup+=`<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" opacity="0.5"/>`;
-      } else if(_drawTool==='rect'&&sx!==null){
-        const rx=Math.min(sx,px),ry=Math.min(sy,py),rw=Math.abs(px-sx),rh=Math.abs(py-sy);
-        markup+=`<rect x="${rx.toFixed(1)}" y="${ry.toFixed(1)}" width="${rw.toFixed(1)}" height="${rh.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" fill="rgba(227,179,65,0.04)" opacity="0.5"/>`;
+  // Show first-tap point while waiting for second tap
+  if(withStart&&_drawStart){
+    const sx=timeToPx(_drawStart.time),sy=priceToPx(_drawStart.price);
+    if(sx!==null&&sy!==null){
+      m+=`<circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="4" fill="${STROKE}" opacity="0.7"/>`;
+      if(previewPt){
+        const px=previewPt.x,py=previewPt.y;
+        if(_drawTool==='tline'){
+          m+=`<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}" opacity="0.4" stroke-dasharray="3,3"/>`;
+        } else if(_drawTool==='rect'){
+          const rx2=Math.min(sx,px),ry2=Math.min(sy,py),rw2=Math.abs(px-sx),rh2=Math.abs(py-sy);
+          m+=`<rect x="${rx2.toFixed(1)}" y="${ry2.toFixed(1)}" width="${rw2.toFixed(1)}" height="${rh2.toFixed(1)}" stroke="${STROKE}" stroke-width="${SW}" fill="rgba(227,179,65,0.04)" opacity="0.4" stroke-dasharray="3,3"/>`;
+        }
       }
     }
   }
-  svg.innerHTML=markup;
+  svg.innerHTML=m;
+  // Double-tap to delete — attach once
+  svg.ondblclick=function(e){
+    if(_drawTool)return;
+    const el=e.target.closest('[data-draw-idx]');
+    if(!el)return;
+    const idx=parseInt(el.dataset.drawIdx);
+    const pairDrawings=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
+    const allD=drawingsLoad();
+    const target=pairDrawings[idx];
+    if(target){const gi=allD.indexOf(target);if(gi>=0){allD.splice(gi,1);drawingsSave(allD);renderDrawings();}}
+  };
 }
+
+
 
 async function renderChtPrice(){
   const wrap=document.getElementById('cht-canvas-area');
