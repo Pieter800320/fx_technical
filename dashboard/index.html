@@ -1311,46 +1311,77 @@ function restoreDrawings(){
 
 function initDrawingSvg(){
   if(!chtMainInst)return;
-  if(_drawClickHandler){try{chtMainInst.unsubscribeClick(_drawClickHandler);}catch(e){}}
+  const priceEl=document.getElementById('cht-price');
+  if(!priceEl)return;
+
+  // Clone to remove any previously attached listeners
+  const fresh=priceEl.cloneNode(true);
+  priceEl.parentNode.replaceChild(fresh,priceEl);
+  // Chart renders into this div — re-insert the chart after clone
+  // (chart already rendered into the old div; we recreate in renderChtPrice so this is safe)
+  // Actually: initDrawingSvg is called after chart renders, cht-price already has chart canvas
+  // Do NOT clone — just track with a flag instead
+  if(priceEl._drawInit)return;
+  priceEl._drawInit=true;
+
+  let _ts={x:0,y:0};
+  priceEl.addEventListener('touchstart',function(e){
+    if(!_drawTool)return;
+    const t=e.touches[0];_ts={x:t.clientX,y:t.clientY};
+  },{passive:true});
+
+  priceEl.addEventListener('touchend',function(e){
+    if(!_drawTool||!chtMainInst)return;
+    const t=e.changedTouches[0];
+    if(Math.abs(t.clientX-_ts.x)>10||Math.abs(t.clientY-_ts.y)>10)return;
+    const rect=priceEl.getBoundingClientRect();
+    _handleDrawPoint(_ts.x-rect.left,_ts.y-rect.top);
+  },{passive:true});
+
+  priceEl.addEventListener('click',function(e){
+    if(!_drawTool||!chtMainInst)return;
+    const rect=priceEl.getBoundingClientRect();
+    _handleDrawPoint(e.clientX-rect.left,e.clientY-rect.top);
+  });
+}
+
+function _handleDrawPoint(x,y){
+  let price=null;
+  try{price=chtMainInst.priceScale('right').coordinateToPrice(y);}catch(e){}
+  if(price===null||price===undefined||isNaN(price))return;
+
   const ohlcv=getOhlcv(selectedPair,chtTf);
-  _drawClickHandler=function(param){
-    if(!_drawTool||!param||!param.point)return;
-    // Price from y coordinate
-    let price=null;
-    try{price=chtMainInst.priceScale('right').coordinateToPrice(param.point.y);}catch(e){}
-    if(price===null||price===undefined)return;
-    if(_drawTool==='hline'){
-      const id=Date.now();
-      const pl=_addHlineNative(price);
-      if(pl)_activePriceLines.push({id,priceLine:pl});
-      const all=drawingsLoad();
-      all.push({id,type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
-      drawingsSave(all);
-      return;
+
+  if(_drawTool==='hline'){
+    const id=Date.now();
+    const pl=_addHlineNative(price);
+    if(pl)_activePriceLines.push({id,priceLine:pl});
+    const all=drawingsLoad();
+    all.push({id,type:'hline',pair:selectedPair,tf:chtTf,p1:{price},p2:{price}});
+    drawingsSave(all);
+    return;
+  }
+
+  let logical=ohlcv.length-1;
+  try{const l=chtMainInst.timeScale().coordinateToLogical(x);if(l!==null&&l!==undefined)logical=l;}catch(e){}
+
+  if(!_drawStart){
+    _drawStart={price,logical};
+  } else {
+    const id=Date.now();
+    const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,
+      p1:{price:_drawStart.price,logical:_drawStart.logical},
+      p2:{price,logical}};
+    if(_drawTool==='tline'){
+      const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+      if(s)_activeDrawSeries.push({id,series:s});
+    } else if(_drawTool==='rect'){
+      const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
+      if(ss)ss.forEach(s=>_activeDrawSeries.push({id,series:s}));
     }
-    // Two-tap tools — need logical index for x
-    let logical=null;
-    try{logical=chtMainInst.timeScale().coordinateToLogical(param.point.x);}catch(e){}
-    if(logical===null||logical===undefined)logical=ohlcv.length-1;
-    if(!_drawStart){
-      _drawStart={price,logical};
-    } else {
-      const id=Date.now();
-      const d={id,type:_drawTool,pair:selectedPair,tf:chtTf,
-        p1:{price:_drawStart.price,logical:_drawStart.logical},
-        p2:{price,logical}};
-      if(_drawTool==='tline'){
-        const s=_addLineSeriesNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-        if(s)_activeDrawSeries.push({id,series:s});
-      } else if(_drawTool==='rect'){
-        const ss=_addRectNative(ohlcv,d.p1.logical,d.p1.price,d.p2.logical,d.p2.price);
-        if(ss)ss.forEach(s=>_activeDrawSeries.push({id,series:s}));
-      }
-      const all=drawingsLoad();all.push(d);drawingsSave(all);
-      _drawStart=null;
-    }
-  };
-  chtMainInst.subscribeClick(_drawClickHandler);
+    const all=drawingsLoad();all.push(d);drawingsSave(all);
+    _drawStart=null;
+  }
 }
 
 // renderDrawings kept as no-op stub (no longer uses SVG)
