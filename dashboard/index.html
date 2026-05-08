@@ -44,11 +44,11 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #drum-rank-scroll{height:100%;overflow:hidden;pointer-events:none;}
 #drum-wall-r{position:absolute;top:0;right:0;width:48px;height:100%;background:#020e02;border-left:1px solid rgba(0,204,51,.18);z-index:3;}
 #drum-trade-bars{position:absolute;top:8px;bottom:8px;display:none;gap:3px;align-items:stretch;z-index:4;}
-.drum-tb{width:14px;flex-shrink:0;border-radius:3px;overflow:visible;background:rgba(0,204,51,.06);border:1px solid rgba(0,204,51,.2);position:relative;}
-.drum-tb .tb-entry{position:absolute;left:-1px;right:-1px;height:1px;background:rgba(0,204,51,.7);}
-.drum-tb .tb-price{position:absolute;left:-2px;right:-2px;height:2px;border-radius:1px;background:rgba(0,255,65,.95);}
-.drum-tb .tb-tp-dot{position:absolute;left:50%;transform:translateX(-50%);width:6px;height:2px;background:var(--buy);border-radius:1px;}
-.drum-tb .tb-sl-dot{position:absolute;left:50%;transform:translateX(-50%);width:6px;height:2px;background:var(--sell);border-radius:1px;}
+.drum-tb{width:14px;flex-shrink:0;border-radius:3px;overflow:hidden;background:rgba(0,204,51,.04);border:1px solid rgba(0,204,51,.2);position:relative;}
+.drum-tb .tb-entry{position:absolute;left:0;right:0;height:1px;background:rgba(255,255,255,.5);}
+.drum-tb .tb-price{position:absolute;left:0;right:0;height:2px;border-radius:1px;background:rgba(0,255,65,.95);}
+.drum-tb .tb-profit{position:absolute;left:0;right:0;background:rgba(63,185,80,.55);}
+.drum-tb .tb-loss{position:absolute;left:0;right:0;background:transparent;}
 .d-top{display:table;table-layout:fixed;width:100%;height:30px;}
 .d-pair{display:table-cell;text-align:center;vertical-align:middle;font-size:19px;font-family:'VT323',monospace;width:20%;}
 .d-setup{display:table-cell;text-align:center;vertical-align:middle;font-size:19px;font-family:'VT323',monospace;width:20%;}
@@ -253,12 +253,17 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div id="cht-canvas-area" style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;">
     <div id="cht-ohlc" style="position:absolute;top:6px;left:8px;z-index:20;font-family:'VT323',monospace;font-size:14px;line-height:1.4;pointer-events:none;display:none;background:rgba(13,17,23,.82);padding:3px 8px;border-radius:4px;border:1px solid rgba(48,54,61,.7);white-space:nowrap;"></div>
+    <svg id="cht-draw-svg" style="position:absolute;inset:0;z-index:15;pointer-events:none;overflow:visible;"></svg>
     <div id="cht-price" style="flex:1;min-height:0;"></div>
     <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
   </div>
   <div id="cht-controls">
     <div style="display:flex;gap:6px;padding:6px var(--pad);">
       <button class="btn" onclick="openIndicatorsSheet()" style="flex:0 0 auto;">⚙ Indicators</button>
+      <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Horizontal Line" style="padding:5px 9px;flex-shrink:0;">—</button>
+      <button id="draw-btn-tline" class="btn btn-muted" onclick="setDrawTool('tline')" title="Trend Line" style="padding:5px 9px;flex-shrink:0;">╱</button>
+      <button id="draw-btn-rect" class="btn btn-muted" onclick="setDrawTool('rect')" title="Rectangle" style="padding:5px 9px;flex-shrink:0;">▭</button>
+      <button class="btn btn-muted" onclick="clearDrawings()" title="Clear drawings" style="padding:5px 9px;flex-shrink:0;">✕</button>
       <input id="cht-alert-inp" type="number" step="0.00001" placeholder="e.g. 1.08450" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:5px 8px;font-size:var(--sm);"/>
       <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;">↑ Above</button>
       <button class="btn" onclick="setLevelAlert()" style="padding:5px 8px;flex-shrink:0;">Set Alert</button>
@@ -826,8 +831,7 @@ function openRegimeSheet(){
 
   // W1
   if(w1){
-    const w1pend=w1.pending&&!w1.confirmed?` → ${w1.pending}?`:'';
-    h+=stackRow('Macro Trend','Multi-week cross-asset backdrop',w1.score||5,w1.regime,w1pend);
+    h+=stackRow('Macro Trend','Multi-week cross-asset backdrop',w1.score||5,w1.regime);
   }
   // H4
   const h4score=comps.h4?comps.h4.score:5;
@@ -1188,20 +1192,205 @@ function toggleInd(key){
   }
   renderChtPrice();
 }
-function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
-function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;}
+function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>{renderChtPrice();setTimeout(initDrawingSvg,300);}));}
+function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;setDrawTool(null);}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
 function startCandleTimer(){if(candleTimerInt)clearInterval(candleTimerInt);function tick(){const el=document.getElementById('cht-timer');if(!el)return;if(closed()){el.textContent='';return;}const now=Math.floor(Date.now()/1000);const tfSecs={H1:3600,H4:14400,D1:86400}[chtTf]||3600;const secsLeft=tfSecs-(now%tfSecs);const h=Math.floor(secsLeft/3600),m=Math.floor((secsLeft%3600)/60),s=secsLeft%60;const pad=n=>String(n).padStart(2,'0');el.textContent=h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);el.style.color=secsLeft<=60?'var(--sell)':'var(--muted)';}tick();candleTimerInt=setInterval(tick,1000);}
 let _wsPriceLine=null,_chtCandles=null,_subChartOffset=0;
 function wsUpdatePrice(price){
   if(!chtMainInst||!_chtCandles)return;
-  // Update live data store so D1%, Enter Trade prefill, thermometer all reflect live price
   if(D.h1&&D.h1[_wsPair]&&D.h1[_wsPair].raw)D.h1[_wsPair].raw.close=price;
   try{
     if(_wsPriceLine){_chtCandles.removePriceLine(_wsPriceLine);_wsPriceLine=null;}
     _wsPriceLine=_chtCandles.createPriceLine({price,color:CHT_BLUE,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,axisLabelColor:CHT_BLUE,axisLabelTextColor:'#0d1117',title:''});
   }catch(e){}
 }
+
+// ── DRAWING TOOLS ─────────────────────────────────────────────────────────────
+const DRAW_KEY='fx1212_drawings_v1';
+let _drawTool=null,_drawStart=null,_drawInProgress=false;
+let _drawings=[];  // [{type,p1,p2,pair,tf}]
+
+function drawingsLoad(){try{return JSON.parse(localStorage.getItem(DRAW_KEY)||'[]');}catch{return[];}}
+function drawingsSave(d){localStorage.setItem(DRAW_KEY,JSON.stringify(d));}
+
+function setDrawTool(tool){
+  _drawTool=_drawTool===tool?null:tool;
+  ['hline','tline','rect'].forEach(t=>{
+    const b=document.getElementById('draw-btn-'+t);
+    if(b)b.className='btn btn-muted'+(_drawTool===t?' active':'');
+  });
+  const svg=document.getElementById('cht-draw-svg');
+  const priceEl=document.getElementById('cht-price');
+  if(svg&&priceEl){
+    svg.style.pointerEvents=_drawTool?'all':'none';
+    priceEl.style.cursor=_drawTool?'crosshair':'default';
+  }
+  _drawStart=null;_drawInProgress=false;
+}
+
+function clearDrawings(){
+  _drawings=drawingsLoad().filter(d=>!(d.pair===selectedPair&&d.tf===chtTf));
+  drawingsSave(_drawings);
+  renderDrawings();
+}
+
+// Convert chart pixel coordinate to price using the chart's price scale
+function svgPxToPrice(y,priceEl){
+  if(!chtMainInst||!priceEl)return null;
+  try{
+    const rect=priceEl.getBoundingClientRect();
+    const h=rect.height;
+    // Use LightweightCharts coordinate conversion
+    return chtMainInst.priceScale('right').coordinateToPrice(y);
+  }catch{return null;}
+}
+function svgPxToTime(x,priceEl){
+  if(!chtMainInst||!priceEl)return null;
+  try{return chtMainInst.timeScale().coordinateToTime(x);}catch{return null;}
+}
+function priceToPx(price){
+  if(!chtMainInst)return null;
+  try{return chtMainInst.priceScale('right').priceToCoordinate(price);}catch{return null;}
+}
+function timeToPx(time){
+  if(!chtMainInst)return null;
+  try{return chtMainInst.timeScale().timeToCoordinate(time);}catch{return null;}
+}
+
+function initDrawingSvg(){
+  const svg=document.getElementById('cht-draw-svg');
+  const priceEl=document.getElementById('cht-price');
+  if(!svg||!priceEl)return;
+
+  svg.addEventListener('mousedown',onDrawStart);
+  svg.addEventListener('touchstart',e=>{const t=e.touches[0];onDrawStart({clientX:t.clientX,clientY:t.clientY,preventDefault:()=>e.preventDefault()});},{passive:false});
+  svg.addEventListener('mousemove',onDrawMove);
+  svg.addEventListener('touchmove',e=>{const t=e.touches[0];onDrawMove({clientX:t.clientX,clientY:t.clientY});},{passive:true});
+  svg.addEventListener('mouseup',onDrawEnd);
+  svg.addEventListener('touchend',e=>{const t=e.changedTouches[0];onDrawEnd({clientX:t.clientX,clientY:t.clientY});},{passive:true});
+
+  // Double-tap/click on existing drawing to delete it
+  svg.addEventListener('dblclick',e=>{
+    if(_drawTool)return;
+    const el=e.target.closest('[data-draw-idx]');
+    if(el){
+      const idx=parseInt(el.dataset.drawIdx);
+      _drawings=drawingsLoad();
+      const pairDrawings=_drawings.filter(d=>d.pair===selectedPair&&d.tf===chtTf);
+      if(pairDrawings[idx]){
+        const globalIdx=_drawings.indexOf(pairDrawings[idx]);
+        if(globalIdx>=0)_drawings.splice(globalIdx,1);
+        drawingsSave(_drawings);
+        renderDrawings();
+      }
+    }
+  });
+}
+
+function _svgCoords(e,priceEl){
+  const rect=priceEl.getBoundingClientRect();
+  return{x:e.clientX-rect.left,y:e.clientY-rect.top};
+}
+
+function onDrawStart(e){
+  if(!_drawTool||!chtMainInst)return;
+  e.preventDefault&&e.preventDefault();
+  const priceEl=document.getElementById('cht-price');
+  if(!priceEl)return;
+  const{x,y}=_svgCoords(e,priceEl);
+  const price=svgPxToPrice(y,priceEl);
+  const time=svgPxToTime(x,priceEl);
+  if(price===null||time===null)return;
+  _drawStart={x,y,price,time};
+  _drawInProgress=true;
+}
+
+function onDrawMove(e){
+  if(!_drawInProgress||!_drawStart||!chtMainInst)return;
+  const priceEl=document.getElementById('cht-price');
+  if(!priceEl)return;
+  const{x,y}=_svgCoords(e,priceEl);
+  renderDrawings(true,{x,y});
+}
+
+function onDrawEnd(e){
+  if(!_drawInProgress||!_drawStart||!chtMainInst)return;
+  _drawInProgress=false;
+  const priceEl=document.getElementById('cht-price');
+  if(!priceEl)return;
+  const{x,y}=_svgCoords(e,priceEl);
+  const price=svgPxToPrice(y,priceEl);
+  const time=svgPxToTime(x,priceEl);
+  if(price===null)return;
+  _drawings=drawingsLoad();
+  const d={type:_drawTool,pair:selectedPair,tf:chtTf,
+    p1:{price:_drawStart.price,time:_drawStart.time},
+    p2:{price,time}};
+  if(_drawTool==='hline')d.p1.price=_drawStart.price;
+  _drawings.push(d);
+  drawingsSave(_drawings);
+  renderDrawings();
+}
+
+function renderDrawings(withPreview,previewEnd){
+  const svg=document.getElementById('cht-draw-svg');
+  const priceEl=document.getElementById('cht-price');
+  if(!svg||!priceEl||!chtMainInst)return;
+  const rect=priceEl.getBoundingClientRect();
+  const W=rect.width,H=rect.height;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  svg.setAttribute('width',W);
+  svg.setAttribute('height',H);
+
+  const all=drawingsLoad().filter(d=>d.pair===selectedPair&&d.tf===chtTf);
+  let markup='';
+
+  const STROKE='rgba(227,179,65,0.85)';
+  const STROKE_W=1.5;
+
+  all.forEach((d,i)=>{
+    const y1=priceToPx(d.p1.price);
+    const x1=timeToPx(d.p1.time);
+    if(y1===null)return;
+
+    if(d.type==='hline'){
+      if(y1<0||y1>H)return;
+      markup+=`<line data-draw-idx="${i}" x1="0" y1="${y1.toFixed(1)}" x2="${W}" y2="${y1.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" stroke-dasharray="4,3" style="cursor:pointer;"/>`;
+      markup+=`<text x="4" y="${(y1-3).toFixed(1)}" fill="${STROKE}" font-size="9" font-family="monospace">${d.p1.price.toFixed(5)}</text>`;
+    } else if(d.type==='tline'){
+      const y2=priceToPx(d.p2.price);
+      const x2=timeToPx(d.p2.time);
+      if(y2===null||x2===null||x1===null)return;
+      markup+=`<line data-draw-idx="${i}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" style="cursor:pointer;"/>`;
+    } else if(d.type==='rect'){
+      const y2=priceToPx(d.p2.price);
+      const x2=timeToPx(d.p2.time);
+      if(y2===null||x2===null||x1===null)return;
+      const rx=Math.min(x1,x2),ry=Math.min(y1,y2),rw=Math.abs(x2-x1),rh=Math.abs(y2-y1);
+      markup+=`<rect data-draw-idx="${i}" x="${rx.toFixed(1)}" y="${ry.toFixed(1)}" width="${rw.toFixed(1)}" height="${rh.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" fill="rgba(227,179,65,0.06)" style="cursor:pointer;"/>`;
+    }
+  });
+
+  // Preview while drawing
+  if(withPreview&&_drawStart&&previewEnd&&chtMainInst){
+    const px=previewEnd.x,py=previewEnd.y;
+    const sy=priceToPx(_drawStart.price);
+    const sx=timeToPx(_drawStart.time);
+    if(sy!==null){
+      if(_drawTool==='hline'){
+        markup+=`<line x1="0" y1="${sy.toFixed(1)}" x2="${W}" y2="${sy.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" stroke-dasharray="4,3" opacity="0.5"/>`;
+      } else if(_drawTool==='tline'&&sx!==null){
+        markup+=`<line x1="${sx.toFixed(1)}" y1="${sy.toFixed(1)}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" opacity="0.5"/>`;
+      } else if(_drawTool==='rect'&&sx!==null){
+        const rx=Math.min(sx,px),ry=Math.min(sy,py),rw=Math.abs(px-sx),rh=Math.abs(py-sy);
+        markup+=`<rect x="${rx.toFixed(1)}" y="${ry.toFixed(1)}" width="${rw.toFixed(1)}" height="${rh.toFixed(1)}" stroke="${STROKE}" stroke-width="${STROKE_W}" fill="rgba(227,179,65,0.04)" opacity="0.5"/>`;
+      }
+    }
+  }
+  svg.innerHTML=markup;
+}
+
 async function renderChtPrice(){
   const wrap=document.getElementById('cht-canvas-area');
   const priceEl=document.getElementById('cht-price');
@@ -1317,6 +1506,10 @@ async function renderChtPrice(){
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:priceEl.clientWidth,height:priceEl.clientHeight});}).observe(priceEl);
   chtMainInst=chart;
   if(_wsLastPrice&&_wsPair===selectedPair)wsUpdatePrice(_wsLastPrice);
+  // Re-render drawings when chart pans/zooms
+  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(renderDrawings));
+  chart.priceScale('right').applyOptions({});
+  setTimeout(renderDrawings,150);
   // OHLC HUD — updates on crosshair move
   const ohlcEl=document.getElementById('cht-ohlc');
   const isJpyP=selectedPair.includes('JPY');
@@ -1595,20 +1788,25 @@ function renderDrumTradeBar(pair){
   trades.forEach(t=>{
     const sl=parseFloat(t.sl),tp=parseFloat(t.tp),entry=parseFloat(t.entry);
     if(!sl||!tp||!entry)return;
-    // Price range: SL at one end, TP at the other
-    // Bar is vertical — higher price at top (0%), lower at bottom (100%)
+    const isBuy=t.direction==='BUY';
+    // Bar spans SL to TP exactly. Higher price = top (0%), lower = bottom (100%)
     const hi=Math.max(sl,tp),lo=Math.min(sl,tp);
     const range=hi-lo;if(range<=0)return;
     const pct=p=>Math.min(100,Math.max(0,((hi-p)/range*100))).toFixed(1);
-    const entryPct=pct(entry);
+    const entryPct=parseFloat(pct(entry));
+    const tpPct=parseFloat(pct(tp));    // 0% if TP is highest, 100% if lowest
+    const slPct=parseFloat(pct(sl));    // opposite
+    // Profit fill: from entry to TP (the green zone)
+    const profitTop=Math.min(entryPct,tpPct);
+    const profitH=Math.abs(entryPct-tpPct);
+    // Loss fill: from entry to SL (subtle red zone)
+    const lossTop=Math.min(entryPct,slPct);
+    const lossH=Math.abs(entryPct-slPct);
     const div=document.createElement('div');
     div.className='drum-tb';
     div.title=`${t.direction} | TP:${tp} | E:${entry} | SL:${sl}`;
-    // TP dot at top end, SL dot at bottom end
-    const tpPct=pct(tp);
-    const slPct=pct(sl);
-    let html=`<div class="tb-tp-dot" style="top:${tpPct}%;"></div>`;
-    html+=`<div class="tb-sl-dot" style="top:${slPct}%;"></div>`;
+    let html=`<div class="tb-profit" style="top:${profitTop}%;height:${profitH}%;"></div>`;
+    html+=`<div class="tb-loss" style="top:${lossTop}%;height:${lossH}%;"></div>`;
     html+=`<div class="tb-entry" style="top:${entryPct}%;"></div>`;
     if(curr!==null)html+=`<div class="tb-price" style="top:${pct(curr)}%;"></div>`;
     div.innerHTML=html;
@@ -1616,19 +1814,9 @@ function renderDrumTradeBar(pair){
   });
   const count=barsEl.children.length;
   if(!count){barsEl.style.display='none';return;}
-  // Position: center single bar, pair side-by-side for two
-  // Wall is 48px wide. Bar is 14px. Gap is 3px.
-  if(count===1){
-    // Center: (48 - 14) / 2 = 17px from left → right = 48 - 14 - 17 = 17px
-    barsEl.style.right='17px';
-    barsEl.style.left='auto';
-    barsEl.style.width='14px';
-  } else {
-    // Two bars: 14+3+14=31px. Center: (48-31)/2=8.5px from left → right=48-31-9=8px
-    barsEl.style.right='8px';
-    barsEl.style.left='auto';
-    barsEl.style.width='31px';
-  }
+  barsEl.style.right=count===1?'17px':'8px';
+  barsEl.style.left='auto';
+  barsEl.style.width=count===1?'14px':'31px';
   barsEl.style.display='flex';
 }
 
