@@ -16,9 +16,9 @@ BASE_URL = "https://api.twelvedata.com/time_series"
 TF_MAP = {"H1": "1h", "H4": "4h", "D1": "1day"}
 
 BARS_NEEDED = {
-    "H1": 2000,  # 2000 hourly bars (~83 days / ~12 weeks)
-    "H4": 1000,  # 1000 × 4h bars (~167 days / ~5.5 months)
-    "D1": 300,   # 300 daily bars (~1.2 years, sufficient for EMA200 + structure)
+    "H1": 500,   # 500 hourly bars (~21 days)
+    "H4": 400,   # 400 × 4h bars (~67 days)
+    "D1": 300,   # 300 daily bars (~1.2 years, needed for EMA200 + embed_d1_ohlcv 200-bar chart)
 }
 
 BATCH_SIZE   = 7
@@ -108,7 +108,7 @@ def fetch_pair(pair, timeframe):
         df = pd.DataFrame(values)
         df["datetime"] = pd.to_datetime(df["datetime"])
         df = df.sort_values("datetime").reset_index(drop=True)
-        for col in ["open", "high", "low", "close"]:
+        for col in ["open", "high", "low", "close", "volume"]:
             if col in df.columns:
                 df[col] = pd.to_numeric(df[col], errors="coerce")
         df = _filter_spikes(df, pair)
