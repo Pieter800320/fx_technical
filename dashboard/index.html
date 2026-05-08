@@ -254,21 +254,28 @@ tr:last-child td{border-bottom:none;}
   <div id="cht-canvas-area" style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;">
     <div id="cht-ohlc" style="position:absolute;top:6px;left:8px;z-index:20;font-family:'VT323',monospace;font-size:14px;line-height:1.4;pointer-events:none;display:none;background:rgba(13,17,23,.82);padding:3px 8px;border-radius:4px;border:1px solid rgba(48,54,61,.7);white-space:nowrap;"></div>
     <svg id="cht-draw-svg" style="position:absolute;inset:0;z-index:15;pointer-events:none;overflow:visible;"></svg>
+    <div id="cht-draw-capture" style="position:absolute;inset:0;z-index:16;display:none;cursor:crosshair;touch-action:none;"></div>
     <div id="cht-price" style="flex:1;min-height:0;"></div>
     <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
   </div>
   <div id="cht-controls">
-    <div style="display:flex;gap:6px;padding:6px var(--pad);">
-      <button class="btn" onclick="openIndicatorsSheet()" style="flex:0 0 auto;">⚙ Indicators</button>
-      <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Horizontal Line" style="padding:5px 9px;flex-shrink:0;">—</button>
-      <button id="draw-btn-tline" class="btn btn-muted" onclick="setDrawTool('tline')" title="Trend Line" style="padding:5px 9px;flex-shrink:0;">╱</button>
-      <button id="draw-btn-rect" class="btn btn-muted" onclick="setDrawTool('rect')" title="Rectangle" style="padding:5px 9px;flex-shrink:0;">▭</button>
-      <button class="btn btn-muted" onclick="clearDrawings()" title="Clear drawings" style="padding:5px 9px;flex-shrink:0;">✕</button>
-      <input id="cht-alert-inp" type="number" step="0.00001" placeholder="e.g. 1.08450" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:5px 8px;font-size:var(--sm);"/>
-      <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;">↑ Above</button>
-      <button class="btn" onclick="setLevelAlert()" style="padding:5px 8px;flex-shrink:0;">Set Alert</button>
+    <!-- Row 1: Indicators | Drawing tools -->
+    <div style="display:flex;gap:1px;border-bottom:1px solid var(--border2);">
+      <button class="btn btn-muted" onclick="openIndicatorsSheet()" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:8px 4px;">⚙ Indicators</button>
+      <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Horizontal line" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:8px 4px;">—</button>
+      <button id="draw-btn-tline" class="btn btn-muted" onclick="setDrawTool('tline')" title="Trend line" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:8px 4px;">╱</button>
+      <button id="draw-btn-rect" class="btn btn-muted" onclick="setDrawTool('rect')" title="Rectangle" style="flex:1;justify-content:center;border-radius:0;border:none;border-right:1px solid var(--border2);padding:8px 4px;">▭</button>
+      <button class="btn btn-muted" onclick="clearDrawings()" title="Clear drawings" style="flex:1;justify-content:center;border-radius:0;border:none;padding:8px 4px;font-size:10px;">CLR</button>
     </div>
+    <!-- Row 2: Level alert input -->
+    <div style="display:flex;gap:6px;padding:6px var(--pad);border-bottom:1px solid var(--border2);align-items:center;">
+      <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;min-width:62px;">↑ Above</button>
+      <input id="cht-alert-inp" type="number" step="0.00001" placeholder="Price level…" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:5px 8px;font-size:var(--sm);"/>
+      <button class="btn" onclick="setLevelAlert()" style="padding:5px 10px;flex-shrink:0;">Set Alert</button>
+    </div>
+    <!-- Active alerts -->
     <div id="cht-alerts-list" style="padding:0 var(--pad);"></div>
+    <!-- Row 3: Trade actions -->
     <div style="display:flex;gap:6px;padding:6px var(--pad);">
       <button class="btn btn-green" onclick="openEnterTradeSheet()" style="flex:1;justify-content:center;">+ Enter Trade</button>
       <button class="btn btn-red" id="cht-close-trade-btn" onclick="closeChartActiveTrade()" style="flex:1;justify-content:center;display:none;">✕ Close Trade</button>
@@ -1218,14 +1225,13 @@ function setDrawTool(tool){
   _drawTool=_drawTool===tool?null:tool;
   ['hline','tline','rect'].forEach(t=>{
     const b=document.getElementById('draw-btn-'+t);
-    if(b)b.className='btn btn-muted'+(_drawTool===t?' active':'');
+    if(!b)return;
+    b.style.background=_drawTool===t?'rgba(227,179,65,.15)':'transparent';
+    b.style.color=_drawTool===t?'var(--amber)':'var(--muted)';
   });
-  const svg=document.getElementById('cht-draw-svg');
-  const priceEl=document.getElementById('cht-price');
-  if(svg&&priceEl){
-    svg.style.pointerEvents=_drawTool?'all':'none';
-    priceEl.style.cursor=_drawTool?'crosshair':'default';
-  }
+  // Capture div sits above chart canvas ONLY when tool is active
+  const cap=document.getElementById('cht-draw-capture');
+  if(cap)cap.style.display=_drawTool?'block':'none';
   _drawStart=null;_drawInProgress=false;
 }
 
@@ -1235,18 +1241,12 @@ function clearDrawings(){
   renderDrawings();
 }
 
-// Convert chart pixel coordinate to price using the chart's price scale
-function svgPxToPrice(y,priceEl){
-  if(!chtMainInst||!priceEl)return null;
-  try{
-    const rect=priceEl.getBoundingClientRect();
-    const h=rect.height;
-    // Use LightweightCharts coordinate conversion
-    return chtMainInst.priceScale('right').coordinateToPrice(y);
-  }catch{return null;}
+function svgPxToPrice(y){
+  if(!chtMainInst)return null;
+  try{return chtMainInst.priceScale('right').coordinateToPrice(y);}catch{return null;}
 }
-function svgPxToTime(x,priceEl){
-  if(!chtMainInst||!priceEl)return null;
+function svgPxToTime(x){
+  if(!chtMainInst)return null;
   try{return chtMainInst.timeScale().coordinateToTime(x);}catch{return null;}
 }
 function priceToPx(price){
@@ -1259,48 +1259,67 @@ function timeToPx(time){
 }
 
 function initDrawingSvg(){
-  const svg=document.getElementById('cht-draw-svg');
+  const cap=document.getElementById('cht-draw-capture');
   const priceEl=document.getElementById('cht-price');
-  if(!svg||!priceEl)return;
+  if(!cap||!priceEl)return;
 
-  svg.addEventListener('mousedown',onDrawStart);
-  svg.addEventListener('touchstart',e=>{const t=e.touches[0];onDrawStart({clientX:t.clientX,clientY:t.clientY,preventDefault:()=>e.preventDefault()});},{passive:false});
-  svg.addEventListener('mousemove',onDrawMove);
-  svg.addEventListener('touchmove',e=>{const t=e.touches[0];onDrawMove({clientX:t.clientX,clientY:t.clientY});},{passive:true});
-  svg.addEventListener('mouseup',onDrawEnd);
-  svg.addEventListener('touchend',e=>{const t=e.changedTouches[0];onDrawEnd({clientX:t.clientX,clientY:t.clientY});},{passive:true});
+  // Remove old listeners by replacing element
+  const fresh=cap.cloneNode(false);
+  cap.parentNode.replaceChild(fresh,cap);
+  const c=document.getElementById('cht-draw-capture');
 
-  // Double-tap/click on existing drawing to delete it
-  svg.addEventListener('dblclick',e=>{
-    if(_drawTool)return;
-    const el=e.target.closest('[data-draw-idx]');
-    if(el){
-      const idx=parseInt(el.dataset.drawIdx);
-      _drawings=drawingsLoad();
-      const pairDrawings=_drawings.filter(d=>d.pair===selectedPair&&d.tf===chtTf);
-      if(pairDrawings[idx]){
-        const globalIdx=_drawings.indexOf(pairDrawings[idx]);
-        if(globalIdx>=0)_drawings.splice(globalIdx,1);
-        drawingsSave(_drawings);
-        renderDrawings();
+  c.addEventListener('mousedown',onDrawStart);
+  c.addEventListener('touchstart',e=>{
+    if(e.touches.length!==1)return;
+    e.preventDefault();
+    const t=e.touches[0];
+    onDrawStart({clientX:t.clientX,clientY:t.clientY});
+  },{passive:false});
+  c.addEventListener('mousemove',onDrawMove);
+  c.addEventListener('touchmove',e=>{
+    if(e.touches.length!==1)return;
+    const t=e.touches[0];
+    onDrawMove({clientX:t.clientX,clientY:t.clientY});
+  },{passive:true});
+  c.addEventListener('mouseup',onDrawEnd);
+  c.addEventListener('touchend',e=>{
+    const t=e.changedTouches[0];
+    onDrawEnd({clientX:t.clientX,clientY:t.clientY});
+  },{passive:true});
+
+  // Double-tap on SVG drawing to delete
+  const svg=document.getElementById('cht-draw-svg');
+  if(svg){
+    svg.addEventListener('dblclick',e=>{
+      if(_drawTool)return;
+      const el=e.target.closest('[data-draw-idx]');
+      if(el){
+        const idx=parseInt(el.dataset.drawIdx);
+        _drawings=drawingsLoad();
+        const pairDrawings=_drawings.filter(d=>d.pair===selectedPair&&d.tf===chtTf);
+        if(pairDrawings[idx]){
+          const gi=_drawings.indexOf(pairDrawings[idx]);
+          if(gi>=0)_drawings.splice(gi,1);
+          drawingsSave(_drawings);
+          renderDrawings();
+        }
       }
-    }
-  });
+    });
+  }
 }
 
-function _svgCoords(e,priceEl){
+function _svgCoords(e){
+  const priceEl=document.getElementById('cht-price');
+  if(!priceEl)return{x:0,y:0};
   const rect=priceEl.getBoundingClientRect();
   return{x:e.clientX-rect.left,y:e.clientY-rect.top};
 }
 
 function onDrawStart(e){
   if(!_drawTool||!chtMainInst)return;
-  e.preventDefault&&e.preventDefault();
-  const priceEl=document.getElementById('cht-price');
-  if(!priceEl)return;
-  const{x,y}=_svgCoords(e,priceEl);
-  const price=svgPxToPrice(y,priceEl);
-  const time=svgPxToTime(x,priceEl);
+  const{x,y}=_svgCoords(e);
+  const price=svgPxToPrice(y);
+  const time=svgPxToTime(x);
   if(price===null||time===null)return;
   _drawStart={x,y,price,time};
   _drawInProgress=true;
@@ -1308,26 +1327,21 @@ function onDrawStart(e){
 
 function onDrawMove(e){
   if(!_drawInProgress||!_drawStart||!chtMainInst)return;
-  const priceEl=document.getElementById('cht-price');
-  if(!priceEl)return;
-  const{x,y}=_svgCoords(e,priceEl);
+  const{x,y}=_svgCoords(e);
   renderDrawings(true,{x,y});
 }
 
 function onDrawEnd(e){
   if(!_drawInProgress||!_drawStart||!chtMainInst)return;
   _drawInProgress=false;
-  const priceEl=document.getElementById('cht-price');
-  if(!priceEl)return;
-  const{x,y}=_svgCoords(e,priceEl);
-  const price=svgPxToPrice(y,priceEl);
-  const time=svgPxToTime(x,priceEl);
+  const{x,y}=_svgCoords(e);
+  const price=svgPxToPrice(y);
+  const time=svgPxToTime(x);
   if(price===null)return;
   _drawings=drawingsLoad();
   const d={type:_drawTool,pair:selectedPair,tf:chtTf,
     p1:{price:_drawStart.price,time:_drawStart.time},
     p2:{price,time}};
-  if(_drawTool==='hline')d.p1.price=_drawStart.price;
   _drawings.push(d);
   drawingsSave(_drawings);
   renderDrawings();
