@@ -247,7 +247,7 @@ def main():
             if df is None or len(df) < 2:
                 continue
             bars_list = []
-            for ts, row in df.tail(500).iterrows():
+            for ts, row in df.tail(2000).iterrows():
                 try:
                     dt_obj = datetime.datetime.fromisoformat(
                         str(row.get("datetime", ts) if hasattr(row, "get") else ts)
