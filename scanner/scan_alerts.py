@@ -128,7 +128,7 @@ def compute_setup(pair, h1, h4, d1, csm_rankings, regime_str, rates=None):
         rate_score = 10 if diff_in_dir>=200 else 7 if diff_in_dir>=50 else 5 if diff_in_dir>=-50 else 3 if diff_in_dir>=-200 else 1
 
     # 6. SESSION FIT (8%)
-    h = datetime.datetime.utcnow().hour
+    h = datetime.utcnow().hour
     SESS = {"Sydney":(22,7),"Tokyo":(23,8),"London":(7,16),"New York":(12,21)}
     SESS_ABBR = {"Sydney":"SY","Tokyo":"TK","London":"LN","New York":"NY"}
     PAIR_SESS = {
