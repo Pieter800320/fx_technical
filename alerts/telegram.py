@@ -49,6 +49,33 @@ def send_level_alert(pair: str, direction: str, alert_price: float,
     return send_telegram(msg)
 
 
+def send_sma_alert(pair: str, direction: str, d1_label: str, h4_label: str,
+                   h1_label: str, edge: int = None, setup: int = None,
+                   adx: float = None) -> bool:
+    """Triple-TF SMA12 momentum alignment alert."""
+    display  = pair.replace("/", "")
+    emoji    = "🟢" if direction == "UP" else "🔴"
+    arrow    = "▲" if direction == "UP" else "▼"
+
+    lines = [
+        f"{emoji} <b>SMA Alignment — {display}</b>",
+        f"All 3 TFs pointing <b>{arrow} {direction}</b>",
+        "",
+        f"D1: {d1_label}  ·  H4: {h4_label}  ·  H1: {h1_label}",
+    ]
+    extras = []
+    if setup is not None:
+        extras.append(f"Setup {setup}%")
+    if edge is not None:
+        extras.append(f"Edge {edge}/10")
+    if adx is not None:
+        extras.append(f"ADX {adx:.1f}")
+    if extras:
+        lines.append("  ".join(extras))
+    lines += ["", f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>']
+    return send_telegram("\n".join(lines))
+
+
 def send_trade_alert(pair: str, event: str, direction: str,
                      price: float, entry: float,
                      sl: float = None, tp: float = None,
