@@ -226,7 +226,7 @@ def main():
                 if df is None or len(df) < 2:
                     continue
                 bars_list = []
-                for ts, row in df.tail(100).iterrows():
+                for ts, row in df.tail(1000).iterrows():
                     try:
                         import calendar, datetime as _dt
                         dt_raw = row.get("datetime") if hasattr(row, "get") else str(ts)
