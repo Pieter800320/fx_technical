@@ -20,7 +20,7 @@ from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, is_extended
 from scanner.correlate import compute_correlation
 from scanner.cooldown import is_on_cooldown, record_alert
-from scanner.regime import classify_regime
+from scanner.regime import classify_regime, compute_final_regime
 from alerts.news import get_alert_context
 from alerts.log import log_alert
 
@@ -226,7 +226,7 @@ def main():
                 if df is None or len(df) < 2:
                     continue
                 bars_list = []
-                for ts, row in df.tail(1000).iterrows():
+                for ts, row in df.tail(100).iterrows():
                     try:
                         import calendar, datetime as _dt
                         dt_raw = row.get("datetime") if hasattr(row, "get") else str(ts)
