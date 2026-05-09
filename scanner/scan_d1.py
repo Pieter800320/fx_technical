@@ -13,8 +13,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config.pairs import PAIRS, pair_display, REGIME_EXTRA_PAIRS
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, atr_percentile
-from scanner.csm import compute_currency_strength, MAJOR_PAIRS, STRENGTH_PAIRS, CSM_EXTRA_PAIRS
-from scanner.regime import classify_regime, compute_w1_regime, apply_w1_persistence
+from scanner.csm import compute_currency_strength, compute_currency_strength_h4, MAJOR_PAIRS, STRENGTH_PAIRS, CSM_EXTRA_PAIRS
+from scanner.regime import classify_regime
 from scanner.conviction import compute_conviction
 
 DATA_DIR      = os.path.join(os.path.dirname(__file__), "..", "data")
@@ -149,43 +149,13 @@ def main():
             "rankings":   csm_result["rankings"],
             "confidence": csm_result["confidence"],
             "breakdown":  csm_result.get("breakdown", {}),
+            "h4_rankings": compute_currency_strength_h4(h4_ohlcv)["rankings"],
             "updated":    now.isoformat(),
         }, f, indent=2)
 
     # vol_ratio removed from output (regime.py no longer computes it)
     # Preserve h4 key written by scan_h4.py so D1 write does not clobber it.
     existing_regime = load_json(REGIME_OUTPUT)
-
-    # ── W1 regime — cross-asset macro anchor with persistence
-    w1_new = None
-    try:
-        macro_data = existing_regime.get("macro_bias", {})
-        # Reconstruct macro dict from macro_bias components for W1 scoring
-        macro_for_w1 = {}
-        for comp in macro_data.get("components", []):
-            key = comp.get("key")
-            if key:
-                macro_for_w1[key] = {
-                    "change_pct": comp.get("change_pct", 0),
-                    "value": 0,
-                }
-        # Also try news_brief.json for richer macro data
-        try:
-            news_path = os.path.join(DATA_DIR, "news_brief.json")
-            with open(news_path) as _f:
-                news_data = json.load(_f)
-            macro_for_w1 = news_data.get("macro", macro_for_w1)
-        except Exception:
-            pass
-        w1_raw = compute_w1_regime(macro_for_w1)
-        stored_w1 = existing_regime.get("w1_regime")
-        w1_new = apply_w1_persistence(w1_raw, stored_w1)
-        print(f"  W1 Regime: {w1_new['regime']} ({w1_new['confidence']}) score={w1_new['score']:.1f}"
-              + (f" [pending: {w1_new['pending']} x{w1_new['pending_count']}]"
-                 if w1_new.get("pending") else " [confirmed]"))
-    except Exception as e:
-        print(f"  [W1 Regime] ERROR: {e}")
-
     regime_doc = {
         "regime":      regime_result["regime"],
         "confidence":  regime_result["confidence"],
@@ -199,9 +169,6 @@ def main():
     for key in ("macro_bias", "final_regime", "ai_sentiment"):
         if key in existing_regime:
             regime_doc[key] = existing_regime[key]
-    # Write W1 regime
-    if w1_new:
-        regime_doc["w1_regime"] = w1_new
     with open(REGIME_OUTPUT, "w") as f:
         json.dump(regime_doc, f, indent=2)
 
