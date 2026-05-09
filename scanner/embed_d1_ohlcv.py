@@ -13,7 +13,7 @@ D1_OUTPUT = os.path.join(DATA_DIR, "d1_scores.json")
 
 INITIAL_WAIT = 70   # seconds to let rate limit reset after scan_d1.py
 
-def fetch_ohlcv_for_pair(pair: str, outputsize: int = 300) -> list:
+def fetch_ohlcv_for_pair(pair: str, outputsize: int = 200) -> list:
     """Fetch D1 OHLCV directly via Twelvedata REST (avoids scanner abstraction issues)."""
     import requests
     api_key = os.environ.get("TWELVEDATA_API_KEY", "")
