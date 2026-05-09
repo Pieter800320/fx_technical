@@ -1460,7 +1460,7 @@ function initDrawingSvg(){
           // Brief haptic feedback if available
           if(navigator.vibrate)navigator.vibrate(40);
         }
-      },350);
+      },700);
     }
   },true);
 
@@ -1582,12 +1582,17 @@ async function renderChtPrice(){
   // VWAP — daily reset, teal line
   if(indState.vwap){
     const h1Ohlcv=getOhlcv(selectedPair,'H1');
-    const vwapSrc=h1Ohlcv.length?h1Ohlcv:ohlcv; // always use H1 bars for accuracy
+    const vwapSrc=h1Ohlcv.length?h1Ohlcv:ohlcv;
     const vd=computeVWAP(vwapSrc);
     if(vd.length){
-      // Filter to visible timeframe range if not H1
-      const vdFiltered=chtTf==='H1'?vd:vd.filter(p=>ohlcv.some(b=>b.time===p.time));
-      const vdOut=chtTf==='H1'?vd:vdFiltered.length?vdFiltered:vd;
+      const lastTime=ohlcv[ohlcv.length-1].time;
+      // Clip to times that exist in the current chart's ohlcv — prevents forward shift
+      const chartTimes=new Set(ohlcv.map(b=>b.time));
+      let vdOut=vd.filter(p=>p.time<=lastTime&&chartTimes.has(p.time));
+      // Fallback: if filtering leaves nothing (H4/D1 times don't match H1), use nearest
+      if(!vdOut.length){
+        vdOut=vd.filter(p=>p.time<=lastTime);
+      }
       if(vdOut.length)chart.addLineSeries({color:'rgba(0,200,180,0.8)',lineWidth:1,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'VWAP'}).setData(vdOut);
     }
   }
