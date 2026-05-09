@@ -6,7 +6,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config.pairs import PAIRS, pair_display, is_pair_active, get_active_sessions
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, is_extended
-from alerts.telegram import send_level_alert, send_trade_alert
+from alerts.telegram import send_level_alert, send_trade_alert, send_sma_alert
+
+SMA_STATE    = os.path.join(DATA_DIR, "sma_alert_state.json")
 
 DATA_DIR     = os.path.join(os.path.dirname(__file__), "..", "data")
 H1_OUTPUT    = os.path.join(DATA_DIR, "h1_scores.json")
@@ -187,7 +189,115 @@ def check_trades(ohlcv: dict):
         print(f"  [Trade] Updated trades.json")
 
 
-# ── Main ──────────────────────────────────────────────────────────────────────
+# ── SMA12 momentum alignment ──────────────────────────────────────────────────
+def _sma12_direction(ohlcv_df):
+    """
+    Compute SMA12 fast (current) and slow (1 bar ago).
+    Returns 'UP' if fast > slow, 'DOWN' if fast < slow, None if insufficient data.
+    """
+    if ohlcv_df is None or len(ohlcv_df) < 14:
+        return None, None, None
+    closes = ohlcv_df["close"].astype(float).tolist()
+    if len(closes) < 14:
+        return None, None, None
+    fast = sum(closes[-12:]) / 12           # SMA12 of last 12 bars
+    slow = sum(closes[-13:-1]) / 12         # SMA12 shifted back 1 bar
+    direction = "UP" if fast > slow else "DOWN" if fast < slow else None
+    return direction, fast, slow
+
+
+def check_sma_alignment(ohlcv: dict, h1_results: dict):
+    """
+    Fire a Telegram alert when:
+    - H1 has a fresh SMA12 crossover on the current bar
+    - D1 and H4 SMA12 momentum point the same direction
+    - This direction hasn't been fired for this pair before (state tracking)
+    """
+    state = load_list(SMA_STATE) if os.path.exists(SMA_STATE) else []
+    # Convert state list to dict for easy lookup: {pair: last_direction}
+    state_map = {s["pair"]: s["direction"] for s in state} if isinstance(state, list) else state
+
+    h4_scores = load_json(H4_SCORES)
+    d1_scores = load_json(D1_SCORES)
+    news_brief_path = os.path.join(DATA_DIR, "news_brief.json")
+    news_brief = load_json(news_brief_path)
+    edge_scores = news_brief.get("edge_scores", {}) if news_brief else {}
+
+    changed = False
+
+    for pair in PAIRS:
+        # ── H1: detect fresh crossover ────────────────────────────────────────
+        h1_df = ohlcv.get(pair)
+        if h1_df is None or len(h1_df) < 15:
+            continue
+
+        # Current bar direction
+        h1_dir, h1_fast, h1_slow = _sma12_direction(h1_df)
+        if h1_dir is None:
+            continue
+
+        # Previous bar direction (drop last row)
+        prev_dir, _, _ = _sma12_direction(h1_df.iloc[:-1])
+
+        # Fresh crossover = direction changed on this bar
+        if prev_dir is None or h1_dir == prev_dir:
+            continue  # No crossover — skip
+
+        # ── D1 and H4: just direction, no crossover needed ────────────────────
+        h4_ohlcv_key = h4_scores.get("_ohlcv", {})
+        d1_ohlcv_key = d1_scores.get("_ohlcv", {})
+
+        # Build DataFrames from stored OHLCV bars
+        def bars_to_df(bars):
+            if not bars:
+                return None
+            import pandas as pd
+            df = pd.DataFrame(bars)
+            df["close"] = df["close"].astype(float)
+            return df
+
+        h4_df = bars_to_df(h4_ohlcv_key.get(pair))
+        d1_df = bars_to_df(d1_ohlcv_key.get(pair))
+
+        h4_dir, _, _ = _sma12_direction(h4_df)
+        d1_dir, _, _ = _sma12_direction(d1_df)
+
+        if h4_dir is None or d1_dir is None:
+            continue
+
+        # All three must agree
+        if not (h1_dir == h4_dir == d1_dir):
+            continue
+
+        direction = h1_dir
+
+        # ── State check: only fire if direction changed ───────────────────────
+        last_fired = state_map.get(pair)
+        if last_fired == direction:
+            continue  # Already fired for this direction
+
+        # ── Gather context for message ────────────────────────────────────────
+        d1_label = d1_scores.get(pair, {}).get("label", "—")
+        h4_label = h4_scores.get(pair, {}).get("label", "—")
+        h1_label = h1_results.get(pair, {}).get("label", "—")
+        edge     = edge_scores.get(pair.replace("/", ""))
+        adx      = h4_scores.get(pair, {}).get("raw", {}).get("adx")
+
+        print(f"  [SMA] ★ {pair} ALL TFs {direction} — firing alert")
+        send_sma_alert(
+            pair=pair, direction=direction,
+            d1_label=d1_label, h4_label=h4_label, h1_label=h1_label,
+            edge=edge, adx=float(adx) if adx else None,
+        )
+
+        # Update state
+        state_map[pair] = direction
+        changed = True
+
+    if changed:
+        new_state = [{"pair": p, "direction": d} for p, d in state_map.items()]
+        save_json(SMA_STATE, new_state)
+        print("  [SMA] Updated sma_alert_state.json")
 def main():
     print(f"\n=== H1 Scan — {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC ===")
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -235,6 +345,12 @@ def main():
         check_trades(ohlcv)
     else:
         print("  [Trade] Skipped — market closed")
+
+    # ── SMA12 triple-TF alignment ─────────────────────────────────────────────
+    if not market_closed:
+        check_sma_alignment(ohlcv, h1_results)
+    else:
+        print("  [SMA] Skipped — market closed")
 
     # ── Embed OHLCV ───────────────────────────────────────────────────────────
     if market_closed:
