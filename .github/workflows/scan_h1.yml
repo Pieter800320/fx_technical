@@ -42,6 +42,7 @@ jobs:
                   data/alert_cooldown.json \
                   data/level_alerts.json \
                   data/trades.json \
+                  data/sma_alert_state.json \
                   dashboard/ || true
           git diff --cached --quiet || git commit -m "chore: H1 scan $(date -u +%Y-%m-%dT%H:%M)"
           git pull --rebase origin main
