@@ -1169,6 +1169,44 @@ const CHT_BLUE='#58a6ff',CHT_WHITE='#e6edf3',CHT_GREY='rgba(139,148,158,0.5)';
 // Indicator state
 function saveIndState(){localStorage.setItem(IND_KEY,JSON.stringify(indState));}
 let chtTf='H1',chtMainInst=null,chtSubInst=null,candleTimerInt=null;
+function openChart(){
+  const el=document.getElementById('screen-chart');
+  el.style.display='flex';
+  document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');
+  ['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));
+  startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);
+  requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));
+}
+function closeChart(){
+  document.getElementById('screen-chart').style.display='none';
+  wsStop();if(candleTimerInt)clearInterval(candleTimerInt);
+  _removeStagingLine();
+  if(_drawClickHandler&&chtMainInst){try{chtMainInst.unsubscribeClick(_drawClickHandler);}catch(e){}}_drawClickHandler=null;
+  _activePriceLines=[];_activeDrawSeries=[];
+  if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}
+  if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}
+  _wsPriceLine=null;_chtCandles=null;_drawTool=null;_stagingLine=null;
+}
+function setChtTf(tf){
+  chtTf=tf;
+  ['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));
+  startCandleTimer();renderChtPrice();
+}
+function startCandleTimer(){
+  if(candleTimerInt)clearInterval(candleTimerInt);
+  function tick(){
+    const el=document.getElementById('cht-timer');if(!el)return;
+    if(closed()){el.textContent='';return;}
+    const now=Math.floor(Date.now()/1000);
+    const tfSecs={H1:3600,H4:14400,D1:86400}[chtTf]||3600;
+    const secsLeft=tfSecs-(now%tfSecs);
+    const h=Math.floor(secsLeft/3600),m=Math.floor((secsLeft%3600)/60),s=secsLeft%60;
+    const pad=n=>String(n).padStart(2,'0');
+    el.textContent=h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);
+    el.style.color=secsLeft<=60?'var(--sell)':'var(--muted)';
+  }
+  tick();candleTimerInt=setInterval(tick,1000);
+}
 function computeRSI(ohlcv,period){period=period||14;if(ohlcv.length<period+1)return[];const closes=ohlcv.map(d=>d.close);const out=[];let avgG=0,avgL=0;for(let i=1;i<=period;i++){const d=closes[i]-closes[i-1];avgG+=Math.max(d,0);avgL+=Math.max(-d,0);}avgG/=period;avgL/=period;for(let i=period;i<closes.length;i++){if(i>period){const d=closes[i]-closes[i-1];avgG=(avgG*(period-1)+Math.max(d,0))/period;avgL=(avgL*(period-1)+Math.max(-d,0))/period;}const rs=avgL===0?100:avgG/avgL;out.push({time:ohlcv[i].time,value:100-100/(1+rs)});}return out;}
 function buildLwChart(container,opts){opts=opts||{};container.innerHTML='';const w=container.clientWidth||window.innerWidth,h=container.clientHeight||300;return LightweightCharts.createChart(container,{width:w,height:h,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},crosshair:{mode:LightweightCharts.CrosshairMode.Normal},rightPriceScale:{borderColor:'#30363d',autoScale:true,scaleMargins:opts.scaleMargins||{top:0.08,bottom:0.08}},timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},handleScroll:true,handleScale:true});}
 function openIndicatorsSheet(){
