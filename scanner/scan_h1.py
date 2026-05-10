@@ -8,8 +8,6 @@ from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, is_extended
 from alerts.telegram import send_level_alert, send_trade_alert, send_sma_alert
 
-SMA_STATE    = os.path.join(DATA_DIR, "sma_alert_state.json")
-
 DATA_DIR     = os.path.join(os.path.dirname(__file__), "..", "data")
 H1_OUTPUT    = os.path.join(DATA_DIR, "h1_scores.json")
 H4_SCORES    = os.path.join(DATA_DIR, "h4_scores.json")
@@ -17,6 +15,7 @@ D1_SCORES    = os.path.join(DATA_DIR, "d1_scores.json")
 REGIME_FILE  = os.path.join(DATA_DIR, "regime.json")
 LEVEL_ALERTS = os.path.join(DATA_DIR, "level_alerts.json")
 TRADES_FILE  = os.path.join(DATA_DIR, "trades.json")
+SMA_STATE    = os.path.join(DATA_DIR, "sma_alert_state.json")
 
 
 def load_json(path):
