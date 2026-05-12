@@ -27,23 +27,23 @@
     "updated": "2026-05-12T07:19:31.408298"
   },
   "macro_bias": {
-    "score": -1,
+    "score": 1,
     "max": 6,
-    "interpretation": "Risk-Off Leaning",
+    "interpretation": "Risk-On Leaning",
     "components": [
       {
         "key": "vix",
         "label": "VIX",
-        "value": "18.4",
-        "change_pct": 6.92,
-        "score": -1,
+        "value": "18.9",
+        "change_pct": 2.61,
+        "score": 0,
         "direction": "rising"
       },
       {
         "key": "dxy",
         "label": "DXY",
-        "value": "97.92",
-        "change_pct": 0.08,
+        "value": "98.28",
+        "change_pct": 0.35,
         "score": 0,
         "direction": "rising"
       },
@@ -58,10 +58,10 @@
       {
         "key": "gold",
         "label": "Gold",
-        "value": "$4,746",
-        "change_pct": 0.53,
-        "score": -1,
-        "direction": "rising"
+        "value": "$4,711",
+        "change_pct": -0.17,
+        "score": 0,
+        "direction": "falling"
       },
       {
         "key": "spx",
@@ -74,13 +74,13 @@
       {
         "key": "copper",
         "label": "Copper",
-        "value": "$6.49",
-        "change_pct": 3.88,
+        "value": "$6.48",
+        "change_pct": 1.04,
         "score": 1,
         "direction": "rising"
       }
     ],
-    "updated": "2026-05-11T22:08:52.781522+00:00"
+    "updated": "2026-05-12T08:41:52.297412+00:00"
   },
   "final_regime": {
     "regime": "Risk-On",
@@ -117,5 +117,30 @@
     "score": 7,
     "label": "Risk-On Leaning",
     "rationale": "Geopolitical tensions easing, USD weakening, equity/commodity rallies, and safe-haven outflows (gold up but VIX down sharply) indicate strong risk appetite despite Eurozone weakness headwinds."
+  },
+  "w1_regime": {
+    "regime": "Risk-On",
+    "confidence": "Low",
+    "score": 6.2,
+    "raw_score": 1,
+    "components": {
+      "spx": {
+        "change_pct": 7.65,
+        "score": 1
+      },
+      "vix": {
+        "change_pct": 2.72,
+        "score": 0
+      },
+      "gold": {
+        "change_pct": -2.37,
+        "score": 0
+      },
+      "dxy": {
+        "change_pct": 0.17,
+        "score": 0
+      }
+    },
+    "confirmed": true
   }
 }
