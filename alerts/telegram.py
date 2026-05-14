@@ -119,3 +119,31 @@ def send_trade_alert(pair: str, event: str, direction: str,
     lines += ["", f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>']
 
     return send_telegram("\n".join(lines))
+
+
+def send_time_alert(pair: str, label: str = "", alert_time: int = 0,
+                    tf: str = "") -> bool:
+    """Vertical time line alert — fires when UTC time passes the marker."""
+    display = pair.replace("/", "") if pair else "—"
+    import datetime as _dt
+    try:
+        t = _dt.datetime.utcfromtimestamp(alert_time)
+        time_str = t.strftime("%H:%M UTC")
+        date_str = t.strftime("%d %b")
+    except Exception:
+        time_str = "—"
+        date_str = ""
+
+    lines = [
+        f"🕐 <b>Time Alert — {display}</b>",
+        "",
+        f"Time reached: <b>{time_str}</b>",
+    ]
+    if date_str:
+        lines.append(f"Date: {date_str}")
+    if label:
+        lines.append(f"Note: <b>{label}</b>")
+    if tf:
+        lines.append(f"TF: {tf}")
+    lines += ["", f'📊 <a href="{DASHBOARD_URL}">Dashboard</a>']
+    return send_telegram("\n".join(lines))
