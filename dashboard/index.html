@@ -713,8 +713,8 @@ function buildPairSheetContent(pair){
   h+=row('Reset',resetRaw===null?'—':resetRaw+(resetRaw>=50?' Uncoiled':resetRaw>=35?' Settling':' Coiled'),resetRaw===null?'var(--muted)':resetRaw>=50?'var(--buy)':resetRaw>=35?'var(--amber)':'var(--muted)');
   h+=hdr('Fundamental');
   const h4regStr=D.regime&&D.regime.h4&&D.regime.h4.regime?D.regime.h4.regime:null;
-  const regDisp=h4regStr&&h4regStr!==regime?`${regime} → ${h4regStr}`:regime;
   const regDiverging=h4regStr&&h4regStr!==regime;
+  const regDisp=regDiverging?`${regime} (H4: ${h4regStr})`:regime;
   h+=row('Regime',regDisp,regDiverging?'var(--amber)':regime==='Risk-On'?'var(--buy)':regime==='Risk-Off'?'var(--sell)':'var(--amber)');
   h+=row('Rate Diff',rdVal,rd?(rd.diff>0?'var(--buy)':rd.diff<0?'var(--sell)':'var(--muted)'):'var(--muted)');
   h+=hdr('Sentiment');
