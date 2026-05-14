@@ -271,7 +271,8 @@ def main():
         try:
             mb = existing.get("macro_bias")
             ai_sent = existing.get("ai_sentiment")
-            final_reg = compute_final_regime(existing["h4"], mb, ai_sent)
+            w1_reg = existing.get("w1_regime")
+            final_reg = compute_final_regime(existing["h4"], mb, ai_sent, w1_regime=w1_reg)
             existing["final_regime"] = final_reg
             direction = final_reg["direction"]
             print(f"  Final regime: {final_reg['regime']} {final_reg['confidence']} "
