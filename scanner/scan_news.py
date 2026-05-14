@@ -887,7 +887,21 @@ def main():
             except Exception as e:
                 print(f"  AI regime sentiment error: {e}")
 
-            # Compute + write final regime
+            # Write ai_sentiment to regime.json immediately — independent of compute_final_regime
+            if ai_sentiment:
+                try:
+                    _rpath = BASE_DIR / "data" / "regime.json"
+                    _rdoc = {}
+                    if _rpath.exists():
+                        with open(_rpath) as _f: _rdoc = json.load(_f)
+                    _rdoc["ai_sentiment"] = ai_sentiment
+                    with open(_rpath, "w") as _f: json.dump(_rdoc, _f, indent=2)
+                    regime["ai_sentiment"] = ai_sentiment
+                    print(f"  ai_sentiment saved: {ai_sentiment['score']}/10 — {ai_sentiment.get('label','')}")
+                except Exception as _e:
+                    print(f"  ai_sentiment write error: {_e}")
+
+            # Compute + write final regime (only runs if compute_final_regime import succeeded)
             if compute_final_regime:
                 try:
                     h4_reg = regime.get("h4") or {}
@@ -900,8 +914,6 @@ def main():
                         with open(regime_path) as _f:
                             reg_doc = json.load(_f)
                     reg_doc["final_regime"] = final_reg
-                    if ai_sentiment:
-                        reg_doc["ai_sentiment"] = ai_sentiment
                     with open(regime_path, "w") as _f:
                         json.dump(reg_doc, _f, indent=2)
                     print(f"  Final regime: {final_reg['regime']} {final_reg['confidence']} (score={final_reg['score']})")
