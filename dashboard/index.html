@@ -1688,7 +1688,7 @@ async function renderChtPrice(){
     lbl.textContent=indState.macd?'MACD':indState.osc1212?'1212':'RSI';
     subEl.appendChild(lbl);
     const sh=subEl.clientHeight||100;
-    const subChart=LightweightCharts.createChart(subEl,{width:w,height:sh,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{visible:false}},crosshair:{mode:LightweightCharts.CrosshairMode.Hidden},rightPriceScale:{visible:true,borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.1,bottom:0.1}},timeScale:{visible:false,borderVisible:false},handleScroll:false,handleScale:{axisPressedMouseMove:{time:false,price:true},mouseWheel:false,pinch:false}});
+    const subChart=LightweightCharts.createChart(subEl,{width:w,height:sh,layout:{background:{color:'transparent'},textColor:'#8b949e'},grid:{vertLines:{color:'#21262d'},horzLines:{visible:false}},crosshair:{mode:LightweightCharts.CrosshairMode.Hidden},rightPriceScale:{visible:true,borderColor:'#30363d',autoScale:true,scaleMargins:{top:0.1,bottom:0.1}},timeScale:{visible:false,borderVisible:false},handleScroll:false,handleScale:{axisPressedMouseMove:true,mouseWheel:false,pinch:false}});
     chtSubInst=subChart;
     if(indState.macd){
       const md=computeMACD(ohlcv);
@@ -1711,10 +1711,10 @@ async function renderChtPrice(){
           subChart.addLineSeries({color:col,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false})
             .setData([{time:tf0,value:lvl},{time:tfN,value:lvl}]);
         });
-        // CMP composite line — blue dashed
-        if(cmpSeries.length)subChart.addLineSeries({color:'rgba(56,139,253,0.85)',lineWidth:2,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'CMP'}).setData(cmpSeries);
-        // TF-native line — green solid
-        subChart.addLineSeries({color:'rgba(0,255,65,0.85)',lineWidth:1,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:chtTf}).setData(tfSeries);
+        // CMP composite line — dotted, thin
+        if(cmpSeries.length)subChart.addLineSeries({color:'rgba(56,139,253,0.6)',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'CMP'}).setData(cmpSeries);
+        // TF-native line — blue solid (same as RSI)
+        subChart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:chtTf}).setData(tfSeries);
         try{subChart.priceScale('right').applyOptions({autoScale:false,scaleMargins:{top:0.02,bottom:0.02}});subChart.timeScale().applyOptions({});}catch(e){}
       }
     } else {
