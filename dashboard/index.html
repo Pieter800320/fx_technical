@@ -1811,8 +1811,9 @@ async function renderChtPrice(){
   restoreDrawings(); // Recreate saved drawings on this chart
   if(_wsLastPrice&&_wsPair===selectedPair)wsUpdatePrice(_wsLastPrice);
   // Re-render drawings when chart pans/zooms
-  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(renderDrawings));
+  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(()=>{renderDrawings();_repositionVLines();}));
   chart.priceScale('right').applyOptions({});
+  _renderVLines();  // Render vertical time lines
   setTimeout(renderDrawings,150);
   // OHLC HUD — updates on crosshair move
   const ohlcEl=document.getElementById('cht-ohlc');
@@ -1842,20 +1843,29 @@ function updateCloseTradeBtn(){const btn=document.getElementById('cht-close-trad
 
 function cycleAlertDir(){alertDir=alertDir==='above'?'below':'above';const b=document.getElementById('cht-dir-btn');if(b)b.textContent=alertDir==='above'?'↑ Above':'↓ Below';}
 function setLevelAlert(){
+  // Legacy button path — delegate to unified commit
   const inp=document.getElementById('cht-alert-inp');
-  if(!inp)return;
-  const price=parseFloat(inp.value);
-  if(!price||isNaN(price))return;
-  const alerts=laLoad();
-  alerts.push({id:Date.now(),pair:selectedPair,price,direction:alertDir,active:true,created:new Date().toLocaleString()});
-  laSave(alerts);
-  inp.value='';
-  _removeStagingLine();   // staging line consumed
-  _renderAlertLines();    // rerender alert lines including new one
-  renderChtAlerts();      // update list (now hidden but keeps state)
-  pushAlertsToGitHub(alerts);
+  if(inp&&inp.value&&!isNaN(parseFloat(inp.value)))_setStagingLine(parseFloat(inp.value));
+  _commitStaging();
 }
-function deleteAlert(id){const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);_renderAlertLines();renderChtAlerts();pushAlertsToGitHub(alerts);}
+function deleteAlert(id){const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);_renderAlertLines();_renderVLines();pushAlertsToGitHub(alerts);}
+
+// Frontend time-alert check (browser notification for immediate feedback)
+function checkTimeAlerts(){
+  const alerts=laLoad();let changed=false;
+  const now=Date.now()/1000;
+  alerts.forEach(a=>{
+    if(a.type!=='v'||!a.active)return;
+    if(a.time<=now){
+      a.active=false;changed=true;
+      const lbl=a.label?a.label+' · ':'';
+      const t=new Date(a.time*1000);
+      const ts=t.getUTCHours().toString().padStart(2,'0')+':'+t.getUTCMinutes().toString().padStart(2,'0')+' UTC';
+      setTimeout(()=>alert('🕐 Time Alert: '+(a.pair||'').replace('/','')+'\n'+lbl+ts),100);
+    }
+  });
+  if(changed){laSave(alerts);pushAlertsToGitHub(alerts);_renderVLines();}
+}
 function checkLevelAlerts(){
   const alerts=laLoad();let changed=false;
   alerts.forEach(a=>{
@@ -2351,7 +2361,7 @@ async function init(){
   D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief,alertCooldown};
   await mergeTradesFromGitHub();
   await mergeAlertsFromGitHub();
-  renderRegime(regime);renderCSM(csm,conviction);renderSignalStrip(selectedPair);renderIndStrip(selectedPair);checkLevelAlerts();migrateOldTrades();checkTrades();renderLog();updateDrum();
+  renderRegime(regime);renderCSM(csm,conviction);renderSignalStrip(selectedPair);renderIndStrip(selectedPair);checkLevelAlerts();checkTimeAlerts();migrateOldTrades();checkTrades();renderLog();updateDrum();
 }
 init();setInterval(init,5*60*1000);
 
