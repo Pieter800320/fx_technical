@@ -453,7 +453,7 @@ function openSignalSheet(tf){
 // ADX is a hard gate (≥20), not a scoring component
 function computeQAI(pair){
   const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
-  const regime=D.regime&&D.regime.regime?D.regime.regime:'Unknown';
+  const regime=(D.regime&&D.regime.final_regime&&D.regime.final_regime.regime)||(D.regime&&D.regime.regime)||'Unknown';
   const csm=D.csm&&D.csm.h4_rankings&&Object.keys(D.csm.h4_rankings).length?D.csm.h4_rankings:D.csm&&D.csm.rankings||{};
   const[base,quote]=pair.split('/');
   const d1dir=d1d?d1d.direction:'neutral';
@@ -694,7 +694,7 @@ function buildPairSheetContent(pair){
   const csm=D.csm&&D.csm.rankings||{};
   const[base,quote]=pair.split('/');
   const qai=computeQAI(pair),rd=computeRateDiff(pair);
-  const regime=D.regime&&D.regime.regime||'Unknown';
+  const regime=(D.regime&&D.regime.final_regime&&D.regime.final_regime.regime)||(D.regime&&D.regime.regime)||'Unknown';
   const row=(lbl,val,col)=>`<div class="sh-dr"><span class="sh-dn">${lbl}</span><span class="sh-dv" style="color:${col||'var(--text)'};">${val}</span></div>`;
   const hdr=t=>`<div class="sh-hdr">${t}</div>`;
   const scoreCol=label=>{const l=(label||'').toLowerCase();if(l.includes('strong buy'))return'var(--buy)';if(l.includes('strong sell'))return'var(--sell)';if(l.includes('buy'))return'rgba(63,185,80,.8)';if(l.includes('sell'))return'rgba(248,81,73,.75)';return'var(--muted)';};
@@ -1281,7 +1281,7 @@ function computeBB(ohlcv,period=20,mult=2){if(!ohlcv||ohlcv.length<period)return
 let tvStudyState={macd:false,rsi:false};
 const TV_SYMBOLS={'EUR/USD':'FX:EURUSD'};  // kept for legacy refs
 function corrDotColor(v){const a=Math.abs(v);if(a>=.7)return v>0?'var(--sell)':'var(--accent)';if(a>=.4)return v>0?'rgba(248,81,73,.6)':'rgba(56,139,253,.6)';return'var(--muted)';}
-function copyChartPrompt(pair){if(!pair)pair=selectedPair;const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];const adxV=h4d&&h4d.raw?h4d.raw.adx:null;const reg=(D.regime&&D.regime.regime)||'Unknown';const qaiP=computeQAI(pair),edgeP=getEdgeScore(pair);const prompt='You are an institutional FX trader. Pair: '+pair.replace('/','')+' | D1: '+(d1d?d1d.label:'N/A')+' | H4: '+(h4d?h4d.label:'N/A')+' | H1: '+(h1d?h1d.label:'N/A')+' | ADX: '+(adxV!==null?adxV.toFixed(1):'N/A')+' | Setup: '+(qaiP.score>0?qaiP.score+'%':'—')+' | Edge: '+(edgeP!==null?edgeP+'/10':'—')+' | Regime: '+reg+' | Time: '+new Date().toLocaleString()+' | Output: Edge or Flaw / Verdict / Key risk. Max 50 words.';navigator.clipboard.writeText(prompt).then(()=>{});}
+function copyChartPrompt(pair){if(!pair)pair=selectedPair;const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];const adxV=h4d&&h4d.raw?h4d.raw.adx:null;const reg=(D.regime&&D.regime.final_regime&&D.regime.final_regime.regime)||(D.regime&&D.regime.regime)||'Unknown';const qaiP=computeQAI(pair),edgeP=getEdgeScore(pair);const prompt='You are an institutional FX trader. Pair: '+pair.replace('/','')+' | D1: '+(d1d?d1d.label:'N/A')+' | H4: '+(h4d?h4d.label:'N/A')+' | H1: '+(h1d?h1d.label:'N/A')+' | ADX: '+(adxV!==null?adxV.toFixed(1):'N/A')+' | Setup: '+(qaiP.score>0?qaiP.score+'%':'—')+' | Edge: '+(edgeP!==null?edgeP+'/10':'—')+' | Regime: '+reg+' | Time: '+new Date().toLocaleString()+' | Output: Edge or Flaw / Verdict / Key risk. Max 50 words.';navigator.clipboard.writeText(prompt).then(()=>{});}
 // Chart colours
 const CHT_UP='#3fb950',CHT_UP_B='#238636',CHT_DN='#f85149',CHT_DN_B='#b62324';
 const CHT_BLUE='#58a6ff',CHT_WHITE='#e6edf3',CHT_GREY='rgba(139,148,158,0.5)';
