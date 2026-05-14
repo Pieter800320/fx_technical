@@ -259,7 +259,7 @@ tr:last-child td{border-bottom:none;}
   </div>
   <div id="cht-canvas-area" style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;">
     <div id="cht-ohlc" style="position:absolute;top:6px;left:8px;z-index:20;font-family:'VT323',monospace;font-size:14px;line-height:1.4;pointer-events:none;display:none;background:rgba(13,17,23,.82);padding:3px 8px;border-radius:4px;border:1px solid rgba(48,54,61,.7);white-space:nowrap;"></div>
-    <div id="cht-float-del" onclick="_deleteSelectedVLine()" style="display:none;position:absolute;z-index:50;background:rgba(13,17,23,.95);border:1px solid rgba(248,81,73,.5);border-radius:20px;padding:4px 14px;font-size:var(--xs);font-weight:700;color:var(--sell);cursor:pointer;pointer-events:all;white-space:nowrap;user-select:none;">✕ Delete</div>
+    <div id="cht-float-del" onclick="_deleteSelectedAlert()" style="display:none;position:absolute;z-index:50;background:rgba(13,17,23,.95);border:1px solid rgba(248,81,73,.5);border-radius:20px;padding:4px 14px;font-size:var(--xs);font-weight:700;color:var(--sell);cursor:pointer;pointer-events:all;white-space:nowrap;user-select:none;">✕ Delete</div>
     <div id="cht-price" style="flex:1;min-height:0;"></div>
     <div id="cht-pane-drag" style="display:none;height:6px;flex-shrink:0;cursor:ns-resize;background:transparent;position:relative;z-index:10;" title="Drag to resize indicator pane"><div style="position:absolute;inset:2px 0;background:var(--border);transition:background .15s;"></div></div>
     <div id="cht-sub" style="display:none;height:26%;min-height:60px;flex-shrink:0;position:relative;"></div>
@@ -1433,7 +1433,7 @@ function toggleInd(key){
   renderChtPrice();
 }
 function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
-function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);_removeStagingLine();_hideFloatDel();document.querySelectorAll('.cht-vline-div,.cht-hlbl').forEach(d=>d.remove());if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;_drawTool=null;_stagingLine=null;}
+function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);_removeStagingLine();_removeStagingVLine();_hideFloatDel();document.querySelectorAll('.cht-vline-div').forEach(d=>d.remove());if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;_drawTool=null;_stagingLine=null;}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
 // Pane drag-resize: drag the handle between price chart and sub-pane
 (function initPaneDrag(){
@@ -1485,66 +1485,43 @@ function wsUpdatePrice(price){
   }catch(e){}
 }
 
-// ── LEVEL LINE — staging line + alert lines ──────────────────────────────────
+// ── DRAWING SYSTEM — level lines + time lines ─────────────────────────────
 let _drawTool=null;
-let _stagingLine=null;
-let _stagingPrice=null;      // track separately — can't read from priceLine object
-let _alertLineRefs=[];       // [{id, priceLine, price}] — live alert lines on chart
-let _draggingLine=false;
+let _stagingLine=null;       // LW priceLine for staged hline
+let _stagingPrice=null;      // price of staged hline
+let _stagingVTs=null;        // unix ts of staged vline
+let _stagingVDiv=null;       // DOM div for staged vline
+let _alertLineRefs=[];       // [{id, priceLine, price}]
+let _draggingLine=false;     // dragging staging hline
+let _draggingVLine=false;    // dragging staging vline
+let _longTimer=null;
+let _selectedAlertId=null;   // for float-del (both hlines + vlines)
 
 function setDrawTool(tool){
-  // If staging hline exists and user activates tool → commit first
-  if(tool==='hline'&&_stagingPrice!==null&&_drawTool!=='hline'){
-    _commitStagingAsAlert();
-  } else if(tool==='hline'&&_stagingPrice!==null&&_drawTool==='hline'){
-    _disengage();return;
-  }
-  _drawTool=_drawTool===tool?null:tool;
-  _updateDrawBtns();
+  if(tool==='hline'&&_stagingPrice!==null&&_drawTool==='hline'){_disengage();return;}
+  _drawTool=_drawTool===tool?null:tool;_updateDrawBtns();
 }
 function _updateDrawBtns(){
-  const bh=document.getElementById('draw-btn-hline'),bv=document.getElementById('draw-btn-vline');
-  [['hline',bh],['vline',bv]].forEach(([t,b])=>{
-    if(!b)return;
+  [['hline','draw-btn-hline'],['vline','draw-btn-vline']].forEach(([t,id])=>{
+    const b=document.getElementById(id);if(!b)return;
     const on=_drawTool===t;
     b.style.background=on?'rgba(227,179,65,.15)':'transparent';
     b.style.color=on?'var(--amber)':'var(--muted)';
     b.style.borderColor=on?'rgba(227,179,65,.4)':'var(--border)';
   });
 }
+function _disengage(){_drawTool=null;_updateDrawBtns();}
 
-// Commit current staging line as a saved alert (uses current alertDir)
-function _commitStagingAsAlert(){
-  if(_stagingPrice===null)return;
-  const price=_stagingPrice;
-  const alerts=laLoad();
-  alerts.push({id:Date.now(),pair:selectedPair,price,direction:alertDir,active:true,created:new Date().toLocaleString()});
-  laSave(alerts);
-  _removeStagingLine();
-  _renderAlertLines();
-  renderChtAlerts();
-  pushAlertsToGitHub(alerts);
-  const inp=document.getElementById('cht-alert-inp');
-  if(inp)inp.value='';
-}
-function _disengage(){
-  _drawTool=null;
-  _updateDrawBtns();
-}
+// ── HLINE staging ────────────────────────────────────────────────────────────
 function _setStagingLine(price){
   if(!_chtCandles)return;
   _stagingPrice=price;
   const dec=selectedPair.includes('JPY')?3:5;
-  if(_stagingLine){
-    try{_stagingLine.applyOptions({price,title:price.toFixed(dec)});}catch(e){_stagingLine=null;}
-  }
+  if(_stagingLine){try{_stagingLine.applyOptions({price,title:price.toFixed(dec)});}catch(e){_stagingLine=null;}}
   if(!_stagingLine){
     try{
-      _stagingLine=_chtCandles.createPriceLine({
-        price,color:'rgba(227,179,65,0.9)',lineWidth:1,
-        lineStyle:LightweightCharts.LineStyle.Dashed,
-        axisLabelVisible:true,title:price.toFixed(dec)
-      });
+      _stagingLine=_chtCandles.createPriceLine({price,color:'rgba(227,179,65,0.8)',lineWidth:1,
+        lineStyle:LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,title:price.toFixed(dec)});
     }catch(e){}
   }
   const inp=document.getElementById('cht-alert-inp');
@@ -1553,119 +1530,89 @@ function _setStagingLine(price){
 function _removeStagingLine(){
   if(_stagingLine&&_chtCandles){try{_chtCandles.removePriceLine(_stagingLine);}catch(e){}}
   _stagingLine=null;_stagingPrice=null;
+  const inp=document.getElementById('cht-alert-inp');if(inp)inp.value='';
+}
+function _commitStagingAsAlert(){
+  if(_stagingPrice===null)return;
+  const price=_stagingPrice;
+  const alerts=laLoad();
+  alerts.push({id:Date.now(),pair:selectedPair,price,direction:alertDir,active:true,created:new Date().toLocaleString()});
+  laSave(alerts);_removeStagingLine();_renderAlertLines();renderChtAlerts();pushAlertsToGitHub(alerts);
 }
 
-// Render saved alerts as createPriceLine (no axis label) + positioned div labels on left
-function _renderAlertLines(){
-  // Remove old
-  _alertLineRefs.forEach(({priceLine})=>{try{_chtCandles&&_chtCandles.removePriceLine(priceLine);}catch(e){}});
-  _alertLineRefs=[];
-  document.querySelectorAll('.cht-hlbl').forEach(d=>d.remove());
-  if(!_chtCandles)return;
-  const dec=selectedPair.includes('JPY')?3:5;
-  const canvasArea=document.getElementById('cht-canvas-area');
-  laLoad().filter(a=>a.pair===selectedPair&&a.active).forEach(a=>{
-    try{
-      const pl=_chtCandles.createPriceLine({
-        price:a.price,color:'rgba(227,179,65,0.7)',lineWidth:1,
-        lineStyle:LightweightCharts.LineStyle.Dashed,
-        axisLabelVisible:false,
-        title:''
-      });
-      _alertLineRefs.push({id:a.id,priceLine:pl,price:a.price});
-      // Positioned label div on left
-      if(canvasArea){
-        const lbl=document.createElement('div');
-        lbl.className='cht-hlbl';
-        lbl.dataset.id=a.id;
-        lbl.dataset.price=a.price;
-        lbl.style.cssText='position:absolute;left:4px;z-index:15;pointer-events:none;font-family:\'VT323\',monospace;font-size:11px;color:rgba(227,179,65,0.85);background:rgba(13,17,23,0.75);padding:0 3px;border-radius:2px;transform:translateY(-50%);white-space:nowrap;';
-        lbl.textContent=(a.direction==='above'?'↑ ':'↓ ')+a.price.toFixed(dec);
-        canvasArea.appendChild(lbl);
-      }
-    }catch(e){}
-  });
-  _repositionHLabels();
-}
-
-// Reposition horizontal line labels when chart pans/zooms
-function _repositionHLabels(){
-  if(!_chtCandles)return;
+// ── VLINE staging ────────────────────────────────────────────────────────────
+function _renderStagingVLine(){
+  if(_stagingVDiv){_stagingVDiv.remove();_stagingVDiv=null;}
+  if(_stagingVTs===null||!chtMainInst)return;
   const canvasArea=document.getElementById('cht-canvas-area');
   const priceEl=document.getElementById('cht-price');
   if(!canvasArea||!priceEl)return;
-  const areaRect=canvasArea.getBoundingClientRect();
-  const priceRect=priceEl.getBoundingClientRect();
-  const offsetTop=priceRect.top-areaRect.top;
-  document.querySelectorAll('.cht-hlbl').forEach(lbl=>{
-    const price=parseFloat(lbl.dataset.price);
+  const x=_timeToCoordExtrap(_stagingVTs);if(x===null)return;
+  const pr=priceEl.getBoundingClientRect(),ar=canvasArea.getBoundingClientRect();
+  const absX=pr.left-ar.left+x,top=pr.top-ar.top,h=priceEl.clientHeight;
+  const div=document.createElement('div');
+  div.id='cht-vline-staging';
+  div.style.cssText='position:absolute;top:'+top+'px;height:'+h+'px;left:'+absX+'px;width:2px;'+
+    'background:repeating-linear-gradient(to bottom,rgba(227,179,65,.85) 0,rgba(227,179,65,.85) 4px,transparent 4px,transparent 8px);'+
+    'pointer-events:none;z-index:13;';
+  const lbl=document.createElement('div');
+  lbl.style.cssText='position:absolute;bottom:4px;left:3px;font-family:\'VT323\',monospace;font-size:11px;'+
+    'color:rgba(227,179,65,.9);background:rgba(13,17,23,.8);padding:0 3px;border-radius:2px;pointer-events:none;white-space:nowrap;';
+  lbl.textContent=new Date(_stagingVTs*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  div.appendChild(lbl);canvasArea.appendChild(div);_stagingVDiv=div;
+}
+function _removeStagingVLine(){
+  if(_stagingVDiv){_stagingVDiv.remove();_stagingVDiv=null;}_stagingVTs=null;
+}
+function _commitStagingVLine(){
+  if(_stagingVTs===null)return;
+  const ts=_stagingVTs;
+  const label=new Date(ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const alerts=laLoad();
+  alerts.push({id:Date.now(),pair:selectedPair,time:ts,label,active:true,type:'v',created:new Date().toLocaleString()});
+  laSave(alerts);pushAlertsToGitHub(alerts);_removeStagingVLine();_renderVLines();
+}
+function _commitStaging(){
+  if(_stagingPrice!==null)_commitStagingAsAlert();
+  if(_stagingVTs!==null)_commitStagingVLine();
+}
+
+// ── ALERT LINES (hlines from laLoad) ─────────────────────────────────────────
+function _renderAlertLines(){
+  _alertLineRefs.forEach(({priceLine})=>{try{_chtCandles&&_chtCandles.removePriceLine(priceLine);}catch(e){}});
+  _alertLineRefs=[];
+  if(!_chtCandles)return;
+  const dec=selectedPair.includes('JPY')?3:5;
+  laLoad().filter(a=>!a.type&&a.pair===selectedPair&&a.active).forEach(a=>{
     try{
-      const y=_chtCandles.priceToCoordinate(price);
-      if(y===null){lbl.style.display='none';return;}
-      lbl.style.display='';
-      lbl.style.top=(offsetTop+y)+'px';
+      const pl=_chtCandles.createPriceLine({price:a.price,color:'rgba(139,148,158,0.65)',lineWidth:1,
+        lineStyle:LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,
+        title:(a.direction==='above'?'↑':'↓')+' '+a.price.toFixed(dec)});
+      _alertLineRefs.push({id:a.id,priceLine:pl,price:a.price});
     }catch(e){}
   });
 }
 
-// ── VERTICAL TIME LINES ──────────────────────────────────────────────────────
-const VTIME_KEY='fx1212_vtimes';
-function vtimeLoad(){try{return JSON.parse(localStorage.getItem(VTIME_KEY)||'[]');}catch(e){return[];}}
-function vtimeSave(arr){localStorage.setItem(VTIME_KEY,JSON.stringify(arr));}
-
-let _selectedLineId=null;
-
-function _showFloatDel(id,x){
-  _selectedLineId=id;
-  const el=document.getElementById('cht-float-del');if(!el)return;
-  const canvasArea=document.getElementById('cht-canvas-area');if(!canvasArea)return;
-  const w=canvasArea.clientWidth;
-  const elW=88;
-  el.style.left=Math.max(4,Math.min(w-elW-4,x-elW/2))+'px';
-  el.style.top='50%';el.style.transform='translateY(-50%)';
-  el.style.display='block';
-}
-function _hideFloatDel(){
-  _selectedLineId=null;
-  const el=document.getElementById('cht-float-del');if(el)el.style.display='none';
-}
-function _deleteSelectedVLine(){
-  if(_selectedLineId===null)return;
-  vtimeSave(vtimeLoad().filter(v=>v.id!==_selectedLineId));
-  _hideFloatDel();
-  _renderVLines();
-}
-
+// ── VLINES ───────────────────────────────────────────────────────────────────
 function _renderVLines(){
   document.querySelectorAll('.cht-vline-div').forEach(d=>d.remove());
   if(!chtMainInst)return;
   const canvasArea=document.getElementById('cht-canvas-area');
   const priceEl=document.getElementById('cht-price');
   if(!priceEl||!canvasArea)return;
-  const ts=chtMainInst.timeScale();
-  const priceRect=priceEl.getBoundingClientRect();
-  const areaRect=canvasArea.getBoundingClientRect();
-  const offsetLeft=priceRect.left-areaRect.left;
-  const offsetTop=priceRect.top-areaRect.top;
-  const h=priceEl.clientHeight;
-  vtimeLoad().filter(v=>v.pair===selectedPair).forEach(v=>{
-    const x=ts.timeToCoordinate(v.ts);
-    if(x===null)return;
+  const pr=priceEl.getBoundingClientRect(),ar=canvasArea.getBoundingClientRect();
+  const offsetLeft=pr.left-ar.left,offsetTop=pr.top-ar.top,h=priceEl.clientHeight;
+  laLoad().filter(a=>a.type==='v'&&a.pair===selectedPair&&a.active).forEach(v=>{
+    const x=_timeToCoordExtrap(v.time);if(x===null)return;
     const absX=offsetLeft+x;
-    if(absX<offsetLeft-2||absX>offsetLeft+priceEl.clientWidth+2)return;
-    const div=document.createElement('div');
-    div.className='cht-vline-div';
-    div.dataset.id=v.id;
-    div.style.cssText=`position:absolute;top:${offsetTop}px;height:${h}px;left:${absX}px;width:1px;background:rgba(0,200,50,0.55);pointer-events:all;cursor:pointer;z-index:12;`;
+    const div=document.createElement('div');div.className='cht-vline-div';div.dataset.id=v.id;
+    div.style.cssText='position:absolute;top:'+offsetTop+'px;height:'+h+'px;left:'+absX+'px;width:2px;'+
+      'background:repeating-linear-gradient(to bottom,rgba(139,148,158,.65) 0,rgba(139,148,158,.65) 4px,transparent 4px,transparent 8px);'+
+      'pointer-events:all;cursor:pointer;z-index:12;';
     const lbl=document.createElement('div');
-    lbl.style.cssText='position:absolute;bottom:4px;left:3px;font-family:\'VT323\',monospace;font-size:11px;color:rgba(0,200,50,0.8);background:rgba(13,17,23,0.75);padding:0 3px;border-radius:2px;pointer-events:none;white-space:nowrap;';
-    lbl.textContent=v.label||'';
-    div.appendChild(lbl);
-    div.onclick=e=>{
-      e.stopPropagation();
-      _showFloatDel(v.id,absX-offsetLeft);
-    };
-    canvasArea.appendChild(div);
+    lbl.style.cssText='position:absolute;bottom:4px;left:3px;font-family:\'VT323\',monospace;font-size:11px;'+
+      'color:rgba(139,148,158,.85);background:rgba(13,17,23,.75);padding:0 3px;border-radius:2px;pointer-events:none;white-space:nowrap;';
+    lbl.textContent=v.label||'';div.appendChild(lbl);canvasArea.appendChild(div);
   });
 }
 function _repositionVLines(){
@@ -1673,164 +1620,150 @@ function _repositionVLines(){
   const canvasArea=document.getElementById('cht-canvas-area');
   const priceEl=document.getElementById('cht-price');
   if(!priceEl||!canvasArea)return;
-  const ts=chtMainInst.timeScale();
-  const priceRect=priceEl.getBoundingClientRect();
-  const areaRect=canvasArea.getBoundingClientRect();
-  const offsetLeft=priceRect.left-areaRect.left;
-  const offsetTop=priceRect.top-areaRect.top;
-  const h=priceEl.clientHeight;
-  const vtMap=new Map(vtimeLoad().map(v=>[v.id,v]));
+  const pr=priceEl.getBoundingClientRect(),ar=canvasArea.getBoundingClientRect();
+  const offsetLeft=pr.left-ar.left,offsetTop=pr.top-ar.top,h=priceEl.clientHeight;
+  const vtMap=new Map(laLoad().filter(a=>a.type==='v').map(v=>[v.id,v]));
   document.querySelectorAll('.cht-vline-div').forEach(div=>{
-    const id=parseInt(div.dataset.id);
-    const v=vtMap.get(id);
+    const id=parseInt(div.dataset.id);const v=vtMap.get(id);
     if(!v){div.remove();return;}
-    const x=ts.timeToCoordinate(v.ts);
+    const x=_timeToCoordExtrap(v.time);
     if(x===null){div.style.display='none';return;}
     div.style.display='';
-    div.style.left=(offsetLeft+x)+'px';
-    div.style.top=offsetTop+'px';
-    div.style.height=h+'px';
+    div.style.left=(offsetLeft+x)+'px';div.style.top=offsetTop+'px';div.style.height=h+'px';
   });
-  _repositionHLabels();
+  if(_stagingVTs!==null&&_stagingVDiv){
+    const x=_timeToCoordExtrap(_stagingVTs);
+    if(x!==null){const absX=offsetLeft+x;_stagingVDiv.style.left=absX+'px';_stagingVDiv.style.top=offsetTop+'px';_stagingVDiv.style.height=h+'px';}
+  }
 }
-function _removeStagingVLine(){/* staging vline not needed; vlines are committed on tap */}
 
-// Convert chart x coordinate to UTC timestamp (handles future bars by extrapolation)
+// ── FLOAT-DEL ────────────────────────────────────────────────────────────────
+function _showFloatDel(id,clientX,clientY){
+  _selectedAlertId=id;
+  const el=document.getElementById('cht-float-del');if(!el)return;
+  const ca=document.getElementById('cht-canvas-area');if(!ca)return;
+  const ar=ca.getBoundingClientRect();
+  const x=Math.max(4,Math.min(ar.width-92,clientX-ar.left-44));
+  const y=Math.max(4,Math.min(ar.height-32,clientY-ar.top-14));
+  el.style.left=x+'px';el.style.top=y+'px';el.style.transform='none';el.style.display='block';
+}
+function _hideFloatDel(){
+  _selectedAlertId=null;
+  const el=document.getElementById('cht-float-del');if(el)el.style.display='none';
+}
+function _deleteSelectedAlert(){
+  if(_selectedAlertId===null)return;deleteAlert(_selectedAlertId);_hideFloatDel();
+}
+
+// ── COORD HELPERS ─────────────────────────────────────────────────────────────
+function _timeToCoordExtrap(ts){
+  if(!chtMainInst)return null;
+  const tsObj=chtMainInst.timeScale();
+  const x=tsObj.timeToCoordinate(ts);if(x!==null)return x;
+  const ohlcv=getOhlcv(selectedPair,chtTf);if(ohlcv.length<2)return null;
+  const lastBar=ohlcv[ohlcv.length-1];
+  const barDur=lastBar.time-ohlcv[ohlcv.length-2].time;
+  const lastX=tsObj.timeToCoordinate(lastBar.time);if(lastX===null)return null;
+  const range=tsObj.getVisibleLogicalRange();if(!range)return null;
+  const priceEl=document.getElementById('cht-price');if(!priceEl)return null;
+  const pixPerBar=priceEl.clientWidth/Math.max(1,range.to-range.from);
+  return lastX+((ts-lastBar.time)/barDur)*pixPerBar;
+}
 function _coordToTime(clientX){
   if(!chtMainInst)return null;
   const priceEl=document.getElementById('cht-price');if(!priceEl)return null;
-  const rect=priceEl.getBoundingClientRect();
-  const localX=clientX-rect.left;
-  const ts=chtMainInst.timeScale();
-  const t=ts.coordinateToTime(localX);
-  if(t!==null)return t;
-  // Extrapolate for future coordinates
-  const ohlcv=getOhlcv(selectedPair,chtTf);
-  if(ohlcv.length<2)return null;
-  const lastBar=ohlcv[ohlcv.length-1];
-  const barDur=lastBar.time-ohlcv[ohlcv.length-2].time;
-  const lastX=ts.timeToCoordinate(lastBar.time);
-  if(lastX===null)return null;
-  const range=ts.getVisibleLogicalRange();if(!range)return null;
+  const rect=priceEl.getBoundingClientRect();const localX=clientX-rect.left;
+  const tsObj=chtMainInst.timeScale();
+  const t=tsObj.coordinateToTime(localX);if(t!==null)return t;
+  const ohlcv=getOhlcv(selectedPair,chtTf);if(ohlcv.length<2)return null;
+  const lastBar=ohlcv[ohlcv.length-1];const barDur=lastBar.time-ohlcv[ohlcv.length-2].time;
+  const lastX=tsObj.timeToCoordinate(lastBar.time);if(lastX===null)return null;
+  const range=tsObj.getVisibleLogicalRange();if(!range)return null;
   const pixPerBar=rect.width/Math.max(1,range.to-range.from);
-  const extraBars=Math.round((localX-lastX)/pixPerBar);
-  return lastBar.time+extraBars*barDur;
+  return lastBar.time+Math.round((localX-lastX)/pixPerBar)*barDur;
 }
 function _onAlertInputChange(){
-  const inp=document.getElementById('cht-alert-inp');
-  if(!inp)return;
-  const v=parseFloat(inp.value);
-  if(!isNaN(v)&&v>0)_setStagingLine(v);
-  else _removeStagingLine();
+  const inp=document.getElementById('cht-alert-inp');if(!inp)return;
+  const v=parseFloat(inp.value);if(!isNaN(v)&&v>0)_setStagingLine(v);else _removeStagingLine();
 }
 function _bounds(){const el=document.getElementById('cht-price');return el?el.getBoundingClientRect():null;}
 function _toPrice(clientY){const r=_bounds();if(!r||!_chtCandles)return null;try{return _chtCandles.coordinateToPrice(clientY-r.top);}catch(e){return null;}}
 function _priceToClientY(price){const r=_bounds();if(!r||!_chtCandles)return null;try{const c=_chtCandles.priceToCoordinate(price);return c!==null?c+r.top:null;}catch(e){return null;}}
-
-// Find which line (staging or alert) is within 28px of clientY
-function _nearLine(clientY){
-  // Check staging line first
-  if(_stagingPrice!==null){
-    const ly=_priceToClientY(_stagingPrice);
-    if(ly!==null&&Math.abs(clientY-ly)<28)return{type:'staging'};
-  }
-  // Check alert lines
-  for(const ref of _alertLineRefs){
-    const ly=_priceToClientY(ref.price);
-    if(ly!==null&&Math.abs(clientY-ly)<28)return{type:'alert',id:ref.id,price:ref.price};
-  }
+function _nearHline(clientY){
+  for(const ref of _alertLineRefs){const ly=_priceToClientY(ref.price);if(ly!==null&&Math.abs(clientY-ly)<20)return ref;}
   return null;
 }
+function _nearVlineDiv(el){return el?el.closest('.cht-vline-div'):null;}
 
+// ── INPUT/TOUCH HANDLERS ──────────────────────────────────────────────────────
 function initDrawingSvg(){
   if(window._drawListenersAttached)return;
   window._drawListenersAttached=true;
   let _ts={x:0,y:0,t:0};
-
   const inp=document.getElementById('cht-alert-inp');
   if(inp)inp.addEventListener('input',_onAlertInputChange);
 
   document.addEventListener('touchstart',function(e){
     if(!chtMainInst)return;
-    const t=e.touches[0];
-    _ts={x:t.clientX,y:t.clientY,t:Date.now()};
-  },true);
-
-  document.addEventListener('touchmove',function(e){
-    if(!_draggingLine)return;
-    const t=e.touches[0];
-    const price=_toPrice(t.clientY);
-    if(price!==null)_setStagingLine(price);
-    e.preventDefault();
-  },{passive:false,capture:true});
-
-  document.addEventListener('touchend',function(e){
-    // Bail if tapping float-del pill — let its own onclick handle it
-    if(e.target&&e.target.closest&&e.target.closest('#cht-float-del'))return;
-    _hideFloatDel();
-    if(_draggingLine){_draggingLine=false;return;}
-    const t=e.changedTouches[0];
-    const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
-    const isTap=dx<12&&dy<12&&(Date.now()-_ts.t)<500;
-    if(!isTap||!_drawTool)return;
-    const r=_bounds();if(!r)return;
-    const inChart=t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom;
-    if(!inChart)return;
-    if(_drawTool==='hline'){
-      const price=_toPrice(_ts.y);
-      if(price!==null){
-        if(_stagingPrice!==null)_commitStagingAsAlert();
-        _setStagingLine(price);
-      }
-      _disengage();
-    } else if(_drawTool==='vline'){
-      const ts=_coordToTime(t.clientX);
-      if(ts!==null){
-        const label=new Date(ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-        const arr=vtimeLoad();arr.push({id:Date.now(),pair:selectedPair,ts,label});
-        vtimeSave(arr);_renderVLines();
-      }
-      _disengage();
+    const t=e.touches[0];_ts={x:t.clientX,y:t.clientY,t:Date.now()};
+    if(_drawTool)return;
+    const vDiv=_nearVlineDiv(e.target);const hRef=_nearHline(t.clientY);
+    if(vDiv||hRef){
+      _longTimer=setTimeout(()=>{
+        _longTimer=null;if(navigator.vibrate)navigator.vibrate(35);
+        if(vDiv){
+          const id=parseInt(vDiv.dataset.id);
+          const v=laLoad().find(a=>a.id===id&&a.type==='v');
+          if(v){deleteAlert(id);_stagingVTs=v.time;_renderStagingVLine();_draggingVLine=true;}
+        } else if(hRef){
+          const alerts=laLoad().filter(a=>a.id!==hRef.id);
+          laSave(alerts);pushAlertsToGitHub(alerts);_renderAlertLines();
+          _setStagingLine(hRef.price);_draggingLine=true;
+        }
+      },350);
     }
   },true);
 
-  // Desktop mouse handlers
-  let _mouseDown=false;
-  document.addEventListener('mousedown',function(e){
-    if(!chtMainInst||_drawTool)return;
-    const near=_nearLine(e.clientY);
-    if(near&&near.type==='staging')_mouseDown=true;
-  },true);
-  document.addEventListener('mousemove',function(e){
-    if(!_mouseDown)return;
-    const price=_toPrice(e.clientY);
-    if(price!==null)_setStagingLine(price);
-    e.preventDefault();
+  document.addEventListener('touchmove',function(e){
+    if(_longTimer&&(Math.abs(e.touches[0].clientX-_ts.x)>8||Math.abs(e.touches[0].clientY-_ts.y)>8)){clearTimeout(_longTimer);_longTimer=null;}
+    const t=e.touches[0];
+    if(_draggingLine){const p=_toPrice(t.clientY);if(p!==null)_setStagingLine(p);e.preventDefault();return;}
+    if(_draggingVLine){const ts=_coordToTime(t.clientX);if(ts!==null){_stagingVTs=ts;_renderStagingVLine();}e.preventDefault();}
   },{passive:false,capture:true});
+
+  document.addEventListener('touchend',function(e){
+    if(_longTimer){clearTimeout(_longTimer);_longTimer=null;}
+    if(e.target&&e.target.closest&&e.target.closest('#cht-float-del'))return;
+    if(_draggingLine){_draggingLine=false;return;}
+    if(_draggingVLine){_draggingVLine=false;return;}
+    _hideFloatDel();
+    const t=e.changedTouches[0];
+    const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
+    const isTap=dx<12&&dy<12&&(Date.now()-_ts.t)<500;
+    if(!isTap)return;
+    const r=_bounds();if(!r)return;
+    const inChart=t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom;
+    if(_drawTool==='hline'&&inChart){const p=_toPrice(t.clientY);if(p!==null)_setStagingLine(p);_disengage();return;}
+    if(_drawTool==='vline'&&inChart){const ts=_coordToTime(t.clientX);if(ts!==null){_stagingVTs=ts;_renderStagingVLine();}_disengage();return;}
+    if(!inChart)return;
+    const vDiv=_nearVlineDiv(e.target);
+    if(vDiv){_showFloatDel(parseInt(vDiv.dataset.id),t.clientX,t.clientY);return;}
+    const hRef=_nearHline(t.clientY);
+    if(hRef)_showFloatDel(hRef.id,t.clientX,t.clientY);
+  },true);
+
+  let _mouseDown=false;
+  document.addEventListener('mousedown',function(e){if(!chtMainInst||_drawTool)return;if(_nearHline(e.clientY))_mouseDown=true;},true);
+  document.addEventListener('mousemove',function(e){if(!_mouseDown)return;const p=_toPrice(e.clientY);if(p!==null)_setStagingLine(p);e.preventDefault();},{passive:false,capture:true});
   document.addEventListener('mouseup',function(){_mouseDown=false;},true);
   document.addEventListener('click',function(e){
-    // Bail if clicking float-del pill
     if(e.target&&e.target.closest&&e.target.closest('#cht-float-del'))return;
     _hideFloatDel();
     if(!_drawTool||!chtMainInst)return;
     const r=_bounds();if(!r)return;
     if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
-    if(_drawTool==='hline'){
-      const price=_toPrice(e.clientY);
-      if(price!==null){
-        if(_stagingPrice!==null)_commitStagingAsAlert();
-        _setStagingLine(price);
-      }
-      _disengage();
-    } else if(_drawTool==='vline'){
-      const ts=_coordToTime(e.clientX);
-      if(ts!==null){
-        const label=new Date(ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-        const arr=vtimeLoad();arr.push({id:Date.now(),pair:selectedPair,ts,label});
-        vtimeSave(arr);_renderVLines();
-      }
-      _disengage();
-    }
+    if(_drawTool==='hline'){const p=_toPrice(e.clientY);if(p!==null)_setStagingLine(p);_disengage();}
+    else if(_drawTool==='vline'){const ts=_coordToTime(e.clientX);if(ts!==null){_stagingVTs=ts;_renderStagingVLine();}_disengage();}
   },true);
 }
 
@@ -1838,12 +1771,11 @@ function clearDrawings(){
   _removeStagingLine();_removeStagingVLine();
   const alerts=laLoad().filter(a=>a.pair!==selectedPair);
   laSave(alerts);pushAlertsToGitHub(alerts);
-  vtimeSave(vtimeLoad().filter(v=>v.pair!==selectedPair));
   _renderAlertLines();_renderVLines();_hideFloatDel();
 }
 function restoreDrawings(){_renderAlertLines();_renderVLines();}
 function renderDrawings(){_repositionVLines();}
-function _handleDrawPoint(){}
+
 
 
 
@@ -2019,7 +1951,6 @@ function updateCloseTradeBtn(){const btn=document.getElementById('cht-close-trad
 
 function cycleAlertDir(){alertDir=alertDir==='above'?'below':'above';const b=document.getElementById('cht-dir-btn');if(b)b.textContent=alertDir==='above'?'↑ Above':'↓ Below';}
 function setLevelAlert(){
-  // Legacy button path — delegate to unified commit
   const inp=document.getElementById('cht-alert-inp');
   if(inp&&inp.value&&!isNaN(parseFloat(inp.value)))_setStagingLine(parseFloat(inp.value));
   _commitStaging();
