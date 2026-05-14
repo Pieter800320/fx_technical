@@ -646,15 +646,53 @@ function buildNewsSheetContent(){
       h+=`<div style="display:flex;align-items:flex-start;padding:7px var(--pad);border-bottom:1px solid var(--border2);gap:var(--gap);"><span style="flex:1;font-size:var(--sm);line-height:1.5;">${t.theme}</span><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;min-width:52px;"><span style="font-size:var(--xs);font-weight:700;color:${dirCol(t.direction)};text-transform:uppercase;">${t.direction}</span>${ccys?`<span style="font-size:var(--xs);color:var(--muted);">${ccys}</span>`:''}</div></div>`;
     });
     if(nb.key_observation)h+=`<div class="sh-row"><span class="sh-lbl">Key Insight</span><span class="sh-val" style="color:var(--accent);">${nb.key_observation}</span></div>`;
-    if(nb.watch)h+=`<div class="sh-row"><span class="sh-lbl">Watch</span><span class="sh-val" style="color:var(--muted);">${nb.watch}</span></div>`;
   }
-  h+=`<div class="sh-hdr">Technical Brief</div>`;
-  h+=generateBrief();
   h+=`<div style="padding:8px var(--pad) 12px;"><button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button></div>`;
   return h;
 }
 function renderStructuredNarrative(text){
   if(!text)return'';
+  // New 3-section format: DRIVER / MOMENTUM / WATCH
+  const newSections=['DRIVER','MOMENTUM','WATCH'];
+  const hasNew=newSections.some(s=>text.includes(s));
+  if(hasNew){
+    const blocks=[];
+    for(let i=0;i<newSections.length;i++){
+      const hdr=newSections[i],nextHdr=newSections[i+1];
+      const start=text.indexOf(hdr);if(start===-1)continue;
+      const end=nextHdr?text.indexOf(nextHdr,start+hdr.length):text.length;
+      const content=text.slice(start+hdr.length,end!==-1?end:undefined).trim();
+      blocks.push({hdr,content});
+    }
+    if(!blocks.length)return`<div style="padding:10px var(--pad);font-size:var(--sm);line-height:1.85;white-space:pre-wrap;">${text}</div>`;
+    const hdrCols={DRIVER:'var(--accent)',MOMENTUM:'var(--buy)',WATCH:'var(--amber)'};
+    let h='';
+    blocks.forEach(({hdr,content})=>{
+      const col=hdrCols[hdr]||'var(--text)';
+      h+=`<div style="border-bottom:1px solid var(--border2);">`;
+      h+=`<div style="padding:5px var(--pad) 3px;background:var(--surface2);font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${col};">${hdr}</div>`;
+      if(hdr==='WATCH'){
+        // Render each non-empty line as a bullet
+        content.split('\n').filter(l=>l.trim()).forEach(line=>{
+          const t=line.trim().replace(/^[-•·]\s*/,'');
+          h+=`<div style="padding:6px var(--pad) 6px calc(var(--pad) + 10px);border-top:1px solid var(--border2);font-size:var(--sm);line-height:1.5;position:relative;"><span style="position:absolute;left:var(--pad);color:var(--amber);">·</span>${t}</div>`;
+        });
+      } else if(hdr==='MOMENTUM'){
+        content.split('\n').filter(l=>l.trim()).forEach(line=>{
+          const t=line.trim();
+          const isGain=t.startsWith('Gaining');
+          const isFade=t.startsWith('Fading');
+          const col2=isGain?'var(--buy)':isFade?'var(--sell)':'var(--text)';
+          h+=`<div style="padding:5px var(--pad);border-top:1px solid var(--border2);font-size:var(--sm);line-height:1.5;color:${col2};">${t}</div>`;
+        });
+      } else {
+        h+=`<div style="padding:7px var(--pad) 8px;font-size:var(--sm);line-height:1.75;color:var(--text);white-space:pre-wrap;">${content}</div>`;
+      }
+      h+=`</div>`;
+    });
+    return h;
+  }
+  // Legacy 5-section format fallback
   const sections=['DOMINANT DRIVERS','PRICE CONFIRMS','REGIME','CONTRADICTIONS','TRADE IMPLICATIONS'];
   const sectionCols={'DOMINANT DRIVERS':'var(--text)','PRICE CONFIRMS':'var(--accent)','REGIME':'var(--amber)','CONTRADICTIONS':'var(--sell)','TRADE IMPLICATIONS':'var(--buy)'};
   const blocks=[];
@@ -670,20 +708,7 @@ function renderStructuredNarrative(text){
   blocks.forEach(({hdr,content,col})=>{
     h+=`<div style="border-bottom:1px solid var(--border2);">`;
     h+=`<div style="padding:5px var(--pad) 3px;background:var(--surface2);font-size:var(--xs);font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${col};">${hdr}</div>`;
-    if(hdr==='TRADE IMPLICATIONS'){
-      content.split('\n').filter(l=>l.trim()).forEach(line=>{
-        const trimmed=line.trim();
-        const isBest=trimmed.startsWith('Best:'),isSec=trimmed.startsWith('Secondary:'),isAvoid=trimmed.startsWith('Avoid:'),isWatch=trimmed.startsWith('Watch:');
-        const labelCol=isBest?'var(--buy)':isSec?'rgba(63,185,80,.7)':isAvoid?'var(--sell)':isWatch?'var(--amber)':'var(--muted)';
-        const convMatch=trimmed.match(/Conviction\s*(\d+)\/10/i);
-        const convScore=convMatch?parseInt(convMatch[1]):null;
-        const convCol=convScore>=8?'var(--buy)':convScore>=6?'var(--amber)':'var(--sell)';
-        const displayText=trimmed.replace(/—\s*Conviction\s*\d+\/10/i,'').trim();
-        h+=`<div style="display:flex;align-items:flex-start;padding:6px var(--pad);border-top:1px solid var(--border2);gap:var(--gap);"><span style="font-size:var(--sm);line-height:1.5;flex:1;color:${labelCol};font-weight:${isBest?'700':'600'};">${displayText}</span>${convScore!==null?`<span style="font-size:var(--xs);font-weight:700;color:${convCol};flex-shrink:0;padding-top:2px;">${convScore}/10</span>`:''}</div>`;
-      });
-    } else {
-      h+=`<div style="padding:7px var(--pad) 8px;font-size:var(--sm);line-height:1.7;color:var(--text);white-space:pre-wrap;">${content}</div>`;
-    }
+    h+=`<div style="padding:7px var(--pad) 8px;font-size:var(--sm);line-height:1.7;color:var(--text);white-space:pre-wrap;">${content}</div>`;
     h+=`</div>`;
   });
   return h;
