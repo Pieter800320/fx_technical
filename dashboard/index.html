@@ -572,7 +572,9 @@ function renderIndStrip(pair){
   if(cmpV){
     const c=s1212.cmp;
     cmpV.textContent=c;
-    cmpV.style.color=mom1212Color(c);
+    // Signal strip uses traffic-light scale like Setup/Edge — not dim/bright
+    const d=Math.abs(c-50);
+    cmpV.style.color=d>=20?'var(--buy)':d>=10?'var(--amber)':d>=5?'rgba(248,81,73,.75)':'var(--muted)';
   }
   // Setup
   const qai=computeQAI(pair),qv=document.getElementById('ic-qai-val');
@@ -1024,7 +1026,7 @@ function mom1212Color(v){
   const d=Math.abs(v-50); // 0=equilibrium, 50=extreme
   if(d<5) return'rgba(0,100,25,0.32)';          // equilibrium — very dim
   if(d<15)return'rgba(0,180,45,0.55)';           // building (55-65 / 35-45)
-  if(d<25)return'rgba(0,255,65,0.90)';           // optimal sweet spot (65-75 / 25-35)
+  if(d<25)return'rgba(0,255,65,0.95)';           // optimal sweet spot (65-75 / 25-35)
   return   'rgba(0,160,40,0.50)';                // extended / OB/OS risk (>75 / <25)
 }
 function _d1toWeekly(d1){
@@ -1119,7 +1121,7 @@ function renderDrumData(pair){
   if(currPrice&&d1Ohlcv&&d1Ohlcv.length>=2){const prev=d1Ohlcv[d1Ohlcv.length-2].close;if(prev)d1Pct=(currPrice-prev)/prev*100;}
   const d5Pct=_drumD5pct(pair,currPrice);
   const pctFmt=(v)=>v===null?'':(v>=0?'+':'')+v.toFixed(2)+'%';
-  const pctColor=(v)=>v===null?'transparent':v>=0?'rgba(0,210,52,0.7)':'rgba(0,140,35,0.5)';
+  const pctColor=(v)=>v===null?'transparent':'rgba(0,220,55,0.88)';  // constant bright — direction not encoded by brightness
   const regime=D.regime&&D.regime.final_regime?D.regime.final_regime.regime:(D.regime&&D.regime.regime)||null;
   const regAbbr=regime==='Risk-On'?'R-On':regime==='Risk-Off'?'R-Off':regime==='Ranging'?'Rang':regime==='Mixed'?'Mix':null;
   const activeTrades=tradesLoad().filter(t=>t.pair===pair&&(t.status==='open'||t.status==='pending'));
@@ -1134,12 +1136,12 @@ function renderDrumData(pair){
   // Zone 1: pair + dot + D1% + D5%  |  Setup% top-right
   h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
     <div style="display:flex;align-items:center;gap:5px;min-width:0;">
-      <span style="${vt}font-size:22px;color:#00ff55;letter-spacing:.01em;">${pair.replace('/','')}</span>${alertDotHtml}
+      <span style="${vt}font-size:22px;color:#00ff55;letter-spacing:.01em;text-shadow:0 0 8px rgba(0,255,65,0.4);">${pair.replace('/','')}</span>${alertDotHtml}
       <span style="${vt}font-size:12px;color:${pctColor(d1Pct)};">${pctFmt(d1Pct)}</span>
       ${d5Pct!==null?`<span style="${vt}font-size:12px;color:${pctColor(d5Pct)};">${pctFmt(d5Pct)}</span>`:''}
     </div>
     <div style="text-align:right;flex-shrink:0;line-height:1;padding-left:6px;">
-      <div style="font-size:8px;color:rgba(0,120,30,0.55);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Setup</div>
+      <div style="font-size:8px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Setup</div>
       <span style="${vt}font-size:22px;color:${glow(qai.score)};">${qai.score>0?qai.score+'%':'—'}</span>
     </div>
   </div>`;
@@ -1152,8 +1154,8 @@ function renderDrumData(pair){
     const bg=bull?'rgba(0,204,51,0.09)':bear?'rgba(0,60,15,0.07)':'rgba(0,100,25,0.04)';
     const bdr=bull?'rgba(0,180,45,0.25)':bear?'rgba(0,120,30,0.18)':'rgba(0,80,20,0.12)';
     h+=`<div style="flex:1;padding:3px 0;text-align:center;background:${bg};border:1px solid ${bdr};border-radius:3px;">
-      <div style="font-size:8px;color:rgba(0,120,30,0.5);font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;">${tf}</div>
-      <div style="${vt}font-size:17px;color:${vc};line-height:1.2;">${val}</div>
+      <div style="font-size:8px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;">${tf}</div>
+      <div style="${vt}font-size:17px;color:${vc};line-height:1.2;${Math.abs(val-50)>=15?'text-shadow:0 0 6px rgba(0,255,65,0.35)':''}">${val}</div>
       <div style="height:15px;display:flex;align-items:center;justify-content:center;">${_1212Delta(dlt)}</div>
     </div>`;
   });
@@ -1161,7 +1163,7 @@ function renderDrumData(pair){
 
   // Zone 3: CMP bar + Edge bar (committed space)
   const bar=(lbl,pct,val,suf)=>`<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;">
-    <span style="font-size:9px;color:rgba(0,140,35,0.55);font-weight:700;text-transform:uppercase;letter-spacing:.06em;width:30px;flex-shrink:0;">${lbl}</span>
+    <span style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.06em;width:30px;flex-shrink:0;">${lbl}</span>
     <div style="flex:1;height:4px;background:rgba(0,70,17,0.28);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${glow(pct)};border-radius:2px;"></div></div>
     <span style="${vt}font-size:14px;color:${glow(pct)};width:44px;text-align:right;">${val}${suf||''}</span>
   </div>`;
@@ -1172,9 +1174,9 @@ function renderDrumData(pair){
   const momFillPct=Math.min(100,Math.abs(momVal-50)*2); // 0 at 50, 100 at 0 or 100
   const momBull=momVal>=50;
   const momBarHtml=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;">
-    <span style="font-size:9px;color:rgba(0,140,35,0.55);font-weight:700;text-transform:uppercase;letter-spacing:.06em;width:30px;flex-shrink:0;">MOM</span>
+    <span style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.06em;width:30px;flex-shrink:0;">MOM</span>
     <div style="flex:1;height:4px;background:rgba(0,70,17,0.28);border-radius:2px;overflow:hidden;position:relative;">
-      <div style="position:absolute;top:0;bottom:0;width:1px;background:rgba(0,150,37,0.4);${momBull?'left:50%':'left:50%'};"></div>
+      <div style="position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(0,180,45,0.7);transform:translateX(-50%);box-shadow:0 0 3px rgba(0,180,45,0.4);"></div>
       <div style="position:absolute;top:0;bottom:0;width:${momFillPct/2}%;background:${momCol};border-radius:2px;${momBull?'left:50%':'right:50%'};"></div>
     </div>
     <span style="${vt}font-size:14px;color:${momCol};width:44px;text-align:right;">${momVal}${_1212Delta(s1212.dcmp)}</span>
@@ -1184,7 +1186,7 @@ function renderDrumData(pair){
 
   // Zone 4: Sessions + regime (committed)
   const sessParts=sessSegments.length>0
-    ?sessSegments.map(s=>`<span style="${vt}font-size:15px;color:${s.fits?'rgba(0,240,60,0.9)':'rgba(0,100,25,0.32)'};">${s.abbr}<span style="font-size:11px;"> ${s.timeStr}</span></span>`).join(`<span style="color:rgba(0,80,20,0.3);font-size:10px;margin:0 2px;">·</span>`)
+    ?sessSegments.map(s=>`<span style="${vt}font-size:15px;color:rgba(0,220,55,0.82);">${s.fits?'*':''}${s.abbr}<span style="font-size:11px;"> ${s.timeStr}</span></span>`).join(`<span style="color:rgba(0,80,20,0.3);font-size:10px;margin:0 2px;">·</span>`)
     :`<span style="${vt}font-size:15px;color:rgba(0,80,20,0.3);">—</span>`;
   const regPart=regAbbr?`<span style="${vt}font-size:15px;color:rgba(0,200,50,0.75);margin-left:auto;flex-shrink:0;padding-left:6px;">${regAbbr}</span>`:'';
   h+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;">${sessParts}${regPart}</div>`;
@@ -1192,9 +1194,9 @@ function renderDrumData(pair){
   // Zone 5: Corr + cooldown (committed — always rendered, min-height preserved)
   h+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;flex-wrap:wrap;min-height:18px;">`;
   if(corrWith.length||onCooldown){
-    corrWith.forEach((p,i)=>{if(i>0)h+=`<span style="color:rgba(0,70,17,0.3);font-size:9px;">·</span>`;h+=`<span style="${vt}font-size:12px;color:rgba(0,110,27,0.5);">~${p}</span>`;});
+    corrWith.forEach((p,i)=>{if(i>0)h+=`<span style="color:rgba(0,70,17,0.3);font-size:9px;">·</span>`;h+=`<span style="${vt}font-size:12px;color:rgba(0,200,50,0.70);">~${p}</span>`;});
     if(corrWith.length&&onCooldown)h+=`<span style="color:rgba(0,70,17,0.3);font-size:9px;">·</span>`;
-    if(onCooldown)h+=`<span style="${vt}font-size:12px;color:rgba(0,110,27,0.5);">wait ${Math.round(20-cooldownAge)}h</span>`;
+    if(onCooldown)h+=`<span style="${vt}font-size:12px;color:rgba(0,200,50,0.70);">wait ${Math.round(20-cooldownAge)}h</span>`;
   }
   h+=`</div>`;
 
@@ -1217,9 +1219,9 @@ function renderDrumData(pair){
           <div style="position:absolute;left:${pPct}%;width:5px;height:100%;background:rgba(0,255,65,0.95);border-radius:2px;transform:translateX(-50%);box-shadow:0 0 4px rgba(0,255,65,0.4);"></div>
         </div>
         <div style="display:flex;justify-content:space-between;margin-top:3px;">
-          <span style="${vt}font-size:11px;color:rgba(0,130,33,0.6);">SL</span>
+          <span style="${vt}font-size:11px;color:rgba(0,200,50,0.75);">SL</span>
           <span style="${vt}font-size:11px;color:${tradeCol};">${trade.direction}${trade.status==='pending'?' PEND':''}</span>
-          <span style="${vt}font-size:11px;color:rgba(0,130,33,0.6);">TP</span>
+          <span style="${vt}font-size:11px;color:rgba(0,200,50,0.75);">TP</span>
         </div>`;
     }
   }
@@ -1686,14 +1688,13 @@ function initDrawingSvg(){
 }
 
 function clearDrawings(){
-  _removeStagingLine();
-  // Also clear all alerts for this pair
+  _removeStagingLine();_removeStagingVLine();
   const alerts=laLoad().filter(a=>a.pair!==selectedPair);
   laSave(alerts);pushAlertsToGitHub(alerts);
-  _renderAlertLines();renderChtAlerts();
+  _renderAlertLines();_renderVLines();_hideFloatDel();
 }
-function restoreDrawings(){_renderAlertLines();}
-function renderDrawings(){}
+function restoreDrawings(){_renderAlertLines();_renderVLines();}
+function renderDrawings(){_repositionVLines();}
 function _handleDrawPoint(){}
 
 
