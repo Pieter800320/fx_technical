@@ -1552,13 +1552,17 @@ function _renderStagingVLine(){
   const absX=pr.left-ar.left+x,top=pr.top-ar.top,h=priceEl.clientHeight;
   const div=document.createElement('div');
   div.id='cht-vline-staging';
-  div.style.cssText='position:absolute;top:'+top+'px;height:'+h+'px;left:'+absX+'px;width:2px;'+
-    'background:repeating-linear-gradient(to bottom,rgba(227,179,65,.85) 0,rgba(227,179,65,.85) 4px,transparent 4px,transparent 8px);'+
-    'pointer-events:none;z-index:13;';
+  div.style.cssText='position:absolute;top:'+top+'px;height:'+h+'px;left:'+(absX-5)+'px;width:11px;'+
+    'background:transparent;pointer-events:none;z-index:13;';
+  const vis=document.createElement('div');
+  vis.style.cssText='position:absolute;top:0;bottom:0;left:5px;width:1px;pointer-events:none;'+
+    'background:repeating-linear-gradient(to bottom,rgba(227,179,65,.9) 0,rgba(227,179,65,.9) 2px,transparent 2px,transparent 5px);';
+  div.appendChild(vis);
   const lbl=document.createElement('div');
-  lbl.style.cssText='position:absolute;bottom:4px;left:3px;font-family:\'VT323\',monospace;font-size:11px;'+
+  lbl.style.cssText='position:absolute;bottom:4px;left:8px;font-family:\'VT323\',monospace;font-size:11px;'+
     'color:rgba(227,179,65,.9);background:rgba(13,17,23,.8);padding:0 3px;border-radius:2px;pointer-events:none;white-space:nowrap;';
-  lbl.textContent=new Date(_stagingVTs*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const _sd=new Date(_stagingVTs*1000);
+  lbl.textContent=_sd.toLocaleDateString([],{month:'short',day:'numeric'})+' '+_sd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   div.appendChild(lbl);canvasArea.appendChild(div);_stagingVDiv=div;
 }
 function _removeStagingVLine(){
@@ -1567,7 +1571,8 @@ function _removeStagingVLine(){
 function _commitStagingVLine(){
   if(_stagingVTs===null)return;
   const ts=_stagingVTs;
-  const label=new Date(ts*1000).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const _cd=new Date(ts*1000);
+  const label=_cd.toLocaleDateString([],{month:'short',day:'numeric'})+' '+_cd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   const alerts=laLoad();
   alerts.push({id:Date.now(),pair:selectedPair,time:ts,label,active:true,type:'v',created:new Date().toLocaleString()});
   laSave(alerts);pushAlertsToGitHub(alerts);_removeStagingVLine();_renderVLines();
@@ -1587,7 +1592,7 @@ function _renderAlertLines(){
     try{
       const pl=_chtCandles.createPriceLine({price:a.price,color:'rgba(139,148,158,0.65)',lineWidth:1,
         lineStyle:LightweightCharts.LineStyle.Dotted,axisLabelVisible:true,
-        title:(a.direction==='above'?'↑':'↓')+' '+a.price.toFixed(dec)});
+        title:''});
       _alertLineRefs.push({id:a.id,priceLine:pl,price:a.price});
     }catch(e){}
   });
@@ -1606,11 +1611,15 @@ function _renderVLines(){
     const x=_timeToCoordExtrap(v.time);if(x===null)return;
     const absX=offsetLeft+x;
     const div=document.createElement('div');div.className='cht-vline-div';div.dataset.id=v.id;
-    div.style.cssText='position:absolute;top:'+offsetTop+'px;height:'+h+'px;left:'+absX+'px;width:2px;'+
-      'background:repeating-linear-gradient(to bottom,rgba(139,148,158,.65) 0,rgba(139,148,158,.65) 4px,transparent 4px,transparent 8px);'+
-      'pointer-events:all;cursor:pointer;z-index:12;';
+    // 12px wide touch target, visual 1px line centered at offset 5px
+    div.style.cssText='position:absolute;top:'+offsetTop+'px;height:'+h+'px;left:'+(absX-5)+'px;width:11px;'+
+      'background:transparent;pointer-events:all;cursor:pointer;z-index:12;';
+    const vis=document.createElement('div');
+    vis.style.cssText='position:absolute;top:0;bottom:0;left:5px;width:1px;pointer-events:none;'+
+      'background:repeating-linear-gradient(to bottom,rgba(139,148,158,.7) 0,rgba(139,148,158,.7) 2px,transparent 2px,transparent 5px);';
+    div.appendChild(vis);
     const lbl=document.createElement('div');
-    lbl.style.cssText='position:absolute;bottom:4px;left:3px;font-family:\'VT323\',monospace;font-size:11px;'+
+    lbl.style.cssText='position:absolute;bottom:4px;left:8px;font-family:\'VT323\',monospace;font-size:11px;'+
       'color:rgba(139,148,158,.85);background:rgba(13,17,23,.75);padding:0 3px;border-radius:2px;pointer-events:none;white-space:nowrap;';
     lbl.textContent=v.label||'';div.appendChild(lbl);canvasArea.appendChild(div);
   });
@@ -1629,7 +1638,7 @@ function _repositionVLines(){
     const x=_timeToCoordExtrap(v.time);
     if(x===null){div.style.display='none';return;}
     div.style.display='';
-    div.style.left=(offsetLeft+x)+'px';div.style.top=offsetTop+'px';div.style.height=h+'px';
+    div.style.left=(offsetLeft+x-5)+'px';div.style.top=offsetTop+'px';div.style.height=h+'px';
   });
   if(_stagingVTs!==null&&_stagingVDiv){
     const x=_timeToCoordExtrap(_stagingVTs);
@@ -1901,18 +1910,20 @@ async function renderChtPrice(){
         try{subChart.priceScale('right').applyOptions({autoScale:false});}catch(e){}
       }
     }
-    // Sync time scale one-way: price → sub
+    // Sync time scale: price → sub using actual time range (not logical offsets)
     let _raf=null;
-    chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{
-      if(!r||!chtSubInst)return;
+    chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{
+      if(!chtSubInst)return;
       if(_raf)cancelAnimationFrame(_raf);
-      _raf=requestAnimationFrame(()=>{try{chtSubInst.timeScale().setVisibleLogicalRange({from:r.from-_subChartOffset,to:r.to-_subChartOffset});}catch(e){}});
+      _raf=requestAnimationFrame(()=>{
+        try{const vr=chart.timeScale().getVisibleRange();if(vr)chtSubInst.timeScale().setVisibleRange(vr);}catch(e){}
+      });
     });
     new ResizeObserver(()=>{if(chtSubInst)chtSubInst.applyOptions({width:subEl.clientWidth,height:subEl.clientHeight});}).observe(subEl);
   }
   const visN=Math.min(150,ohlcv.length);
   chart.timeScale().setVisibleLogicalRange({from:ohlcv.length-visN,to:ohlcv.length+2});
-  setTimeout(()=>{if(chtSubInst){try{const r=chart.timeScale().getVisibleLogicalRange();if(r)chtSubInst.timeScale().setVisibleLogicalRange({from:r.from-_subChartOffset,to:r.to-_subChartOffset});}catch(e){}}},120);
+  setTimeout(()=>{if(chtSubInst){try{const vr=chart.timeScale().getVisibleRange();if(vr)chtSubInst.timeScale().setVisibleRange(vr);}catch(e){}}},120);
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:priceEl.clientWidth,height:priceEl.clientHeight});}).observe(priceEl);
   chtMainInst=chart;
   initDrawingSvg();  // Subscribe click handler
