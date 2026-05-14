@@ -216,6 +216,7 @@ def check_time_alerts():
 
 
 
+def main():
     print(f"\n=== H1 Scan — {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC ===")
     os.makedirs(DATA_DIR, exist_ok=True)
 
