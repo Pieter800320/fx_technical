@@ -160,7 +160,7 @@ tr:last-child td{border-bottom:none;}
   <div class="scroll-body">
     <div id="ptr-indicator">↺ Release to refresh</div>
   <div id="drum-wrap" style="background:#020e02;border:1px solid rgba(0,204,51,.18);flex-shrink:0;">
-  <div id="drum-data" style="flex:1;min-width:0;padding:10px 12px 8px;overflow:hidden;"></div>
+  <div id="drum-data" style="flex:1;min-width:0;padding:10px 12px 8px;overflow:hidden;"><span style="color:#00ff55;font-size:12px;">loading...</span></div>
   <div style="width:72px;flex-shrink:0;position:relative;overflow:hidden;border-left:1px solid rgba(0,204,51,.12);">
     <div style="position:absolute;top:0;left:0;right:0;height:88px;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;pointer-events:none;"></div>
     <div style="position:absolute;bottom:0;left:0;right:0;height:88px;background:linear-gradient(to top,#020e02,transparent);z-index:2;pointer-events:none;"></div>
@@ -1095,145 +1095,30 @@ function _1212Delta(delta){
   return`<span style="display:inline-flex;align-items:center;justify-content:center;gap:1px;">${arrow}${num}</span>`;
 }
 function renderDrumData(pair){
-  const el=document.getElementById('drum-data');if(!el){console.error('drum-data not found');return;}
-  // Quick test: does writing work?
-  el.style.minHeight='200px';
-  try{
-  const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
-  const qai=computeQAI(pair),edge=getEdgeScore(pair);
-  const nowUTC=new Date(),nowMins=nowUTC.getUTCHours()*60+nowUTC.getUTCMinutes();
-  const pairSess=PAIR_SESS[pair]||[];
-  const sessSegments=Object.entries(SESS).map(([name,[start,end]])=>{
-    const s=start*60,e=end*60;
-    const active=s>e?(nowMins>=s||nowMins<e):(nowMins>=s&&nowMins<e);
-    if(!active)return null;
-    const abbr=SESS_ABBR[name];
-    const minsLeft=e>nowMins?e-nowMins:(e+1440-nowMins);
-    const hh=Math.floor(minsLeft/60),mm=minsLeft%60;
-    const timeStr=hh>0?`${hh}h${mm>0?mm+'m':''}`:`${mm}m`;
-    return{abbr,timeStr,fits:pairSess.includes(abbr)};
-  }).filter(Boolean);
-  const cooldown=D.alertCooldown&&D.alertCooldown[pair];
-  const cooldownAge=cooldown?((Date.now()-new Date(cooldown).getTime())/3600000):999;
-  const hasAlert=cooldownAge<20,onCooldown=cooldownAge<20&&cooldownAge>=0;
-  const corrWith=_getAllCorrWarnings(pair);
-  const currPrice=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
-  const d1Ohlcv=D.d1&&D.d1._ohlcv&&D.d1._ohlcv[pair];
-  let d1Pct=null;
-  if(currPrice&&d1Ohlcv&&d1Ohlcv.length>=2){const prev=d1Ohlcv[d1Ohlcv.length-2].close;if(prev)d1Pct=(currPrice-prev)/prev*100;}
-  const d5Pct=_drumD5pct(pair,currPrice);
-  const pctFmt=(v)=>v===null?'':(v>=0?'+':'')+v.toFixed(2)+'%';
-  const regime=D.regime&&D.regime.final_regime?D.regime.final_regime.regime:(D.regime&&D.regime.regime)||null;
-  const regAbbr=regime==='Risk-On'?'R-On':regime==='Risk-Off'?'R-Off':regime==='Ranging'?'Rang':regime==='Mixed'?'Mix':null;
-  const activeTrades=tradesLoad().filter(t=>t.pair===pair&&(t.status==='open'||t.status==='pending'));
-  const trade=activeTrades[0]||null;
-  // Colour constants
-  const BRIGHT='rgba(0,220,55,0.88)';   // constant — D1%, D5%, all numbers
-  const LABEL ='rgba(0,200,50,0.75)';   // all label text
-  const DIM   ='rgba(0,100,25,0.32)';   // equilibrium / inactive
-  const GLOW  ='rgba(0,255,65,0.95)';   // peak value (Setup = pair name brightness)
-  const glowSetup=p=>p>=70?GLOW:p>=50?'rgba(0,210,52,0.82)':'rgba(0,150,37,0.55)';
-  const vt="font-family:'VT323',monospace;";
-  const s1212=compute1212(pair);
-  const alertDotHtml=hasAlert?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${GLOW};box-shadow:0 0 5px rgba(0,255,65,0.5);flex-shrink:0;margin-left:2px;vertical-align:middle;"></span>`:'';
-  let h='';
-
-  // Zone 1: pair + dot + D1% + D5%  |  Setup% (same brightness as pair name)
-  h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-    <div style="display:flex;align-items:center;gap:5px;min-width:0;">
-      <span style="${vt}font-size:22px;color:#00ff55;letter-spacing:.01em;text-shadow:0 0 8px rgba(0,255,65,0.4);">${pair.replace('/','')}</span>${alertDotHtml}
-      <span style="${vt}font-size:12px;color:${BRIGHT};">${pctFmt(d1Pct)}</span>
-      ${d5Pct!==null?`<span style="${vt}font-size:12px;color:${BRIGHT};">${pctFmt(d5Pct)}</span>`:''}
-    </div>
-    <div style="text-align:right;flex-shrink:0;line-height:1;padding-left:6px;">
-      <div style="font-size:8px;color:${LABEL};font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Setup</div>
-      <span style="${vt}font-size:22px;color:${glowSetup(qai.score)};${qai.score>=70?'text-shadow:0 0 8px rgba(0,255,65,0.4);':''}">${qai.score>0?qai.score+'%':'—'}</span>
-    </div>
-  </div>`;
-
-  // Zone 2: 1212 MOM tiles — light up pill border/bg only when |delta| >= 10
-  h+=`<div style="display:flex;gap:3px;margin-bottom:9px;">`;
-  [['W1',s1212.w1,s1212.dw1],['D1',s1212.d1,s1212.dd1],['H4',s1212.h4,s1212.dh4],['H1',s1212.h1,s1212.dh1]].forEach(([tf,val,dlt])=>{
-    const vc=mom1212Color(val);
-    const bigMove=dlt!==null&&Math.abs(dlt)>=10;
-    const bg=bigMove?'rgba(0,204,51,0.14)':'rgba(0,60,15,0.05)';
-    const bdr=bigMove?'rgba(0,200,50,0.5)':'rgba(0,80,20,0.15)';
-    const glow2=bigMove?'box-shadow:0 0 6px rgba(0,180,45,0.3);':'';
-    h+=`<div style="flex:1;padding:3px 0;text-align:center;background:${bg};border:1px solid ${bdr};border-radius:3px;${glow2}">
-      <div style="font-size:8px;color:${LABEL};font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;">${tf}</div>
-      <div style="${vt}font-size:17px;color:${BRIGHT};line-height:1.2;">${val}</div>
-      <div style="height:14px;display:flex;align-items:center;justify-content:center;">${_1212Delta(dlt)}</div>
-    </div>`;
-  });
-  h+=`</div>`;
-
-  // Zone 3: MOM bidirectional bar + Edge bar
-  const BLBL=`font-size:9px;color:${LABEL};font-weight:700;text-transform:uppercase;letter-spacing:.06em;width:30px;flex-shrink:0;`;
-  const momVal=s1212.cmp,momCol=mom1212Color(momVal);
-  const momFillPct=Math.min(100,Math.abs(momVal-50)*2);
-  const momBull=momVal>=50;
-  const edgePct=edge!==null?Math.round(edge/10*100):0;
-  const edgeCol=`color:${BRIGHT};`;
-  h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;">
-    <span style="${BLBL}">MOM</span>
-    <div style="flex:1;height:4px;background:rgba(0,70,17,0.28);border-radius:2px;overflow:hidden;position:relative;">
-      <div style="position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(0,180,45,0.7);transform:translateX(-50%);box-shadow:0 0 3px rgba(0,180,45,0.4);"></div>
-      <div style="position:absolute;top:0;bottom:0;width:${momFillPct/2}%;background:${momCol};border-radius:2px;${momBull?'left:50%':'right:50%'};"></div>
-    </div>
-    <span style="${vt}font-size:14px;color:${BRIGHT};width:44px;text-align:right;">${momVal}${_1212Delta(s1212.dcmp)}</span>
-  </div>`;
-  h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;">
-    <span style="${BLBL}">Edge</span>
-    <div style="flex:1;height:4px;background:rgba(0,70,17,0.28);border-radius:2px;overflow:hidden;"><div style="width:${edgePct}%;height:100%;background:${mom1212Color(50+edgePct/2)};border-radius:2px;"></div></div>
-    <span style="${vt}font-size:14px;${edgeCol}width:44px;text-align:right;">${edge!==null?edge+'/10':'—'}</span>
-  </div>`;
-
-  // Zone 4: Sessions + regime
-  const sessParts=sessSegments.length>0
-    ?sessSegments.map(s=>`<span style="${vt}font-size:15px;color:${BRIGHT};">${s.fits?'*':''}${s.abbr}<span style="font-size:11px;"> ${s.timeStr}</span></span>`).join(`<span style="color:rgba(0,80,20,0.3);font-size:10px;margin:0 2px;">·</span>`)
-    :`<span style="${vt}font-size:15px;color:${BRIGHT};">—</span>`;
-  const regPart=regAbbr?`<span style="${vt}font-size:15px;color:${BRIGHT};margin-left:auto;flex-shrink:0;padding-left:6px;">${regAbbr}</span>`:'';
-  h+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;">${sessParts}${regPart}</div>`;
-
-  // Zone 5: Corr + cooldown
-  if(corrWith.length||onCooldown){
-    h+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;flex-wrap:wrap;">`;
-    corrWith.forEach((p,i)=>{if(i>0)h+=`<span style="color:rgba(0,80,20,0.3);font-size:9px;">·</span>`;h+=`<span style="${vt}font-size:12px;color:${BRIGHT};">~${p}</span>`;});
-    if(corrWith.length&&onCooldown)h+=`<span style="color:rgba(0,80,20,0.3);font-size:9px;">·</span>`;
-    if(onCooldown)h+=`<span style="${vt}font-size:12px;color:${BRIGHT};">wait ${Math.round(20-cooldownAge)}h</span>`;
-    h+=`</div>`;
-  } else {
-    h+=`<div style="min-height:22px;margin-bottom:8px;"></div>`;
-  }
-
-  // Zone 6: Trade bar
-  h+=`<div style="min-height:28px;">`;
-  if(trade&&trade.entry&&trade.sl&&trade.tp&&currPrice){
-    const entry=parseFloat(trade.entry),barSl=parseFloat(trade.sl),barTp=parseFloat(trade.tp);
-    const isBuy=trade.direction==='BUY';
-    let ePct,pPct;
-    if(isBuy){const rng=barTp-barSl;if(rng>0){ePct=((entry-barSl)/rng*100).toFixed(1);pPct=Math.min(100,Math.max(0,(currPrice-barSl)/rng*100)).toFixed(1);}}
-    else{const rng=barSl-barTp;if(rng>0){ePct=((barSl-entry)/rng*100).toFixed(1);pPct=Math.min(100,Math.max(0,(barSl-currPrice)/rng*100)).toFixed(1);}}
-    if(ePct!==undefined){
-      const inProfit=isBuy?currPrice>entry:currPrice<entry;
-      const fL=inProfit?Math.min(parseFloat(ePct),parseFloat(pPct)).toFixed(1):null;
-      const fW=inProfit?Math.abs(parseFloat(pPct)-parseFloat(ePct)).toFixed(1):null;
-      const tradeCol=BRIGHT;
-      h+=`<div style="position:relative;height:14px;background:rgba(0,60,15,0.25);border-radius:4px;overflow:hidden;border:1px solid rgba(0,100,25,0.2);">
-          ${inProfit&&fW?`<div style="position:absolute;left:${fL}%;width:${fW}%;height:100%;background:rgba(0,200,50,0.38);"></div>`:''}
-          <div style="position:absolute;left:${ePct}%;width:2px;height:100%;background:rgba(0,180,45,0.7);transform:translateX(-50%);box-shadow:0 0 3px rgba(0,180,45,0.4);"></div>
-          <div style="position:absolute;left:${pPct}%;width:5px;height:100%;background:${GLOW};border-radius:2px;transform:translateX(-50%);box-shadow:0 0 4px rgba(0,255,65,0.4);"></div>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:3px;">
-          <span style="${vt}font-size:11px;color:${BRIGHT};">SL</span>
-          <span style="${vt}font-size:11px;color:${BRIGHT};">${trade.direction}${trade.status==='pending'?' PEND':''}</span>
-          <span style="${vt}font-size:11px;color:${BRIGHT};">TP</span>
-        </div>`;
-    }
-  }
-  h+=`</div>`;
+  var el=document.getElementById('drum-data');
+  if(!el)return;
+  var vt="font-family:'VT323',monospace;";
+  var h='';
+  // Pair name
+  var pairName=pair?pair.replace('/',''):'—';
+  h+='<div style="'+vt+'font-size:22px;color:#00ff55;margin-bottom:6px;">'+pairName+'</div>';
+  // Setup
+  var qaiScore=0;
+  try{var q=computeQAI(pair);qaiScore=q?q.score:0;}catch(e){}
+  h+='<div style="'+vt+'font-size:14px;color:rgba(0,200,50,0.8);margin-bottom:4px;">SETUP '+qaiScore+'%</div>';
+  // 1212 MOM
+  var momVal=50;
+  try{var s=compute1212(pair);momVal=s?s.cmp:50;}catch(e){}
+  h+='<div style="'+vt+'font-size:14px;color:rgba(0,200,50,0.8);margin-bottom:4px;">MOM '+momVal+'</div>';
+  // Edge
+  var edge=null;
+  try{edge=getEdgeScore(pair);}catch(e){}
+  h+='<div style="'+vt+'font-size:14px;color:rgba(0,200,50,0.8);margin-bottom:4px;">EDGE '+(edge!==null?edge+'/10':'—')+'</div>';
+  // Regime
+  var reg='—';
+  try{reg=(D.regime&&D.regime.final_regime&&D.regime.final_regime.regime)||(D.regime&&D.regime.regime)||'—';}catch(e){}
+  h+='<div style="'+vt+'font-size:13px;color:rgba(0,180,45,0.7);">'+reg+'</div>';
   el.innerHTML=h;
-  }catch(err){el.innerHTML=`<div style="padding:8px;font-size:11px;color:rgba(248,81,73,.7);font-family:monospace;">${err.message||err}</div>`;}
 }
 
 function updateDrum(){
@@ -2415,7 +2300,13 @@ async function init(){
   D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief,alertCooldown};
   await mergeTradesFromGitHub();
   await mergeAlertsFromGitHub();
-  renderRegime(regime);renderCSM(csm,conviction);renderSignalStrip(selectedPair);renderIndStrip(selectedPair);checkLevelAlerts();migrateOldTrades();checkTrades();renderLog();updateDrum();
+  renderRegime(regime);renderCSM(csm,conviction);renderSignalStrip(selectedPair);renderIndStrip(selectedPair);
+  updateDrum();
+  try{checkLevelAlerts();}catch(e){console.warn('checkLevelAlerts:',e);}
+  try{checkTimeAlerts();}catch(e){console.warn('checkTimeAlerts:',e);}
+  try{migrateOldTrades();}catch(e){console.warn('migrateOldTrades:',e);}
+  try{checkTrades();}catch(e){console.warn('checkTrades:',e);}
+  try{renderLog();}catch(e){console.warn('renderLog:',e);}
 }
 init();setInterval(init,5*60*1000);
 
