@@ -16,7 +16,7 @@
     "regime": "Mixed",
     "confidence": "Low",
     "signals": {
-      "sh_divergence": 3.8,
+      "sh_divergence": 0.5,
       "usd_proxy": 0.58,
       "risk_basket": 0.33,
       "trend_ratio": 1.0,
@@ -24,7 +24,7 @@
       "risk_off_votes": 2,
       "risk_on_votes": 1
     },
-    "updated": "2026-05-14T07:25:12.677334"
+    "updated": "2026-05-14T08:14:08.341568"
   },
   "macro_bias": {
     "score": 0,
@@ -85,13 +85,15 @@
   "final_regime": {
     "regime": "Risk-On",
     "confidence": "Low",
-    "score": 5.81,
+    "score": 5.6,
     "direction": "Deteriorating",
     "components": {
       "w1": {
-        "score": 5.0,
-        "label": "Pending",
-        "confidence": "Low"
+        "score": 6.2,
+        "label": "Risk-On",
+        "confidence": "Low",
+        "confirmed": true,
+        "pending": null
       },
       "h4": {
         "score": 5,
@@ -99,17 +101,17 @@
         "confidence": "Low"
       },
       "macro": {
-        "score": 6.7,
-        "raw": 2,
+        "score": 5.0,
+        "raw": 0,
         "max": 6,
-        "interpretation": "Risk-On Leaning"
+        "interpretation": "Neutral / Mixed"
       },
       "ai": {
         "score": 7.0,
         "label": "Risk-On Leaning",
         "rationale": "Geopolitical tensions easing, USD weakening, equity/commodity rallies, and safe-haven outflows (gold up but VIX down sharply) indicate strong risk appetite despite Eurozone weakness headwinds."
       },
-      "final_score": 5.81
+      "final_score": 5.6
     },
     "spread": 2.0
   },
