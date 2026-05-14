@@ -161,13 +161,13 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr"><h1>Forex1212</h1><div class="hdr-right"><span id="last-updated">Loading…</span></div></div>
   <div class="scroll-body">
     <div id="ptr-indicator">↺ Release to refresh</div>
-  <div id="drum-wrap" style="background:#020e02;border:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;display:flex;height:220px;">
+  <div id="drum-wrap" style="background:#020e02;border:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;display:flex;height:250px;">
   <div id="drum-data" style="flex:1;min-width:0;padding:10px 12px 8px;overflow:hidden;"></div>
   <div style="width:108px;flex-shrink:0;position:relative;overflow:hidden;border-left:1px solid rgba(0,204,51,.12);">
     <div style="position:absolute;top:0;left:0;right:0;height:88px;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;pointer-events:none;"></div>
     <div style="position:absolute;bottom:0;left:0;right:0;height:88px;background:linear-gradient(to top,#020e02,transparent);z-index:2;pointer-events:none;"></div>
     <div style="position:absolute;top:50%;left:0;right:0;height:44px;transform:translateY(-50%);border-top:1px solid rgba(0,204,51,.18);border-bottom:1px solid rgba(0,204,51,.18);pointer-events:none;z-index:1;"></div>
-    <div id="drum-strip-scroll" style="height:220px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;"></div>
+    <div id="drum-strip-scroll" style="height:250px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;"></div>
   </div>
 </div>
     <div id="sig-strip">
@@ -1002,9 +1002,24 @@ function _d1toWeekly(d1){
 }
 function compute1212(pair){
   const d1=getOhlcv(pair,'D1'),h4=getOhlcv(pair,'H4'),h1=getOhlcv(pair,'H1'),w1=_d1toWeekly(d1);
-  const w1m=_momentum1212(w1),d1m=_momentum1212(d1),h4m=_momentum1212(h4),h1m=_momentum1212(h1);
-  const comp=0.1*w1m+0.4*d1m+0.3*h4m+0.1*h1m;
-  return{w1:_norm1212(w1m),d1:_norm1212(d1m),h4:_norm1212(h4m),h1:_norm1212(h1m),cmp:_norm1212(comp)};
+  // Option B lookbacks: 1-week equivalent per TF
+  const LB={w1:4,d1:5,h4:30,h1:120};
+  // Raw momentum at offset (0=current, N=N bars ago)
+  const mom=(ohlcv,offset)=>{
+    if(!ohlcv||ohlcv.length<26+offset)return 0;
+    return offset>0?_momentum1212(ohlcv.slice(0,-offset)):_momentum1212(ohlcv);
+  };
+  const w1m=mom(w1,0),d1m=mom(d1,0),h4m=mom(h4,0),h1m=mom(h1,0);
+  const w1mP=mom(w1,LB.w1),d1mP=mom(d1,LB.d1),h4mP=mom(h4,LB.h4),h1mP=mom(h1,LB.h1);
+  const w1s=_norm1212(w1m),d1s=_norm1212(d1m),h4s=_norm1212(h4m),h1s=_norm1212(h1m);
+  const cmps=_norm1212(0.1*w1m+0.4*d1m+0.3*h4m+0.1*h1m);
+  // Past scores (check sufficient data)
+  const okW=w1.length>=26+LB.w1,okD=d1.length>=26+LB.d1,okH4=h4.length>=26+LB.h4,okH1=h1.length>=26+LB.h1;
+  const w1sP=okW?_norm1212(w1mP):null,d1sP=okD?_norm1212(d1mP):null;
+  const h4sP=okH4?_norm1212(h4mP):null,h1sP=okH1?_norm1212(h1mP):null;
+  const cmpsP=(okW&&okD&&okH4&&okH1)?_norm1212(0.1*w1mP+0.4*d1mP+0.3*h4mP+0.1*h1mP):null;
+  const d=(cur,past)=>past!==null?cur-past:null;
+  return{w1:w1s,d1:d1s,h4:h4s,h1:h1s,cmp:cmps,dw1:d(w1s,w1sP),dd1:d(d1s,d1sP),dh4:d(h4s,h4sP),dh1:d(h1s,h1sP),dcmp:d(cmps,cmpsP)};
 }
 function _drumD5pct(pair,currPrice){
   const ohlcv=D.d1&&D.d1._ohlcv&&D.d1._ohlcv[pair];
@@ -1024,6 +1039,20 @@ function _getAllCorrWarnings(pair){
     if(cv!==null&&Math.abs(cv)>=0.7)result.push(other.pair.replace('/',''));
   }
   return result;
+}
+
+// CSS border-triangle delta indicator — both arrows identical pixel dimensions
+function _1212Delta(delta){
+  if(delta===null)return'';
+  const n=Math.round(delta);
+  const col=n>0?'rgba(0,220,55,0.82)':'rgba(0,150,37,0.45)';
+  const arrow=n===0
+    ?`<span style="display:inline-block;width:7px;height:2px;background:rgba(0,130,30,0.4);border-radius:1px;vertical-align:middle;"></span>`
+    :n>0
+      ?`<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-bottom:6px solid ${col};vertical-align:middle;"></span>`
+      :`<span style="display:inline-block;width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid ${col};vertical-align:middle;"></span>`;
+  const num=n!==0?`<span style="font-family:'VT323',monospace;font-size:11px;color:${col};line-height:1;">${Math.abs(n)}</span>`:'';
+  return`<span style="display:inline-flex;align-items:center;justify-content:center;gap:1px;">${arrow}${num}</span>`;
 }
 
 function renderDrumData(pair){
@@ -1065,19 +1094,23 @@ function renderDrumData(pair){
     </div>
     <div style="text-align:right;flex-shrink:0;line-height:1;">
       <div style="font-size:8px;color:rgba(0,120,30,0.55);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">CMP</div>
-      <span style="${vt}font-size:22px;color:${scoreCol(s1212.cmp)};">${s1212.cmp}</span>
+      <div style="display:flex;align-items:center;gap:3px;justify-content:flex-end;">
+        <span style="${vt}font-size:22px;color:${scoreCol(s1212.cmp)};">${s1212.cmp}</span>
+        ${_1212Delta(s1212.dcmp)}
+      </div>
     </div>
   </div>`;
 
   // ── Zone 2: W1/D1/H4/H1 1212 scores (replaces TF pills)
   h+=`<div style="display:flex;gap:3px;margin-bottom:5px;">`;
-  [['W1',s1212.w1],['D1',s1212.d1],['H4',s1212.h4],['H1',s1212.h1]].forEach(([tf,val])=>{
+  [['W1',s1212.w1,s1212.dw1],['D1',s1212.d1,s1212.dd1],['H4',s1212.h4,s1212.dh4],['H1',s1212.h1,s1212.dh1]].forEach(([tf,val,dlt])=>{
     const vc=scoreCol(val);
     const bg=val>=50?'rgba(0,204,51,0.09)':'rgba(0,60,15,0.06)';
     const bdr=val>=50?'rgba(0,180,45,0.25)':'rgba(0,60,15,0.15)';
     h+=`<div style="flex:1;padding:2px 0;text-align:center;background:${bg};border:1px solid ${bdr};border-radius:3px;">
       <div style="font-size:8px;color:rgba(0,120,30,0.5);font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;">${tf}</div>
       <div style="${vt}font-size:16px;color:${vc};line-height:1.15;">${val}</div>
+      <div style="height:14px;display:flex;align-items:center;justify-content:center;">${_1212Delta(dlt)}</div>
     </div>`;
   });
   h+=`</div>`;
@@ -1174,7 +1207,7 @@ function updateDrum(){
   }
   strip.innerHTML=html;
   const idx=ranked.findIndex(r=>r.pair===selectedPair);
-  strip.scrollTop=(N+(idx>=0?idx:0))*ROW_H-2*ROW_H;
+  strip.scrollTop=(N+(idx>=0?idx:0))*ROW_H-103;
   strip.onscroll=()=>{
     if(strip.scrollTop<ROW_H)strip.scrollTop+=N*ROW_H;
     else if(strip.scrollTop>=(2*N)*ROW_H)strip.scrollTop-=N*ROW_H;
@@ -1186,7 +1219,7 @@ function updateDrum(){
       if(pair){
         const i=parseInt(row.dataset.idx);
         const cur=strip.scrollTop;
-        const targets=[0,1,2].map(c=>(c*N+i)*ROW_H-2*ROW_H);
+        const targets=[0,1,2].map(c=>(c*N+i)*ROW_H-103);
         strip.scrollTop=targets.reduce((a,b)=>Math.abs(b-cur)<Math.abs(a-cur)?b:a);
         onPairSelect(pair);
       }
@@ -1198,7 +1231,7 @@ function updateDrum(){
 
 function updateDrumHighlight(){
   const strip=document.getElementById('drum-strip-scroll');if(!strip)return;
-  const ROW_H=44,centerIdx=Math.round((strip.scrollTop+2*ROW_H)/ROW_H);
+  const ROW_H=44,centerIdx=Math.round((strip.scrollTop+103)/ROW_H);
   strip.querySelectorAll('.drum-strip-row').forEach((el,i)=>{
     const dist=Math.abs(i-centerIdx);
     const numEl=el.querySelector('.dsr-num'),pairEl=el.querySelector('.dsr-pair');
