@@ -1056,9 +1056,10 @@ function _drumD5pct(pair,currPrice){
   return prev?(currPrice-prev)/prev*100:null;
 }
 function _getAllCorrWarnings(pair){
-  if(!_drumCorrFlags||!_drumCorrFlags.has(pair))return[];
-  const idx=(drumRows||[]).findIndex(r=>r.pair===pair);if(idx<0)return[];
-  const dir=drumRows[idx].setup>50?'bull':'bear';
+  if(!_drumCorrFlags||!_drumCorrFlags.has||!_drumCorrFlags.has(pair))return[];
+  const rows=typeof drumRows!=='undefined'?drumRows:[];
+  const idx=rows.findIndex(r=>r.pair===pair);if(idx<0)return[];
+  const dir=rows[idx].setup>50?'bull':'bear';
   const result=[];
   for(let j=0;j<idx;j++){
     const other=drumRows[j];
@@ -1083,6 +1084,7 @@ function _1212Delta(delta){
 }
 function renderDrumData(pair){
   const el=document.getElementById('drum-data');if(!el)return;
+  try{
   const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
   const qai=computeQAI(pair),edge=getEdgeScore(pair);
   const nowUTC=new Date(),nowMins=nowUTC.getUTCHours()*60+nowUTC.getUTCMinutes();
@@ -1217,6 +1219,7 @@ function renderDrumData(pair){
   }
   h+=`</div>`;
   el.innerHTML=h;
+  }catch(err){el.innerHTML=`<div style="padding:8px;font-size:11px;color:rgba(248,81,73,.7);font-family:monospace;">${err.message||err}</div>`;}
 }
 
 function updateDrum(){
@@ -1590,17 +1593,35 @@ function _selectLine(id,type){
   }
 }
 function _deleteSelectedLine(){
-  if(_selectedLineId===null)return;
-  const alerts=laLoad().filter(a=>a.id!==_selectedLineId);
-  laSave(alerts);_hideFloatDel();
-  if(_selectedLineType==='h')_renderAlertLines(); else _renderVLines();
+  const id=_selectedLineId,type=_selectedLineType;  // capture BEFORE hide clears them
+  if(id===null)return;
+  const alerts=laLoad().filter(a=>a.id!==id);
+  laSave(alerts);
+  _hideFloatDel();
+  if(type==='h')_renderAlertLines(); else _renderVLines();
   pushAlertsToGitHub(alerts);
   if(navigator.vibrate)navigator.vibrate(30);
 }
 function _bounds(){const el=document.getElementById('cht-price');return el?el.getBoundingClientRect():null;}
 function _toPrice(cy){const r=_bounds();if(!r||!_chtCandles)return null;try{return _chtCandles.coordinateToPrice(cy-r.top);}catch(e){return null;}}
 function _priceToClientY(price){const r=_bounds();if(!r||!_chtCandles)return null;try{const c=_chtCandles.priceToCoordinate(price);return c!==null?c+r.top:null;}catch(e){return null;}}
-function _clientXToTime(cx){const r=_bounds();if(!r||!chtMainInst)return null;try{return chtMainInst.timeScale().coordinateToTime(cx-r.left);}catch(e){return null;}}
+function _clientXToTime(cx){
+  const r=_bounds();if(!r||!chtMainInst)return null;
+  try{
+    const ts=chtMainInst.timeScale();
+    const t=ts.coordinateToTime(cx-r.left);
+    if(t!==null)return t;
+    // Future area: extrapolate from last bar + bar duration
+    const ohlcv=getOhlcv(selectedPair,chtTf);
+    if(!ohlcv||!ohlcv.length)return null;
+    const lastBar=ohlcv[ohlcv.length-1];
+    const barDur={H1:3600,H4:14400,D1:86400}[chtTf]||3600;
+    const lastX=ts.timeToCoordinate(lastBar.time);
+    if(lastX===null)return null;
+    const barsAhead=Math.round((cx-r.left-lastX)/(barDur>3600?14:8));  // ~pixels per bar
+    return lastBar.time+(Math.max(1,barsAhead)*barDur);
+  }catch(e){return null;}
+}
 function _timeToClientX(time){const r=_bounds();if(!r||!chtMainInst)return null;try{const c=chtMainInst.timeScale().timeToCoordinate(time);return c!==null?c+r.left:null;}catch(e){return null;}}
 function _nearHLine(cy){
   if(_stagingPrice!==null){const ly=_priceToClientY(_stagingPrice);if(ly!==null&&Math.abs(cy-ly)<18)return{type:'staging'};}
@@ -1621,6 +1642,9 @@ function initDrawingSvg(){
   document.addEventListener('touchmove',e=>{if(!_draggingLine)return;const t=e.touches[0];const price=_toPrice(t.clientY);if(price!==null)_setStagingLine(price);e.preventDefault();},{passive:false,capture:true});
   document.addEventListener('touchend',function(e){
     if(_draggingLine){_draggingLine=false;return;}
+    // Don't intercept taps on the float-del pill (let its onclick fire first)
+    const floatDel=document.getElementById('cht-float-del');
+    if(floatDel&&floatDel.contains(e.target))return;
     const t=e.changedTouches[0];
     const isTap=Math.abs(t.clientX-_ts.x)<14&&Math.abs(t.clientY-_ts.y)<14&&(Date.now()-_ts.t)<450;
     if(!isTap)return;
@@ -1641,6 +1665,8 @@ function initDrawingSvg(){
   document.addEventListener('mouseup',()=>{_md=false;},true);
   document.addEventListener('click',function(e){
     if(!chtMainInst)return;
+    const floatDel=document.getElementById('cht-float-del');
+    if(floatDel&&floatDel.contains(e.target))return;
     const r=_bounds();if(!r)return;
     const inChart=e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom;
     if(!inChart){_hideFloatDel();return;}
