@@ -265,7 +265,8 @@ tr:last-child td{border-bottom:none;}
   <div id="cht-canvas-area" style="flex:1;min-height:0;display:flex;flex-direction:column;position:relative;">
     <div id="cht-ohlc" style="position:absolute;top:6px;left:8px;z-index:20;font-family:'VT323',monospace;font-size:14px;line-height:1.4;pointer-events:none;display:none;background:rgba(13,17,23,.82);padding:3px 8px;border-radius:4px;border:1px solid rgba(48,54,61,.7);white-space:nowrap;"></div>
     <div id="cht-price" style="flex:1;min-height:0;"></div>
-    <div id="cht-sub" style="display:none;height:26%;min-height:80px;border-top:2px solid var(--border);flex-shrink:0;position:relative;"></div>
+    <div id="cht-pane-drag" style="display:none;height:6px;flex-shrink:0;cursor:ns-resize;background:transparent;position:relative;z-index:10;" title="Drag to resize indicator pane"><div style="position:absolute;inset:2px 0;background:var(--border);transition:background .15s;"></div></div>
+    <div id="cht-sub" style="display:none;height:26%;min-height:60px;flex-shrink:0;position:relative;"></div>
   </div>
   <div id="cht-controls">
     <!-- Row 1: Indicators -->
@@ -1375,6 +1376,45 @@ function toggleInd(key){
 function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
 function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);_removeStagingLine();if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;_drawTool=null;_stagingLine=null;}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
+// Pane drag-resize: drag the handle between price chart and sub-pane
+(function initPaneDrag(){
+  let dragging=false,startY=0,startH=0;
+  document.addEventListener('mousedown',e=>{
+    const handle=document.getElementById('cht-pane-drag');
+    if(!handle||!handle.contains(e.target))return;
+    const sub=document.getElementById('cht-sub');if(!sub)return;
+    dragging=true;startY=e.clientY;startH=sub.clientHeight;
+    handle.querySelector('div').style.background='var(--accent)';
+    e.preventDefault();
+  });
+  document.addEventListener('touchstart',e=>{
+    const handle=document.getElementById('cht-pane-drag');
+    if(!handle||!handle.contains(e.target))return;
+    const sub=document.getElementById('cht-sub');if(!sub)return;
+    dragging=true;startY=e.touches[0].clientY;startH=sub.clientHeight;
+    e.preventDefault();
+  },{passive:false});
+  function onMove(clientY){
+    if(!dragging)return;
+    const sub=document.getElementById('cht-sub');if(!sub)return;
+    const area=document.getElementById('cht-canvas-area');
+    const maxH=area?area.clientHeight*0.7:400;
+    const newH=Math.min(maxH,Math.max(60,startH-(clientY-startY)));
+    sub.style.height=newH+'px';
+    if(chtSubInst)chtSubInst.applyOptions({width:sub.clientWidth,height:newH});
+    if(chtMainInst)chtMainInst.applyOptions({width:document.getElementById('cht-price').clientWidth,height:document.getElementById('cht-price').clientHeight});
+  }
+  document.addEventListener('mousemove',e=>{if(dragging)onMove(e.clientY);});
+  document.addEventListener('touchmove',e=>{if(dragging)onMove(e.touches[0].clientY);},{passive:true});
+  function onUp(){
+    if(!dragging)return;dragging=false;
+    const handle=document.getElementById('cht-pane-drag');
+    if(handle)handle.querySelector('div').style.background='var(--border)';
+  }
+  document.addEventListener('mouseup',onUp);
+  document.addEventListener('touchend',onUp);
+})();
+
 function startCandleTimer(){if(candleTimerInt)clearInterval(candleTimerInt);function tick(){const el=document.getElementById('cht-timer');if(!el)return;if(closed()){el.textContent='';return;}const now=Math.floor(Date.now()/1000);const tfSecs={H1:3600,H4:14400,D1:86400}[chtTf]||3600;const secsLeft=tfSecs-(now%tfSecs);const h=Math.floor(secsLeft/3600),m=Math.floor((secsLeft%3600)/60),s=secsLeft%60;const pad=n=>String(n).padStart(2,'0');el.textContent=h>0?h+':'+pad(m)+':'+pad(s):pad(m)+':'+pad(s);el.style.color=secsLeft<=60?'var(--sell)':'var(--muted)';}tick();candleTimerInt=setInterval(tick,1000);}
 let _wsPriceLine=null,_chtCandles=null,_subChartOffset=0;
 function wsUpdatePrice(price){
@@ -1630,8 +1670,9 @@ async function renderChtPrice(){
   const isJpy=selectedPair.includes('JPY');
   const hasSub=indState.macd||indState.rsi||indState.osc1212;
   // Resize containers
-  if(hasSub&&subEl){priceEl.style.flex='1';subEl.style.display='block';}
-  else if(subEl)subEl.style.display='none';
+  const dragEl=document.getElementById('cht-pane-drag');
+  if(hasSub&&subEl){priceEl.style.flex='1';subEl.style.display='block';if(dragEl)dragEl.style.display='block';}
+  else if(subEl){subEl.style.display='none';if(dragEl)dragEl.style.display='none';}
   // Build price chart
   priceEl.innerHTML='';
   const w=priceEl.clientWidth||window.innerWidth,h=priceEl.clientHeight||300;
