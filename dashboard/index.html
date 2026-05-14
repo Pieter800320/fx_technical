@@ -1876,7 +1876,8 @@ function checkLevelAlerts(){
 }
 function checkLevelAlertsLive(price,pair){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active||a.pair!==pair)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;setTimeout(()=>alert('🔔 Alert: '+pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed){laSave(alerts);_renderAlertLines();renderChtAlerts();}}
 async function pushTradesToGitHub(trades){
-  const token=localStorage.getItem('gh_pat');if(!token)return;
+  const token=localStorage.getItem('gh_pat');
+  if(!token){console.warn('[Forex1212] gh_pat not set — trades not synced to GitHub. TP/SL scanner alerts will not fire.');return;}
   const apiUrl=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/data/trades.json`;
   const content=btoa(unescape(encodeURIComponent(JSON.stringify(trades,null,2))));
   let sha=null;
@@ -2308,6 +2309,35 @@ function exportCSV(){
 }
 // ── LOAD + INIT
 async function load(file){try{const r=await fetch(`${GH_RAW}/${file}?t=${Date.now()}`);if(!r.ok)return null;return await r.json();}catch{return null;}}
+async function mergeAlertsFromGitHub(){
+  // Sync level alert deactivations from GitHub back to localStorage.
+  // When the H1 scanner fires a level alert it sets active=false in data/level_alerts.json.
+  // Without this merge, the dashboard localStorage still shows the alert as active,
+  // and the next pushAlertsToGitHub call would re-activate it — causing double fires.
+  const token=localStorage.getItem('gh_pat');if(!token)return;
+  try{
+    const apiUrl=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/data/level_alerts.json`;
+    const get=await fetch(apiUrl,{headers:{Authorization:`token ${token}`,Accept:'application/vnd.github.v3+json'}});
+    if(!get.ok)return;
+    const meta=await get.json();
+    const remote=JSON.parse(atob(meta.content.replace(/\n/g,'')));
+    if(!Array.isArray(remote))return;
+    const local=laLoad();
+    let changed=false;
+    const merged=local.map(la=>{
+      const rem=remote.find(r=>r.id===la.id);
+      // If GitHub has deactivated an alert the local copy still thinks is active → sync
+      if(rem&&la.active&&!rem.active){changed=true;return{...la,active:false};}
+      return la;
+    });
+    // Also bring in any alerts that exist on GitHub but not locally
+    remote.forEach(r=>{
+      if(!merged.find(m=>m.id===r.id)){merged.push(r);changed=true;}
+    });
+    if(changed){laSave(merged);_renderAlertLines();renderChtAlerts();}
+  }catch(e){}
+}
+
 async function init(){
   const[h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief,alertCooldown]=await Promise.all([
     load("h1_scores.json"),load("h4_scores.json"),load("d1_scores.json"),
@@ -2320,6 +2350,7 @@ async function init(){
   if(ts.length)document.getElementById("last-updated").textContent="Updated "+parseTS(ts[ts.length-1]).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   D={h1,h4,d1,csm,alerts,regime,corr,conviction,calendar,rates,newsBrief,alertCooldown};
   await mergeTradesFromGitHub();
+  await mergeAlertsFromGitHub();
   renderRegime(regime);renderCSM(csm,conviction);renderSignalStrip(selectedPair);renderIndStrip(selectedPair);checkLevelAlerts();migrateOldTrades();checkTrades();renderLog();updateDrum();
 }
 init();setInterval(init,5*60*1000);
