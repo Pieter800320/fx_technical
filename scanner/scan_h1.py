@@ -6,7 +6,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config.pairs import PAIRS, pair_display, is_pair_active, get_active_sessions
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, is_extended
-from alerts.telegram import send_level_alert, send_trade_alert
+from alerts.telegram import send_level_alert, send_trade_alert, send_time_alert
 
 DATA_DIR     = os.path.join(os.path.dirname(__file__), "..", "data")
 H1_OUTPUT    = os.path.join(DATA_DIR, "h1_scores.json")
@@ -188,7 +188,34 @@ def check_trades(ohlcv: dict):
         print(f"  [Trade] Updated trades.json")
 
 
-def main():
+def check_time_alerts():
+    """Fire Telegram when current UTC time has passed a vertical time alert."""
+    alerts = load_list(LEVEL_ALERTS)
+    if not alerts:
+        return
+    changed = False
+    now_ts = datetime.datetime.utcnow().timestamp()
+    for a in alerts:
+        if a.get('type') != 'v' or not a.get('active', True):
+            continue
+        alert_time = a.get('time')
+        if alert_time is None:
+            continue
+        if float(alert_time) <= now_ts:
+            pair  = a.get('pair', '')
+            label = a.get('label', '')
+            tf    = a.get('tf', '')
+            print(f"  [Time] ★ {pair} time alert reached — {label or 'no label'}")
+            send_time_alert(pair=pair, label=label, alert_time=int(alert_time), tf=tf)
+            a['active'] = False
+            a['triggered_at'] = datetime.datetime.utcnow().isoformat()
+            changed = True
+    if changed:
+        save_json(LEVEL_ALERTS, alerts)
+        print("  [Time] Updated level_alerts.json")
+
+
+
     print(f"\n=== H1 Scan — {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M')} UTC ===")
     os.makedirs(DATA_DIR, exist_ok=True)
 
@@ -227,6 +254,9 @@ def main():
 
     # ── Level alerts ──────────────────────────────────────────────────────────
     check_level_alerts(ohlcv)
+
+    # ── Time alerts ────────────────────────────────────────────────────────────
+    check_time_alerts()
 
     # ── Trade TP/SL alerts ────────────────────────────────────────────────────
     if not market_closed:
