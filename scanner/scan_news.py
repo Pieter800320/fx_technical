@@ -655,7 +655,7 @@ def call_regime_sentiment(macro_text, themes_data):
         f"MACRO:\n{macro_text}\n\n"
         f"NEWS THEMES (USD bias={usd_bias}, risk={risk_sent}):\n{t_text}\n\n"
         "Respond ONLY with valid JSON, no markdown:\n"
-        '{"score":7,"label":"Risk-On Leaning","rationale":"One sentence max."}'
+        '{"score":<1-10>,"label":"<your label>","rationale":"<one sentence>"}'
     )
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resp = client.messages.create(
@@ -792,7 +792,8 @@ def main():
                 try:
                     h4_reg = regime.get("h4") or {}
                     mb = regime.get("macro_bias")
-                    final_reg = compute_final_regime(h4_reg, mb, ai_sentiment)
+                    w1_reg = regime.get("w1_regime")
+                    final_reg = compute_final_regime(h4_reg, mb, ai_sentiment, w1_regime=w1_reg)
                     regime_path = BASE_DIR / "data" / "regime.json"
                     reg_doc = {}
                     if regime_path.exists():
