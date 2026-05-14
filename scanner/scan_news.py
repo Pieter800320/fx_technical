@@ -24,7 +24,7 @@ AI pipeline
   Edge      : claude-haiku  (scoring — structured output)
 """
 
-import json, os, re, urllib.request
+import json, os, re, urllib.request, math
 from datetime import datetime, timezone, timedelta
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -447,6 +447,100 @@ def _strip_json(raw):
     return raw[start:end + 1]
 
 
+# ── 1212 momentum helpers ─────────────────────────────────────────────────────
+def _atr14_py(ohlcv):
+    n = len(ohlcv)
+    if n < 15: return 0
+    total = sum(
+        max(ohlcv[i]['high'] - ohlcv[i]['low'],
+            abs(ohlcv[i]['high'] - ohlcv[i-1]['close']),
+            abs(ohlcv[i]['low']  - ohlcv[i-1]['close']))
+        for i in range(n-14, n)
+    )
+    return total / 14
+
+def _mom1212_py(ohlcv):
+    n = len(ohlcv)
+    if n < 26: return 0.0
+    closes  = [b['close'] for b in ohlcv]
+    sma_now  = sum(closes[-12:]) / 12
+    sma_past = sum(closes[-24:-12]) / 12
+    atr = _atr14_py(ohlcv)
+    return (sma_now - sma_past) / (12 * atr) if atr else 0.0
+
+def _norm1212_py(m):
+    e = math.exp(min(max(5.6 * m, -30), 30))
+    return round(50 + 50 * (e - 1) / (e + 1))
+
+def _d1_to_weekly_py(d1):
+    weeks, cur = [], None
+    for b in d1:
+        wk = b['time'] // (7 * 86400)
+        if not cur or cur['wk'] != wk:
+            if cur: weeks.append(cur)
+            cur = {'wk': wk, 'time': b['time'], 'open': b['open'],
+                   'high': b['high'], 'low': b['low'], 'close': b['close']}
+        else:
+            cur['high']  = max(cur['high'],  b['high'])
+            cur['low']   = min(cur['low'],   b['low'])
+            cur['close'] = b['close']
+    if cur: weeks.append(cur)
+    return weeks
+
+def compute_1212_text(d1_data, h4_data):
+    """
+    Compute ATR-normalised 1212 momentum for each pair and return a
+    concise block for the Sonnet narrative prompt.
+    Only includes pairs with meaningful signal (CMP off 50 or notable delta).
+    """
+    LB = {'w1': 4, 'd1': 5, 'h4': 30}
+
+    def past(ohlcv, lb):
+        if len(ohlcv) < 26 + lb: return None
+        return _norm1212_py(_mom1212_py(ohlcv[:-lb]))
+
+    def arr(d):
+        if d >  10: return '↑↑'
+        if d >   3: return '↑'
+        if d <  -10: return '↓↓'
+        if d <  -3: return '↓'
+        return '→'
+
+    lines = []
+    for pair in PAIRS:
+        d1o = (d1_data.get('_ohlcv') or {}).get(pair, [])
+        h4o = (h4_data.get('_ohlcv') or {}).get(pair, [])
+        if not d1o or not h4o:
+            continue
+        w1o = _d1_to_weekly_py(d1o)
+
+        w1m = _mom1212_py(w1o); d1m = _mom1212_py(d1o); h4m = _mom1212_py(h4o)
+        cmp_s = _norm1212_py(0.1*w1m + 0.4*d1m + 0.3*h4m)
+        d1_s  = _norm1212_py(d1m);  h4_s = _norm1212_py(h4m)
+
+        d1_p  = past(d1o, LB['d1']); h4_p = past(h4o, LB['h4'])
+        d1_d  = d1_s - d1_p  if d1_p  is not None else 0
+        h4_d  = h4_s - h4_p  if h4_p  is not None else 0
+
+        # Skip neutral pairs
+        if abs(cmp_s - 50) < 6 and abs(d1_d) < 4 and abs(h4_d) < 4:
+            continue
+
+        tag = ('accelerating'         if d1_d >  5 and h4_d >  5 else
+               'decelerating'         if d1_d < -5 and h4_d < -5 else
+               'D1 rising/H4 fading'  if d1_d >  4 and h4_d < -4 else
+               'D1 fading/H4 rising'  if d1_d < -4 and h4_d >  4 else
+               'extended bull'        if cmp_s > 70 else
+               'extended bear'        if cmp_s < 30 else '')
+        lines.append(
+            f"{pair.replace('/','')}: CMP={cmp_s} "
+            f"D1={d1_s}{arr(d1_d)} H4={h4_s}{arr(h4_d)}"
+            + (f"  [{tag}]" if tag else "")
+        )
+
+    return '\n'.join(lines) if lines else "No significant momentum signals"
+
+
 def call_themes(headlines_text, n):
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     now_iso = datetime.now(timezone.utc).isoformat()
@@ -490,87 +584,87 @@ def build_corr_text(corr):
     return "\n".join(lines)
 
 
-def call_narrative(macro, themes_data, tech_text, corr_text):
-    """Generate structured five-section FX narrative. Plain text only — no markdown."""
+def call_narrative(macro, themes_data, tech_text, corr_text, momentum_text=""):
+    """Generate succinct 3-section FX brief: DRIVER / MOMENTUM / WATCH."""
 
     macro_lines = []
     for key, _, label, invert in STOOQ_INSTRUMENTS:
         d = macro.get(key)
-        if not d:
-            continue
+        if not d: continue
         chg = d["change_pct"]
         arr = "up" if chg > 0 else "down" if chg < 0 else "flat"
         macro_lines.append(f"{label}: {fmt_val(d['value'])} ({arr} {abs(chg):.2f}%)")
     macro_text = "\n".join(macro_lines) or "No macro data"
 
-    themes   = themes_data.get("themes", [])
-    t_lines  = [
-        f"- {t['theme']} [{t['direction'].upper()}] ({t.get('confidence', '?')})"
+    themes  = themes_data.get("themes", [])
+    t_lines = [
+        f"- {t['theme']} [{t['direction'].upper()}] ({t.get('confidence','?')})"
         for t in themes[:6]
     ]
     themes_text = (
-        f"USD bias: {themes_data.get('usd_bias', '?')} | "
-        f"Risk sentiment: {themes_data.get('risk_sentiment', '?')}\n"
+        f"USD bias: {themes_data.get('usd_bias','?')} | "
+        f"Risk sentiment: {themes_data.get('risk_sentiment','?')}\n"
         + "\n".join(t_lines)
     )
 
-    # FIX: explicit no-markdown instruction in both system and user prompts
     system = (
-        "You are a professional macro FX trader. "
-        "Your task is to synthesize multi-source market data into a clear, internally consistent narrative. "
-        "You must resolve contradictions by prioritizing correlation and price behavior over narrative. "
-        "Do not summarize inputs. Infer the dominant drivers and produce a coherent, decisive interpretation. "
-        "CRITICAL: Write in plain text only. "
-        "Do not use any markdown formatting whatsoever: no asterisks, no hash symbols, "
-        "no dashes used as decorators, no bold, no italic, no underscores for emphasis. "
-        "Use plain sentences and the exact section headers shown below, nothing else."
+        "You are a professional institutional FX trader writing a real-time brief "
+        "for a single active trader. You have four data sources: correlations, "
+        "technicals, cross-asset macro, and news themes. Your job is to synthesize "
+        "them into one decisive read — not summarise each source separately.\n\n"
+        "Rules that cannot be broken:\n"
+        "- Every sentence must name a specific currency pair or instrument\n"
+        "- No hedging language. No phrases like may, could suggest, some uncertainty\n"
+        "- No generic statements. 'Markets are risk-on' is banned. "
+        "'AUD leads on CSM 100 with AUDJPY printing D1+H4 strong buy' is correct\n"
+        "- Plain text only. Zero markdown. No asterisks, hashes, dashes as decoration\n"
+        "- Correlation data overrides narrative when they conflict\n"
+        "- If H4 CSM diverges from D1 CSM by 20+ points for a currency, "
+        "flag it as the most important short-term signal in the brief"
     )
 
     user = f"""DATA:
 
-1) CORRELATIONS (H4, 50-bar):
+1) CORRELATIONS (H4 50-bar):
 {corr_text}
 
-2) TECHNICALS (regime, CSM strength, signals, ADX):
+2) TECHNICALS (regime, CSM D1+H4, signals, ADX, macro overlay):
 {tech_text}
 
 3) CROSS-ASSET MACRO:
 {macro_text}
 
-4) NEWS / FUNDAMENTALS:
+4) NEWS THEMES:
 {themes_text}
 
-TASK: Produce a structured FX market narrative in EXACTLY this format. Plain text only.
+5) 1212 MOMENTUM (ATR-normalised trend persistence 0-100, arrows = change vs 1 week):
+{momentum_text or "Not available"}
 
-DOMINANT DRIVERS
-Rank the top 3 drivers by strength. One line each. Format: 1. Driver name because reason it is dominant
+---
 
-PRICE CONFIRMS
-What correlation data and price action confirms or rejects the narrative. 2-3 sentences. Be specific about which pairs are leading or lagging.
+TASK: Write exactly three sections. Total output under 180 words.
 
-REGIME
-One line: Risk-On or Risk-Off or Mixed, confirmed or conflicted. Reference VIX, Gold, and S&P500 specifically.
+DRIVER
+One paragraph, two sentences maximum. Sentence one: the single dominant cross-asset story — name the leading currency by CSM rank, the regime, and the macro catalyst driving it. Sentence two: which specific pairs best express this and why, referencing correlation clusters if they amplify the move. Add a third sentence only if there is a genuine data-backed counter-narrative a trader needs to know right now.
 
-CONTRADICTIONS
-Identify max 2 genuine conflicts between sources. If none, write: None identified. Format: 1. Pair or theme: conflict explained in one line
+MOMENTUM
+Two lines only. Format exactly:
+Gaining: [pairs where 1212 CMP is rising and above 55, with brief TF context]
+Fading:  [pairs where 1212 CMP is falling and below 45, with brief TF context]
+If no pairs qualify for a line, write None. Do not invent momentum signals.
 
-TRADE IMPLICATIONS
-Best: Pair up or down - reason in max 15 words - Conviction X/10
-Secondary: Pair up or down - reason in max 15 words - Conviction X/10
-Avoid: Pair - reason in max 10 words
-Watch: One trigger that confirms or invalidates the primary trade
+WATCH
+Exactly three bullets, no dashes. Each bullet: one specific upcoming catalyst, one specific pair or instrument it affects, what the triggered scenario means for direction. No vague entries. No repeating what is already in DRIVER.
 
 RULES:
-- Correlation overrides fundamentals if they conflict
-- Conviction score: 10 means all four sources aligned, 1 means all sources conflicted
-- No generic statements such as markets are uncertain
-- No hedging language. Be decisive.
-- NO markdown formatting of any kind. No asterisks, no hash symbols, no bold, no bullet dashes."""
+- Under 180 words total across all three sections
+- No markdown whatsoever
+- No bullet dashes"""
 
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     resp = client.messages.create(
         model="claude-sonnet-4-6",
-        max_tokens=700,
+        max_tokens=500,
         system=system,
         messages=[{"role": "user", "content": user}],
     )
@@ -730,6 +824,12 @@ def main():
 
     tech_text = build_tech_text(h4, d1, csm, regime)
     corr_text = build_corr_text(corr)
+    try:
+        momentum_text = compute_1212_text(d1, h4)
+        print(f"  1212 momentum: {len(momentum_text.splitlines())} pairs")
+    except Exception as _me:
+        momentum_text = ""
+        print(f"  1212 momentum error: {_me}")
 
     # 4. Default stub — macro always present even if Claude is unavailable
     result = {
@@ -766,7 +866,7 @@ def main():
 
         if result["status"] == "ok":
             try:
-                result["narrative"] = call_narrative(macro, result, tech_text, corr_text)
+                result["narrative"] = call_narrative(macro, result, tech_text, corr_text, momentum_text)
             except Exception as e:
                 print(f"  Claude narrative error: {e}")
             try:
