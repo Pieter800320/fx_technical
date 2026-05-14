@@ -34,12 +34,10 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 #sheet-title{font-size:var(--md);font-weight:700;}#sheet-subtitle{font-size:var(--sm);font-weight:700;}
 #sheet-close-btn{background:transparent;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--muted);font-size:var(--xs);padding:3px 8px;cursor:pointer;}
 #sheet-body{overflow-y:auto;flex:1;}
-#drum-wrap{background:#020e02;border:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;}
-#drum-scroll{height:176px;overflow-y:scroll;scroll-snap-type:y mandatory;-webkit-overflow-scrolling:touch;scrollbar-width:none;overscroll-behavior:contain;margin:0 48px;}
+#drum-wrap{background:#020e02;border:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;display:flex;height:250px;}
+/* old drum-scroll removed */
 #drum-scroll::-webkit-scrollbar{display:none;}
-.drum-row{height:44px;scroll-snap-align:center;display:flex;align-items:center;padding:0 12px;font-family:'VT323',monospace;font-size:24px;color:#00cc44;border-bottom:1px solid rgba(0,204,51,.08);white-space:nowrap;cursor:pointer;transition:opacity .1s;width:100%;box-sizing:border-box;}
-.drum-row.drum-center{color:#00ff55;text-shadow:0 0 8px rgba(0,255,65,.4);}
-.drum-row.d-corr{}
+/* old drum-row CSS removed */
 #drum-wall-l{position:absolute;top:0;left:0;width:48px;height:100%;background:#020e02;border-right:1px solid rgba(0,204,51,.18);z-index:3;overflow:hidden;}
 #drum-rank-scroll{height:100%;overflow:hidden;pointer-events:none;}
 #drum-wall-r{position:absolute;top:0;right:0;width:48px;height:100%;background:#020e02;border-left:1px solid rgba(0,204,51,.18);z-index:3;}
@@ -161,7 +159,7 @@ tr:last-child td{border-bottom:none;}
   <div class="hdr"><h1>Forex1212</h1><div class="hdr-right"><span id="last-updated">Loading…</span></div></div>
   <div class="scroll-body">
     <div id="ptr-indicator">↺ Release to refresh</div>
-  <div id="drum-wrap" style="background:#020e02;border:1px solid rgba(0,204,51,.18);position:relative;flex-shrink:0;display:flex;height:220px;">
+  <div id="drum-wrap" style="background:#020e02;border:1px solid rgba(0,204,51,.18);flex-shrink:0;">
   <div id="drum-data" style="flex:1;min-width:0;padding:10px 12px 8px;overflow:hidden;"></div>
   <div style="width:72px;flex-shrink:0;position:relative;overflow:hidden;border-left:1px solid rgba(0,204,51,.12);">
     <div style="position:absolute;top:0;left:0;right:0;height:88px;background:linear-gradient(to bottom,#020e02,transparent);z-index:2;pointer-events:none;"></div>
@@ -280,10 +278,13 @@ tr:last-child td{border-bottom:none;}
     <div style="display:flex;gap:4px;padding:5px var(--pad);border-bottom:1px solid var(--border2);align-items:center;">
       <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Tap chart to place horizontal level" style="padding:4px 9px;flex-shrink:0;font-size:var(--xs);">— Level</button>
       <button id="draw-btn-vline" class="btn btn-muted" onclick="setDrawTool('vline')" title="Tap chart to place time alert" style="padding:4px 9px;flex-shrink:0;font-size:var(--xs);">| Time</button>
+    </div>
+    <!-- Row 2b: staging controls — appear below when active -->
+    <div id="cht-staging-row" style="display:none;gap:4px;padding:4px var(--pad);border-bottom:1px solid var(--border2);align-items:center;">
       <input id="cht-alert-inp" type="number" step="0.00001" placeholder="price…" oninput="_onAlertInputChange()" style="width:80px;flex-shrink:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:4px 6px;font-size:var(--sm);display:none;"/>
-      <input id="cht-label-inp" type="text" maxlength="20" placeholder="Label (opt.)" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:4px 7px;font-size:var(--sm);display:none;"/>
+      <input id="cht-label-inp" type="text" maxlength="20" placeholder="Label (opt.)" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:4px 7px;font-size:var(--sm);"/>
       <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:4px 7px;flex-shrink:0;min-width:56px;display:none;">&#8593; Above</button>
-      <button id="cht-set-btn" class="btn" onclick="_commitStaging()" style="padding:4px 9px;flex-shrink:0;display:none;">Set</button>
+      <button id="cht-set-btn" class="btn" onclick="_commitStaging()" style="padding:4px 9px;flex-shrink:0;">Set</button>
     </div>
     <div id="cht-alerts-list" style="display:none;"></div>
 
@@ -555,7 +556,18 @@ function computeRateDiff(pair){
   const br=_rm[base],qr=_rm[quote];if(!br||!qr)return null;
   return{diff:Math.round((br.rate-qr.rate)*100),baseRate:br.rate,quoteRate:qr.rate,baseBank:br.bank,quoteBank:qr.bank,direction:'stable',base,quote};
 }
-function onPairSelect(pair){selectedPair=pair;renderSignalStrip(pair);renderIndStrip(pair);highlightCSM(pair);updateCloseTradeBtn();renderDrumData(pair);}
+function onPairSelect(pair){
+  selectedPair=pair;
+  renderSignalStrip(pair);
+  renderIndStrip(pair);
+  highlightCSM(pair);
+  updateCloseTradeBtn();
+  try{renderDrumData(pair);}catch(e){
+    const el=document.getElementById('drum-data');
+    if(el)el.innerHTML='<div style="padding:8px;font-size:10px;color:red;font-family:monospace;">'+e.stack+'</div>';
+    console.error('renderDrumData crash:',e);
+  }
+}
 function pillBgClass(lbl){if(!lbl||lbl==='N/A')return'pill-N';const l=lbl.toLowerCase();if(l==='strong buy')return'pill-SB';if(l==='buy')return'pill-B';if(l==='strong sell')return'pill-SS';if(l==='sell')return'pill-S';if(l==='conflict')return'pill-CF';return'pill-N';}
 function renderSignalStrip(pair){
   ['d1','h4','h1'].forEach(tf=>{
@@ -1083,7 +1095,9 @@ function _1212Delta(delta){
   return`<span style="display:inline-flex;align-items:center;justify-content:center;gap:1px;">${arrow}${num}</span>`;
 }
 function renderDrumData(pair){
-  const el=document.getElementById('drum-data');if(!el)return;
+  const el=document.getElementById('drum-data');if(!el){console.error('drum-data not found');return;}
+  // Quick test: does writing work?
+  el.style.minHeight='200px';
   try{
   const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
   const qai=computeQAI(pair),edge=getEdgeScore(pair);
@@ -1273,7 +1287,7 @@ function updateDrum(){
     };
   });
   updateDrumHighlight();
-  renderDrumData(selectedPair);
+  try{renderDrumData(selectedPair);}catch(e){const el=document.getElementById('drum-data');if(el)el.innerHTML='<div style="padding:8px;font-size:10px;color:red;font-family:monospace;">'+e.stack+'</div>';}
 }
 
 function updateDrumHighlight(){
@@ -1431,14 +1445,15 @@ function _updateToolUI(){
     b.style.borderColor=on?'rgba(227,179,65,.4)':'var(--border)';
   });
   const stagH=_stagingPrice!==null,stagV=_stagingVTime!==null;
+  const hasStagingAnything=stagH||stagV;
+  // Show/hide entire staging row
+  const stagingRow=document.getElementById('cht-staging-row');
+  if(stagingRow)stagingRow.style.display=hasStagingAnything?'flex':'none';
   const priceInp=document.getElementById('cht-alert-inp');
-  const labelInp=document.getElementById('cht-label-inp');
   const dirBtn  =document.getElementById('cht-dir-btn');
-  const setBtn  =document.getElementById('cht-set-btn');
+  // Price input + direction only for H lines
   if(priceInp)priceInp.style.display=stagH?'block':'none';
-  if(labelInp)labelInp.style.display=(stagH||stagV)?'block':'none';
   if(dirBtn)  dirBtn.style.display  =stagH?'inline-flex':'none';
-  if(setBtn)  setBtn.style.display  =(stagH||stagV)?'inline-flex':'none';
 }
 function _disengage(){
   _drawTool=null;
@@ -1504,15 +1519,34 @@ function _removeStagingVLine(){
   _stagingVDiv=null;_stagingVTime=null;
 }
 function _renderAlertLines(){
-  _alertLineRefs.forEach(({priceLine})=>{try{_chtCandles&&_chtCandles.removePriceLine(priceLine);}catch(e){}});
+  // Remove old price lines
+  _alertLineRefs.forEach(r=>{
+    try{_chtCandles&&_chtCandles.removePriceLine(r.priceLine);}catch(e){}
+    if(r.labelDiv&&r.labelDiv.parentNode)r.labelDiv.parentNode.removeChild(r.labelDiv);
+  });
   _alertLineRefs=[];
   if(!_chtCandles)return;
+  const area=document.getElementById('cht-price');
   const dec=selectedPair.includes('JPY')?3:5;
   laLoad().filter(a=>(!a.type||a.type==='h')&&a.pair===selectedPair&&a.active).forEach(a=>{
     try{
-      const lbl=(a.label?a.label+' ':'')+a.price.toFixed(dec);
-      const pl=_chtCandles.createPriceLine({price:a.price,color:'rgba(227,179,65,0.7)',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:true,title:lbl});
-      _alertLineRefs.push({id:a.id,priceLine:pl,price:a.price});
+      // Grey dashed line, no axis label (avoids encroaching on chart)
+      const pl=_chtCandles.createPriceLine({price:a.price,color:'rgba(139,148,158,0.55)',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,axisLabelVisible:false,title:''});
+      // Label div on left side, same style as V line labels
+      let labelDiv=null;
+      if(area){
+        labelDiv=document.createElement('div');
+        labelDiv.style.cssText="position:absolute;left:4px;font-family:'VT323',monospace;font-size:11px;color:rgba(139,148,158,0.7);pointer-events:none;white-space:nowrap;z-index:7;background:rgba(13,17,23,.6);padding:0 3px;";
+        labelDiv.textContent=(a.label?a.label+' ':'')+a.price.toFixed(dec);
+        area.appendChild(labelDiv);
+        // Position vertically using priceToCoordinate
+        const posLabel=()=>{
+          try{const y=_chtCandles.priceToCoordinate(a.price);if(y!==null&&labelDiv)labelDiv.style.top=(y-12)+'px';}catch(e){}
+        };
+        posLabel();
+        setTimeout(posLabel,200);
+      }
+      _alertLineRefs.push({id:a.id,priceLine:pl,price:a.price,labelDiv});
     }catch(e){}
   });
 }
@@ -1525,8 +1559,13 @@ function _renderVLines(){
   if(!chtMainInst)return;
   const area=document.getElementById('cht-price');if(!area)return;
   const ts=chtMainInst.timeScale();
+  const areaW=area.clientWidth||300;
   laLoad().filter(a=>a.type==='v'&&a.pair===selectedPair&&a.active).forEach(a=>{
-    const x=ts.timeToCoordinate(a.time);if(x===null)return;
+    const xRaw=ts.timeToCoordinate(a.time);
+    const isFuture=Date.now()/1000<a.time;
+    // Future lines that are off-screen get parked at right edge — visible as reminder
+    const x=xRaw!==null?xRaw:(isFuture?areaW-2:null);
+    if(x===null)return;
     const isPast=Date.now()/1000>a.time;
     const col=isPast?'rgba(139,148,158,0.5)':'rgba(227,179,65,0.7)';
     const div=document.createElement('div');
@@ -1551,6 +1590,13 @@ function _repositionVLines(){
     if(r.div){r.div.style.display=x===null?'none':'block';if(x!==null){r.div.style.left=x+'px';}}
     if(r.labelDiv){r.labelDiv.style.display=x===null?'none':'block';if(x!==null)r.labelDiv.style.left=(x+5)+'px';}
   });
+  // Also reposition H line labels
+  if(_chtCandles){
+    _alertLineRefs.forEach(r=>{
+      if(!r.labelDiv)return;
+      try{const y=_chtCandles.priceToCoordinate(r.price);if(y!==null)r.labelDiv.style.top=(y-12)+'px';}catch(e){}
+    });
+  }
   if(_stagingVDiv&&_stagingVTime!==null){const x=ts.timeToCoordinate(_stagingVTime);if(x!==null)_stagingVDiv.style.left=x+'px';}
 }
 function _showFloatDel(cx,cy,label){
@@ -1566,8 +1612,17 @@ function _showFloatDel(cx,cy,label){
 function _hideFloatDel(){
   const el=document.getElementById('cht-float-del');if(el)el.style.display='none';
   _selectedLineId=null;_selectedLineType=null;
-  _vLineRefs.forEach(r=>{if(r.div)r.div.style.borderLeftColor='rgba(227,179,65,0.7)';});
-  _alertLineRefs.forEach(r=>{try{r.priceLine.applyOptions({color:'rgba(227,179,65,0.7)'});}catch(e){}});
+  // Restore V lines to correct colour (grey=past, amber=future)
+  const now=Date.now()/1000;
+  _vLineRefs.forEach(r=>{
+    const col=r.time<now?'rgba(139,148,158,0.5)':'rgba(227,179,65,0.7)';
+    if(r.div)r.div.style.borderLeftColor=col;
+    if(r.labelDiv)r.labelDiv.style.color=r.time<now?'rgba(139,148,158,0.7)':'rgba(227,179,65,0.7)';
+  });
+  // Restore H lines to grey
+  _alertLineRefs.forEach(r=>{
+    try{r.priceLine.applyOptions({color:'rgba(139,148,158,0.55)'});}catch(e){}
+  });
 }
 function _selectLine(id,type){
   _selectedLineId=id;_selectedLineType=type;
