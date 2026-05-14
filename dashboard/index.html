@@ -1856,8 +1856,25 @@ function setLevelAlert(){
   pushAlertsToGitHub(alerts);
 }
 function deleteAlert(id){const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);_renderAlertLines();renderChtAlerts();pushAlertsToGitHub(alerts);}
-function checkLevelAlerts(){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active)return;const h1d=D.h1&&D.h1[a.pair];if(!h1d||!h1d.raw)return;const price=parseFloat(h1d.raw.close);if(!price)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;setTimeout(()=>alert('Alert: '+a.pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed)laSave(alerts);}
-function checkLevelAlertsLive(price,pair){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active||a.pair!==pair)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;renderChtAlerts();setTimeout(()=>alert('🔔 Alert: '+pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed)laSave(alerts);}
+function checkLevelAlerts(){
+  const alerts=laLoad();let changed=false;
+  alerts.forEach(a=>{
+    if(!a.active)return;
+    const h1d=D.h1&&D.h1[a.pair];
+    if(!h1d||!h1d.raw)return;
+    // Only fire from H1 scanner data if it is genuinely fresh (within 4 minutes).
+    // Stale H1 closes can silently trigger levels that were set after the scan ran.
+    // Real-time triggering is handled by checkLevelAlertsLive via WebSocket.
+    const updated=h1d.updated?new Date(h1d.updated):null;
+    if(!updated||(Date.now()-updated.getTime())>4*60*1000)return;
+    const price=parseFloat(h1d.raw.close);
+    if(!price)return;
+    const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);
+    if(hit){a.active=false;changed=true;setTimeout(()=>alert('Alert: '+a.pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}
+  });
+  if(changed){laSave(alerts);_renderAlertLines();renderChtAlerts();}
+}
+function checkLevelAlertsLive(price,pair){const alerts=laLoad();let changed=false;alerts.forEach(a=>{if(!a.active||a.pair!==pair)return;const hit=(a.direction==='above'&&price>=a.price)||(a.direction==='below'&&price<=a.price);if(hit){a.active=false;changed=true;setTimeout(()=>alert('🔔 Alert: '+pair.replace('/','')+(a.direction==='above'?' above ':' below ')+a.price),100);}});if(changed){laSave(alerts);_renderAlertLines();renderChtAlerts();}}
 async function pushTradesToGitHub(trades){
   const token=localStorage.getItem('gh_pat');if(!token)return;
   const apiUrl=`https://api.github.com/repos/${GH_OWNER}/${GH_REPO}/contents/data/trades.json`;
