@@ -1756,7 +1756,7 @@ async function renderChtPrice(){
         if(cmpSeries.length)subChart.addLineSeries({color:'rgba(56,139,253,0.6)',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'CMP'}).setData(cmpSeries);
         // TF-native line — blue solid (same as RSI)
         subChart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:chtTf}).setData(tfSeries);
-        try{subChart.priceScale('right').applyOptions({autoScale:false,scaleMargins:{top:0.02,bottom:0.02}});subChart.timeScale().applyOptions({});}catch(e){}
+        try{subChart.priceScale('right').applyOptions({autoScale:true,scaleMargins:{top:0.08,bottom:0.08}});}catch(e){}
       }
     } else {
       const rd=computeRSI(ohlcv);
