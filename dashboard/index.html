@@ -1142,7 +1142,7 @@ function renderDrumData(pair){
       ${d5Pct!==null?`<span style="${vt}font-size:12px;color:${pctColor(d5Pct)};">${pctFmt(d5Pct)}</span>`:''}
     </div>
     <div style="text-align:right;flex-shrink:0;line-height:1;padding-left:6px;">
-      <div style="font-size:8px;color:${LABEL};font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Setup</div>
+      <div style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Setup</div>
       <span style="${vt}font-size:22px;color:${glow(qai.score)};${glowShadow(qai.score)}">${qai.score>0?qai.score+'%':'—'}</span>
     </div>
   </div>`;
@@ -1155,7 +1155,7 @@ function renderDrumData(pair){
     const bg=bull?'rgba(0,204,51,0.09)':bear?'rgba(0,60,15,0.07)':'rgba(0,100,25,0.04)';
     const bdr=bull?'rgba(0,180,45,0.25)':bear?'rgba(0,120,30,0.18)':'rgba(0,80,20,0.12)';
     h+=`<div style="flex:1;padding:3px 0;text-align:center;background:${bg};border:1px solid ${bdr};border-radius:3px;">
-      <div style="font-size:8px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.04em;line-height:1.2;">${tf}</div>
+      <div style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.2;">${tf}</div>
       <div style="${vt}font-size:17px;color:${vc};line-height:1.2;${Math.abs(val-50)>=15?'text-shadow:0 0 6px rgba(0,255,65,0.35)':''}">${val}</div>
       <div style="height:15px;display:flex;align-items:center;justify-content:center;">${_1212Delta(dlt)}</div>
     </div>`;
@@ -1187,17 +1187,17 @@ function renderDrumData(pair){
 
   // Zone 4: Sessions + regime (committed)
   const sessParts=sessSegments.length>0
-    ?sessSegments.map(s=>`<span style="${vt}font-size:15px;color:rgba(0,220,55,0.82);">${s.fits?'*':''}${s.abbr}<span style="font-size:11px;"> ${s.timeStr}</span></span>`).join(`<span style="color:rgba(0,80,20,0.3);font-size:10px;margin:0 2px;">·</span>`)
-    :`<span style="${vt}font-size:15px;color:rgba(0,80,20,0.3);">—</span>`;
-  const regPart=regAbbr?`<span style="${vt}font-size:15px;color:rgba(0,200,50,0.75);margin-left:auto;flex-shrink:0;padding-left:6px;">${regAbbr}</span>`:'';
+    ?sessSegments.map(s=>`<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,200,50,0.75);">${s.fits?'*':''}${s.abbr}<span style="font-size:9px;"> ${s.timeStr}</span></span>`).join(`<span style="color:rgba(0,80,20,0.3);font-size:10px;margin:0 2px;">·</span>`)
+    :`<span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:rgba(0,80,20,0.3);">—</span>`;
+  const regPart=regAbbr?`<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,200,50,0.75);margin-left:auto;flex-shrink:0;padding-left:6px;">${regAbbr}</span>`:'';
   h+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;">${sessParts}${regPart}</div>`;
 
   // Zone 5: Corr + cooldown (committed — always rendered, min-height preserved)
   h+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;flex-wrap:wrap;min-height:18px;">`;
   if(corrWith.length||onCooldown){
-    corrWith.forEach((p,i)=>{if(i>0)h+=`<span style="color:rgba(0,70,17,0.3);font-size:9px;">·</span>`;h+=`<span style="${vt}font-size:12px;color:rgba(0,200,50,0.70);">~${p}</span>`;});
+    corrWith.forEach((p,i)=>{if(i>0)h+=`<span style="color:rgba(0,70,17,0.3);font-size:9px;">·</span>`;h+=`<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,200,50,0.75);">~${p}</span>`;});
     if(corrWith.length&&onCooldown)h+=`<span style="color:rgba(0,70,17,0.3);font-size:9px;">·</span>`;
-    if(onCooldown)h+=`<span style="${vt}font-size:12px;color:rgba(0,200,50,0.70);">wait ${Math.round(20-cooldownAge)}h</span>`;
+    if(onCooldown)h+=`<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,200,50,0.75);">wait ${Math.round(20-cooldownAge)}h</span>`;
   }
   h+=`</div>`;
 
