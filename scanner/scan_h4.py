@@ -21,8 +21,8 @@ from scanner.score import score_pair, is_extended
 from scanner.correlate import compute_correlation
 from scanner.cooldown import is_on_cooldown, record_alert
 from scanner.regime import classify_regime, compute_final_regime
-from alerts.news import get_alert_context
-from alerts.log import log_alert
+from scanner.bb import detect_bb_events
+from alerts.telegram import send_bb_band_alert, send_bb_midline_alert
 
 def compute_reset_score(ohlcv_closes, period=20, direction='neutral'):
     """
@@ -285,6 +285,37 @@ def main():
         print(f"  Saved: {REGIME_FILE} (h4 key updated)")
     except Exception as e:
         print(f"  [H4 Regime] ERROR: {e}")
+
+    # ── Bollinger Band touch detection ───────────────────────────────────────
+    print("\n  Checking Bollinger Band touches...")
+    news_brief = load_scores(os.path.join(DATA_DIR, "news_brief.json"))
+    h1_data_bb = load_scores(H1_SCORES)
+
+    for pair in PAIRS:
+        df = ohlcv.get(pair)
+        h4r = h4_results.get(pair, {})
+        if df is None or not h4r:
+            continue
+        try:
+            events = detect_bb_events(
+                pair=pair, df=df,
+                h4_result=h4r,
+                d1_data=d1_data,
+                h1_data=h1_data_bb,
+                csm=load_scores(os.path.join(DATA_DIR, "csm.json")),
+                regime=load_scores(REGIME_FILE),
+                news=news_brief,
+                now=now,
+            )
+            for ev in events:
+                if ev["type"] == "band":
+                    print(f"    ↳ BB {ev['band'].upper()} touch: {pair_display(pair)}")
+                    send_bb_band_alert(ev)
+                elif ev["type"] == "midline":
+                    print(f"    ↳ BB midline: {pair_display(pair)} (+{ev['elapsed']})")
+                    send_bb_midline_alert(ev)
+        except Exception as e:
+            print(f"    ↳ BB error {pair_display(pair)}: {e}")
 
     print("=== H4 Scan complete ===\n")
 
