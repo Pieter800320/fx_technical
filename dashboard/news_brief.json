@@ -1,6 +1,6 @@
 {
   "status": "ok",
-  "updated": "2026-05-15T22:00:13.230825+00:00",
+  "updated": "2026-05-15T22:28:07.824687+00:00",
   "macro": {
     "vix": {
       "value": 18.43000030517578,
@@ -59,9 +59,9 @@
       "invert": false
     },
     "btc": {
-      "value": 78959.9921875,
-      "change": -2091.257812,
-      "change_pct": -2.58,
+      "value": 79012.0078125,
+      "change": -2039.242188,
+      "change_pct": -2.52,
       "label": "Bitcoin",
       "invert": false
     },
@@ -73,24 +73,24 @@
       "invert": false
     }
   },
-  "narrative": "DRIVER\nUSD leads D1+H4 CSM at 100 in a Risk-Off High regime driven by hawkish Fed repricing, the 10Y yield surging to 4.595%, and equity drawdown pushing safe-haven flows directly into dollar. USDCAD is the priority expression \u2014 D1+H4 Strong Buy with H4 1212 at 70 rising, CAD's H4 CSM accelerating to 55 versus D1 at 33 flags a short-term counter-bid in CAD that does not override the dominant USD buy; NZDUSD and USDCHF are secondary longs given NZDUSD's H4/D1 divergence collapse and USDCHF's 0.85 inverse correlation to EURUSD amplifying every USD leg.\n\nMOMENTUM\nGaining: USDCAD CMP 60, H4 1212 at 70 rising on both TFs simultaneously\nFading: EURUSD CMP 37 H4 at 13 collapsing, GBPUSD CMP 36 H4 at 13 decelerating, NZDUSD CMP 43 H4 at 17 in sharp decline\n\nWATCH\nSilver breaking $76 triggers accelerated commodity-currency selling, pressing AUDUSD below current H4 sell signal confirmation\nUS 2Y yield breaking flat into a rise reprices USDJPY H4 Buy toward extension given current +4 signal\nCAD H4 CSM holding above 55 into next session invalidates USDCAD long and shifts focus to CADJPY long on D1/H4 realignment",
+  "narrative": "DRIVER\nUSD leads D1+H4 CSM at 100 in a Risk-Off High regime, driven by the US 10Y yield surging 3% to 4.595%, VIX spiking 6.78%, and inflation fear themes dominating news flow. USDCAD is the cleanest expression with D1+H4 both buy, H4 momentum at 70, and CAD accelerating divergence (H4 55 vs D1 33) flagged as the most important short-term signal; USDCHF confirms via its -0.85 EURUSD correlation compressing that pair simultaneously. AUD H4 CSM has collapsed to 26 versus D1 at 65, making AUDUSD an active fade with AUDJPY confirming weakness through its 0.91 correlation.\n\nMOMENTUM\nGaining: USDCAD CMP 60, D1 59 rising, H4 70 rising \u2014 both timeframes aligned long\nFading: EURUSD CMP 37 H4 momentum 13 collapsing; GBPUSD CMP 36 H4 13 decelerating; NZDUSD CMP 43 H4 17 fading hard against D1 63\n\nWATCH\nUS CPI print hits USDJPY directly \u2014 a hot number accelerates the D1+H4 buy signal toward 152 resistance\nCopper extends its 4.23% drop hitting AUDUSD as commodity FX correlation confirms AUD D1 fade accelerates\nSilver down 10.15% tests NZDUSD downside further given NZD CSM sitting at 13 H4, lowest in the board",
   "edge_scores": {
     "EURUSD": 6,
-    "GBPUSD": 7,
-    "USDJPY": 9,
-    "USDCHF": 8,
-    "AUDUSD": 3,
-    "USDCAD": 7,
-    "NZDUSD": 8,
-    "EURJPY": 7,
-    "GBPJPY": 6,
-    "AUDJPY": 4,
+    "GBPUSD": 6,
+    "USDJPY": 8,
+    "USDCHF": 7,
+    "AUDUSD": 7,
+    "USDCAD": 6,
+    "NZDUSD": 6,
+    "EURJPY": 6,
+    "GBPJPY": 7,
+    "AUDJPY": 6,
     "NZDJPY": 5,
-    "CADJPY": 6
+    "CADJPY": 5
   },
   "themes": [
     {
-      "theme": "USD strength on hawkish Fed expectations and inflation concerns",
+      "theme": "Inflation Fears and Bond Yield Surge",
       "currencies": [
         "USD"
       ],
@@ -98,34 +98,17 @@
       "confidence": "high"
     },
     {
-      "theme": "Inflation shock from energy and geopolitical tensions",
+      "theme": "Dollar Strength Against EM Currencies",
       "currencies": [
-        "USD"
-      ],
-      "direction": "bullish",
-      "confidence": "high"
-    },
-    {
-      "theme": "Asian FX weakness capped by dollar strength despite China optimism",
-      "currencies": [
+        "USD",
         "CNY",
-        "AUD",
-        "SGD",
-        "MYR"
-      ],
-      "direction": "bearish",
-      "confidence": "high"
-    },
-    {
-      "theme": "Brazilian Real weakness pressuring commodity prices",
-      "currencies": [
         "BRL"
       ],
-      "direction": "bearish",
+      "direction": "bullish",
       "confidence": "high"
     },
     {
-      "theme": "Safe-haven flows into USD and rates as equities decline",
+      "theme": "Risk-Off Sentiment in Equities",
       "currencies": [
         "USD"
       ],
@@ -133,17 +116,36 @@
       "confidence": "high"
     },
     {
-      "theme": "Bond yields climbing on inflation and Fed hawkishness",
+      "theme": "Asian FX Divergence with US Dollar Dominance",
       "currencies": [
-        "USD"
+        "USD",
+        "CNY"
       ],
       "direction": "bullish",
-      "confidence": "high"
+      "confidence": "medium"
     },
     {
-      "theme": "Geopolitical risk premium from Iran tensions supporting commodities",
+      "theme": "Commodity Volatility and Supply Concerns",
       "currencies": [
+        "BRL",
         "USD"
+      ],
+      "direction": "neutral",
+      "confidence": "medium"
+    },
+    {
+      "theme": "Chinese Yuan Resilience on Trade Optimism",
+      "currencies": [
+        "CNY"
+      ],
+      "direction": "bullish",
+      "confidence": "medium"
+    },
+    {
+      "theme": "Asian Growth and Monetary Policy Divergence",
+      "currencies": [
+        "MYR",
+        "SGD"
       ],
       "direction": "neutral",
       "confidence": "medium"
@@ -151,7 +153,105 @@
   ],
   "usd_bias": "bullish",
   "risk_sentiment": "risk-off",
-  "key_observation": "Dominant theme is USD strength driven by hawkish Fed repricing on inflation fears from energy shocks and geopolitical tensions. Risk-off sentiment evident with equity weakness and safe-haven flows. Asian currencies and commodity-linked currencies like BRL under pressure. Gold weakness despite inflation suggests rates move dominates risk premium.",
-  "watch": "Fed communication cadence, Iran situation escalation, Chinese growth data, US inflation prints, equity market stabilization",
-  "headline_count": 24
+  "key_observation": "Strong dollar rally driven by inflation fears and rising US bond yields causing equity selloff. Powell commentary triggering hawkish repricing. EM currencies under pressure despite some Asia-specific optimism on AI and trade talks. Commodities volatile with crude surging on supply concerns while agricultural products mixed.",
+  "watch": "Upcoming PMI data and central bank events this week. Inflation trajectory confirmation. US-China trade sentiment sustainability. Energy and agricultural supply dynamics.",
+  "headline_count": 23,
+  "edge_breakdown": {
+    "EURUSD": {
+      "news": 4,
+      "regime": 1,
+      "session": 0,
+      "atr": 1,
+      "raw": 6,
+      "final": 6
+    },
+    "GBPUSD": {
+      "news": 4,
+      "regime": 1,
+      "session": 0,
+      "atr": 1,
+      "raw": 6,
+      "final": 6
+    },
+    "USDJPY": {
+      "news": 5,
+      "regime": 1,
+      "session": 1,
+      "atr": 1,
+      "raw": 8,
+      "final": 8
+    },
+    "USDCHF": {
+      "news": 5,
+      "regime": 1,
+      "session": 0,
+      "atr": 1,
+      "raw": 7,
+      "final": 7
+    },
+    "AUDUSD": {
+      "news": 4,
+      "regime": 1,
+      "session": 1,
+      "atr": 1,
+      "raw": 7,
+      "final": 7
+    },
+    "USDCAD": {
+      "news": 5,
+      "regime": 1,
+      "session": 0,
+      "atr": 0,
+      "raw": 6,
+      "final": 6
+    },
+    "NZDUSD": {
+      "news": 4,
+      "regime": 1,
+      "session": 1,
+      "atr": 0,
+      "raw": 6,
+      "final": 6
+    },
+    "EURJPY": {
+      "news": 3,
+      "regime": 1,
+      "session": 1,
+      "atr": 1,
+      "raw": 6,
+      "final": 6
+    },
+    "GBPJPY": {
+      "news": 4,
+      "regime": 1,
+      "session": 1,
+      "atr": 1,
+      "raw": 7,
+      "final": 7
+    },
+    "AUDJPY": {
+      "news": 3,
+      "regime": 1,
+      "session": 1,
+      "atr": 1,
+      "raw": 6,
+      "final": 6
+    },
+    "NZDJPY": {
+      "news": 2,
+      "regime": 1,
+      "session": 1,
+      "atr": 1,
+      "raw": 5,
+      "final": 5
+    },
+    "CADJPY": {
+      "news": 3,
+      "regime": 1,
+      "session": 1,
+      "atr": 0,
+      "raw": 5,
+      "final": 5
+    }
+  }
 }
