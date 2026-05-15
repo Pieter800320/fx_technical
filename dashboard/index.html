@@ -249,18 +249,27 @@ tr:last-child td{border-bottom:none;}
     <div style="display:flex;gap:1px;border-bottom:1px solid var(--border2);">
       <button class="btn btn-muted" onclick="openIndicatorsSheet()" style="flex:1;justify-content:center;border-radius:0;border:none;padding:9px 4px;font-size:var(--xs);">⚙ Indicators</button>
     </div>
-    <!-- Row 2a: draw tool toggles -->
-    <div style="display:flex;gap:4px;padding:5px var(--pad) 4px;border-bottom:1px solid var(--border2);align-items:center;">
-      <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Tap chart to place level line" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);">— Level</button>
-      <button id="cht-copy-btn" class="btn btn-muted" onclick="copyChartPrompt(selectedPair,this)" title="Copy pair analysis prompt" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);color:var(--accent);border-color:rgba(56,139,253,.4);">⬡ Analysis</button>
-      <button id="cht-bb-btn" class="btn btn-muted" onclick="copyBBPrompt(this)" title="Copy BB band touch analysis prompt" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);color:var(--accent);border-color:rgba(56,139,253,.4);">◎ BB</button>
-      <button class="btn btn-muted" onclick="clearDrawings()" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);margin-left:auto;">✕ Clear</button>
-    </div>
-    <!-- Row 2b: staging inputs (price + dir + Set) -->
-    <div id="cht-staging-row" style="display:flex;gap:6px;padding:5px var(--pad);border-bottom:1px solid var(--border2);align-items:center;">
-      <input id="cht-alert-inp" type="number" step="0.00001" placeholder="price…" oninput="_onAlertInputChange()" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:5px 8px;font-size:var(--sm);"/>
-      <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:5px 8px;flex-shrink:0;min-width:60px;">↑ Above</button>
-      <button class="btn" onclick="setLevelAlert()" style="padding:5px 10px;flex-shrink:0;">Set</button>
+    <!-- Row 2: two-column split — Level tools left | Analysis tools right -->
+    <div style="display:flex;border-bottom:1px solid var(--border2);">
+      <!-- Left column: Level workflow -->
+      <div style="flex:1;display:flex;flex-direction:column;gap:5px;padding:6px var(--pad);">
+        <div style="display:flex;gap:4px;align-items:center;">
+          <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);">— Level</button>
+          <button class="btn btn-muted" onclick="clearDrawings()" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);">✕ Clear</button>
+        </div>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <input id="cht-alert-inp" type="number" step="0.00001" placeholder="price…" oninput="_onAlertInputChange()" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:4px 6px;font-size:var(--xs);"/>
+          <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:4px 6px;flex-shrink:0;min-width:56px;font-size:var(--xs);">↑ Above</button>
+          <button class="btn" onclick="setLevelAlert()" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);">Set</button>
+        </div>
+      </div>
+      <!-- Vertical divider -->
+      <div style="width:1px;background:var(--border2);flex-shrink:0;"></div>
+      <!-- Right column: Analysis -->
+      <div style="display:flex;flex-direction:column;gap:5px;padding:6px var(--pad);justify-content:center;align-items:stretch;min-width:90px;">
+        <button id="cht-copy-btn" class="btn btn-muted" onclick="copyChartPrompt(selectedPair,this)" title="Copy pair analysis prompt" style="padding:4px 10px;font-size:var(--xs);color:var(--accent);border-color:rgba(56,139,253,.4);justify-content:center;">⬡ Analysis</button>
+        <button id="cht-bb-btn" class="btn btn-muted" onclick="copyBBPrompt(this)" title="Copy BB band touch analysis prompt" style="padding:4px 10px;font-size:var(--xs);color:var(--accent);border-color:rgba(56,139,253,.4);justify-content:center;">◎ BB</button>
+      </div>
     </div>
     <!-- Active alerts — shown on chart as amber lines, deleted by long-press -->
     <div id="cht-alerts-list" style="display:none;"></div>
@@ -1412,12 +1421,20 @@ function copyChartPrompt(pair,btnEl){
   navigator.clipboard.writeText(t).then(()=>{
     const btn=btnEl||document.getElementById('cht-copy-btn');
     if(btn){
-      const orig=btn.textContent;
+      const origText=btn.textContent;
+      const origColor=btn.style.color;
+      const origBorder=btn.style.borderColor;
+      const origBg=btn.style.background;
       btn.textContent='Copied!';
       btn.style.background='rgba(46,160,67,0.15)';
       btn.style.borderColor='rgba(46,160,67,0.6)';
       btn.style.color='var(--buy)';
-      setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.borderColor='';btn.style.color='';},2000);
+      setTimeout(()=>{
+        btn.textContent=origText;
+        btn.style.background=origBg;
+        btn.style.borderColor=origBorder;
+        btn.style.color=origColor;
+      },2000);
     }
   });
 }
@@ -2141,12 +2158,20 @@ function copyBBPrompt(btnEl){
   navigator.clipboard.writeText(t).then(()=>{
     const btn=btnEl||document.getElementById('cht-bb-btn');
     if(btn){
-      const orig=btn.textContent;
+      const origText=btn.textContent;
+      const origColor=btn.style.color;
+      const origBorder=btn.style.borderColor;
+      const origBg=btn.style.background;
       btn.textContent='Copied!';
       btn.style.background='rgba(46,160,67,0.15)';
       btn.style.borderColor='rgba(46,160,67,0.6)';
       btn.style.color='var(--buy)';
-      setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.borderColor='';btn.style.color='';},2000);
+      setTimeout(()=>{
+        btn.textContent=origText;
+        btn.style.background=origBg;
+        btn.style.borderColor=origBorder;
+        btn.style.color=origColor;
+      },2000);
     }
   });
 }
