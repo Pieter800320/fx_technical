@@ -2117,7 +2117,7 @@ function submitTrade(){
     if(t){t.sl=sl;t.tp=tp;t.notes=notes;tradesSaveAndSync(trades);}
     closeSheet();renderLog();updateDrum();return;
   }
-  // New trade
+  // New trade — capture full snapshot
   const h1d=D.h1&&D.h1[pair];
   const curr=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
   const h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
@@ -2126,15 +2126,97 @@ function submitTrade(){
   const isAtMarket=curr&&Math.abs(en-curr)/(curr||1)<0.001;
   const status=isAtMarket?'open':'pending';
   const now=new Date().toISOString();
+
+  // ── 1212 MOM snapshot ──────────────────────────────────────────────────────
+  let momSnap={};
+  try{
+    const m=compute1212(pair);
+    momSnap={
+      mom_cmp:m.cmp,  mom_w1:m.w1,  mom_d1:m.d1,  mom_h4:m.h4,  mom_h1:m.h1,
+      dmom_cmp:m.dcmp,dmom_d1:m.dd1,dmom_h4:m.dh4,dmom_h1:m.dh1,
+    };
+  }catch(e){}
+
+  // ── Raw technicals from scanner data ──────────────────────────────────────
+  const h4raw=h4d&&h4d.raw||{};
+  const h1raw=h1d&&h1d.raw||{};
+  const d1raw=d1d&&d1d.raw||{};
+  const techSnap={
+    adx_h4:       h4raw.adx       !=null?+h4raw.adx.toFixed(1):null,
+    rsi_h4:       h4raw.rsi       !=null?+h4raw.rsi.toFixed(1):null,
+    rsi_d1:       d1raw.rsi       !=null?+d1raw.rsi.toFixed(1):null,
+    ema200_h4:    h4raw.ema200    !=null?+h4raw.ema200.toFixed(5):null,
+    ema50_h4:     h4raw.ema50     !=null?+h4raw.ema50.toFixed(5):null,
+    macd_h4:      h4raw.macd_line !=null?+h4raw.macd_line.toFixed(6):null,
+    dmi_plus_h4:  h4raw.dmi_plus  !=null?+h4raw.dmi_plus.toFixed(1):null,
+    dmi_minus_h4: h4raw.dmi_minus !=null?+h4raw.dmi_minus.toFixed(1):null,
+    setup_h4_raw: h4d&&h4d.score  !=null?h4d.score:null,
+    setup_d1_raw: d1d&&d1d.score  !=null?d1d.score:null,
+    setup_h1_raw: h1d&&h1d.score  !=null?h1d.score:null,
+    reset_score:  h4d&&h4d.reset_score!=null?h4d.reset_score:null,
+    extended:     h4d&&h4d.extended?h4d.extended.extended:null,
+    conflict:     h4d&&h4d.conflict!=null?h4d.conflict:null,
+    atr_dist:     h4d&&h4d.extended?h4d.extended.atr_dist:null,
+  };
+
+  // ── CSM snapshot ───────────────────────────────────────────────────────────
+  let csmSnap={csm_base:null,csm_quote:null,csm_base_ccy:null,csm_quote_ccy:null};
+  try{
+    const ccys=pair.split('/');
+    const rnk=(D.csm&&D.csm.h4_rankings)||(D.csm&&D.csm.rankings)||{};
+    csmSnap={
+      csm_base_ccy: ccys[0]||null,
+      csm_quote_ccy:ccys[1]||null,
+      csm_base:     rnk[ccys[0]]!=null?+rnk[ccys[0]].toFixed(1):null,
+      csm_quote:    rnk[ccys[1]]!=null?+rnk[ccys[1]].toFixed(1):null,
+    };
+  }catch(e){}
+
+  // ── Regime snapshot ────────────────────────────────────────────────────────
+  let regSnap={regime_score:null,regime_conf:null,regime_spread:null,regime_dir:null,h4_regime:null,w1_regime:null};
+  try{
+    const fr=D.regime&&D.regime.final_regime||{};
+    const h4r=D.regime&&D.regime.h4||{};
+    const w1r=D.regime&&D.regime.w1_regime||{};
+    regSnap={
+      regime_score:  fr.score    !=null?+fr.score.toFixed(2):null,
+      regime_conf:   fr.confidence||null,
+      regime_spread: fr.spread   !=null?+fr.spread.toFixed(1):null,
+      regime_dir:    fr.direction||null,
+      h4_regime:     h4r.regime  ||null,
+      w1_regime:     w1r.regime  ||null,
+    };
+  }catch(e){}
+
+  // ── Session + time context ─────────────────────────────────────────────────
+  const nowDt=new Date();
+  const sessions=[];
+  const hr=nowDt.getUTCHours();
+  const SESS={Sydney:[21,6],Tokyo:[23,8],London:[7,16],'New York':[13,22]};
+  Object.entries(SESS).forEach(([nm,[s,e]])=>{
+    const active=s>e?(hr>=s||hr<e):(hr>=s&&hr<e);
+    if(active)sessions.push(nm);
+  });
+  const DOW=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][nowDt.getUTCDay()];
+
+  // ── Planned RR ────────────────────────────────────────────────────────────
+  const rr_planned=calcR(en,sl,tp)||null;
+
   const trade={
     id:Date.now(),pair,direction:_etDir,entry:en,sl,tp,
     status,result:null,close_price:null,notes,
     setup_score:qai.score,edge_score:edge,
     d1_label:d1d?d1d.label:'N/A',h4_label:h4d?h4d.label:'N/A',
-    h1_label:D.h1&&D.h1[pair]?D.h1[pair].label:'N/A',
-    regime:D.regime?D.regime.regime:'Unknown',
+    h1_label:h1d?h1d.label:'N/A',
+    regime:D.regime?D.regime.final_regime&&D.regime.final_regime.regime||D.regime.regime||'Unknown':'Unknown',
     date:new Date().toLocaleString(),created:now,
     opened:isAtMarket?now:null,closed:null,
+    rr_planned,
+    session:sessions.join('+'),
+    day_of_week:DOW,
+    ...momSnap,...techSnap,...csmSnap,...regSnap,
+    // Close-time fields — populated later
+    close_mom_h4:null,close_mom_d1:null,close_setup_h4:null,close_rsi_h4:null,close_adx_h4:null,
   };
   const trades=tradesLoad();trades.push(trade);tradesSaveAndSync(trades);
   closeSheet();renderLog();updateDrum();
@@ -2148,6 +2230,15 @@ function closeTradeManual(id){
   const curr=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
   t.status='closed';t.result='manual';
   t.close_price=curr||t.entry;t.closed=new Date().toISOString();
+  // Close-time snapshot
+  try{
+    const h4d=D.h4&&D.h4[t.pair];
+    const m=compute1212(t.pair);
+    t.close_mom_h4=m.h4;t.close_mom_d1=m.d1;
+    t.close_setup_h4=h4d&&h4d.score!=null?h4d.score:null;
+    t.close_rsi_h4=h4d&&h4d.raw&&h4d.raw.rsi!=null?+h4d.raw.rsi.toFixed(1):null;
+    t.close_adx_h4=h4d&&h4d.raw&&h4d.raw.adx!=null?+h4d.raw.adx.toFixed(1):null;
+  }catch(e){}
   tradesSaveAndSync(trades);closeSheet();renderLog();updateDrum();updateCloseTradeBtn();
 }
 function closeChartActiveTrade(){
@@ -2291,11 +2382,27 @@ function renderLog(){
 
 function exportCSV(){
   const e=tradesLoad();
-  if(!e.length){alert("No trades.");return;}
-  const h=["Date","Pair","Dir","Entry","SL","TP","Status","Result","ClosePrice","R_Planned","Setup_Score","Edge_Score","D1","H4","H1","Regime","Notes"];
-  const r=e.map(t=>[t.date||t.created,t.pair,t.direction,t.entry,t.sl,t.tp,t.status,t.result||'',t.close_price||'',calcR(t.entry,t.sl,t.tp)||'',t.setup_score||'',t.edge_score||'',t.d1_label||'',t.h4_label||'',t.h1_label||'',t.regime||'',`"${(t.notes||'').replace(/"/g,"'")}"`]);
-  const csv=[h.join(","),...r.map(x=>x.join(","))].join("\n");
-  const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(csv);a.download="forex1212_log.csv";a.click();
+  if(!e.length){alert('No trades.');return;}
+  const q=v=>v==null?'':(typeof v==='string'&&(v.includes(',')||v.includes('"'))?`"${v.replace(/"/g,"'")}"`:(v===true?'TRUE':v===false?'FALSE':v));
+  const headers=[
+    'id','created','date','pair','direction','day_of_week','session',
+    'entry','sl','tp','rr_planned','status','result','close_price',
+    'd1_label','h4_label','h1_label','regime','h4_regime','w1_regime','regime_conf','regime_dir',
+    'setup_score','edge_score','regime_score','regime_spread',
+    'setup_d1_raw','setup_h4_raw','setup_h1_raw','reset_score',
+    'mom_cmp','mom_w1','mom_d1','mom_h4','mom_h1',
+    'dmom_cmp','dmom_d1','dmom_h4','dmom_h1',
+    'adx_h4','rsi_h4','rsi_d1','ema200_h4','ema50_h4','macd_h4','dmi_plus_h4','dmi_minus_h4',
+    'extended','conflict','atr_dist',
+    'csm_base_ccy','csm_base','csm_quote_ccy','csm_quote',
+    'close_mom_h4','close_mom_d1','close_setup_h4','close_rsi_h4','close_adx_h4',
+    'notes',
+  ];
+  const rows=e.map(t=>headers.map(h=>q(t[h])));
+  const csv=[headers.join(','),...rows.map(r=>r.join(','))].join('\n');
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='forex1212_log.csv';a.click();
 }
 // ── LOAD + INIT
 async function load(file){try{const r=await fetch(`${GH_RAW}/${file}?t=${Date.now()}`);if(!r.ok)return null;return await r.json();}catch{return null;}}
