@@ -252,6 +252,8 @@ tr:last-child td{border-bottom:none;}
     <!-- Row 2a: draw tool toggles -->
     <div style="display:flex;gap:4px;padding:5px var(--pad) 4px;border-bottom:1px solid var(--border2);align-items:center;">
       <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Tap chart to place level line" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);">— Level</button>
+      <button id="cht-copy-btn" class="btn btn-muted" onclick="copyChartPrompt(selectedPair,this)" title="Copy pair analysis prompt" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);color:var(--accent);border-color:rgba(56,139,253,.4);">⬡ Analysis</button>
+      <button id="cht-bb-btn" class="btn btn-muted" onclick="copyBBPrompt(this)" title="Copy BB band touch analysis prompt" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);color:var(--accent);border-color:rgba(56,139,253,.4);">◎ BB</button>
       <button class="btn btn-muted" onclick="clearDrawings()" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);margin-left:auto;">✕ Clear</button>
     </div>
     <!-- Row 2b: staging inputs (price + dir + Set) -->
@@ -629,7 +631,7 @@ function buildNewsSheetContent(){
     });
     if(nb.key_observation)h+=`<div class="sh-row"><span class="sh-lbl">Key Insight</span><span class="sh-val" style="color:var(--accent);">${nb.key_observation}</span></div>`;
   }
-  h+=`<div style="padding:8px var(--pad) 12px;"><button class="btn" onclick="copyBriefPrompt()">Copy Prompt</button></div>`;
+  h+=`<div style="padding:8px var(--pad) 12px;"><button id="brief-copy-btn" class="btn" onclick="copyBriefPrompt()">Copy Prompt</button></div>`;
   return h;
 }
 function renderStructuredNarrative(text){
@@ -727,7 +729,7 @@ function buildPairSheetContent(pair){
   h+=hdr('Sentiment');
   const csmBase=csm[base]||0,csmQuote=csm[quote]||0;
   h+=row('CSM',base+' '+csmBase.toFixed(0)+' · '+quote+' '+csmQuote.toFixed(0),Math.abs(csmBase-csmQuote)>=20?'var(--buy)':Math.abs(csmBase-csmQuote)>=10?'var(--amber)':'var(--muted)');
-  h+=`<div style="padding:8px var(--pad);"><button class="btn" onclick="copyChartPrompt('${pair}')">Copy Prompt</button></div>`;
+  h+=`<div style="padding:8px var(--pad);"><button class="btn" onclick="copyChartPrompt('${pair}',this)">Copy Prompt</button></div>`;
   return h;
 }
 function buildSessionsContent(){
@@ -1336,7 +1338,78 @@ function computeSMA(ohlcv,period,shift){
 function computeMACD(ohlcv,fast=12,slow=26,sig=9){if(!ohlcv||ohlcv.length<slow+sig)return[];const closes=ohlcv.map(d=>d.close);const ema12=computeEMA(closes,fast),ema26=computeEMA(closes,slow);const macdLine=ema12.map((v,i)=>v-ema26[i]);const macdTrimmed=macdLine.slice(slow-1);const signalLine=computeEMA(macdTrimmed,sig);const out=[];for(let i=0;i<signalLine.length;i++){const oi=i+(slow-1);const mac=macdLine[oi],si=signalLine[i];out.push({time:ohlcv[oi].time,macd:mac,signal:si,histogram:mac-si});}return out;}
 function computeBB(ohlcv,period=20,mult=2){if(!ohlcv||ohlcv.length<period)return[];const closes=ohlcv.map(d=>d.close);const out=[];for(let i=period-1;i<closes.length;i++){const slice=closes.slice(i-period+1,i+1);const mean=slice.reduce((a,b)=>a+b,0)/period;const std=Math.sqrt(slice.reduce((a,b)=>a+(b-mean)**2,0)/period);out.push({time:ohlcv[i].time,upper:mean+mult*std,middle:mean,lower:mean-mult*std});}return out;}
 function corrDotColor(v){const a=Math.abs(v);if(a>=.7)return v>0?'var(--sell)':'var(--accent)';if(a>=.4)return v>0?'rgba(248,81,73,.6)':'rgba(56,139,253,.6)';return'var(--muted)';}
-function copyChartPrompt(pair){if(!pair)pair=selectedPair;const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];const adxV=h4d&&h4d.raw?h4d.raw.adx:null;const reg=(D.regime&&D.regime.final_regime&&D.regime.final_regime.regime)||(D.regime&&D.regime.regime)||'Unknown';const qaiP=computeQAI(pair),edgeP=getEdgeScore(pair);const prompt='You are an institutional FX trader. Pair: '+pair.replace('/','')+' | D1: '+(d1d?d1d.label:'N/A')+' | H4: '+(h4d?h4d.label:'N/A')+' | H1: '+(h1d?h1d.label:'N/A')+' | ADX: '+(adxV!==null?adxV.toFixed(1):'N/A')+' | Setup: '+(qaiP.score>0?qaiP.score+'%':'—')+' | Edge: '+(edgeP!==null?edgeP+'/10':'—')+' | Regime: '+reg+' | Time: '+new Date().toLocaleString()+' | Output: Edge or Flaw / Verdict / Key risk. Max 50 words.';navigator.clipboard.writeText(prompt).then(()=>{});}
+function copyChartPrompt(pair,btnEl){
+  if(!pair)pair=selectedPair;
+  const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
+  const now=new Date();
+  const hr=now.getUTCHours();
+  const SESS={Sydney:[21,6],Tokyo:[23,8],London:[7,16],'New York':[13,22]};
+  const activeSess=Object.entries(SESS).filter(([,s])=>s[0]>s[1]?(hr>=s[0]||hr<s[1]):(hr>=s[0]&&hr<s[1])).map(([n])=>n);
+  const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getUTCDay()];
+
+  // Regime
+  const fr=D.regime&&D.regime.final_regime||{};
+  const regStr=fr.regime||D.regime&&D.regime.regime||'Unknown';
+  const regConf=fr.confidence||'';
+
+  // CSM
+  const d1Rnk=D.csm&&D.csm.rankings||{};
+  const h4Rnk=D.csm&&D.csm.h4_rankings&&Object.keys(D.csm.h4_rankings).length?D.csm.h4_rankings:{};
+  const [base,quote]=pair.split('/');
+  const csmD1Base=d1Rnk[base]!=null?d1Rnk[base].toFixed(0):'—';
+  const csmD1Quote=d1Rnk[quote]!=null?d1Rnk[quote].toFixed(0):'—';
+  const csmH4Base=h4Rnk[base]!=null?h4Rnk[base].toFixed(0):'—';
+  const csmH4Quote=h4Rnk[quote]!=null?h4Rnk[quote].toFixed(0):'—';
+
+  // 1212 MOM
+  const mom=compute1212(pair);
+  const fmtMom=(v,d)=>v!=null?v+(d!=null?'(Δ'+(d>0?'+':'')+d+')':''):'—';
+
+  // Setup + Edge
+  const qai=computeQAI(pair);
+  const edge=getEdgeScore(pair);
+  const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
+  const resetV=h4d&&h4d.reset_score!=null?h4d.reset_score:null;
+
+  let t='FOREX1212 — PAIR ANALYSIS: '+pair.replace('/','')+'\n';
+  t+=now.toUTCString()+' | '+dow+' | Session: '+(activeSess.length?activeSess.join(', '):'Closed')+'\n';
+  t+='═'.repeat(52)+'\n\n';
+
+  t+='SIGNAL LABELS:\n';
+  t+='  D1: '+(d1d&&d1d.label||'N/A')+'  |  H4: '+(h4d&&h4d.label||'N/A')+'  |  H1: '+(h1d&&h1d.label||'N/A')+'\n\n';
+
+  t+='SETUP & FILTERS:\n';
+  t+='  Setup: '+(qai.score>0?qai.score+'%':'—')+'  |  Edge: '+(edge!=null?edge+'/10':'—');
+  t+='  |  ADX: '+(adxV!=null?adxV.toFixed(1):'—');
+  t+='  |  Reset: '+(resetV!=null?resetV:'—')+'\n\n';
+
+  t+='1212 MOMENTUM (0=bearish, 50=neutral, 100=bullish. Δ=change vs prior bar):\n';
+  t+='  W1: '+fmtMom(mom.w1,null)+'  D1: '+fmtMom(mom.d1,mom.dd1)+'  H4: '+fmtMom(mom.h4,mom.dh4)+'  H1: '+fmtMom(mom.h1,mom.dh1)+'\n\n';
+
+  t+='CURRENCY STRENGTH:\n';
+  t+='  '+base+': D1='+csmD1Base+'  H4='+csmH4Base+'\n';
+  t+='  '+quote+': D1='+csmD1Quote+'  H4='+csmH4Quote+'\n\n';
+
+  t+='REGIME: '+regStr+(regConf?' ('+regConf+')':'')+'\n\n';
+
+  t+='TASK:\n';
+  t+='You are an institutional FX analyst. For '+pair.replace('/','')+': is this a valid setup to trade right now, and in which direction? ';
+  t+='Check: TF alignment (D1→H4→H1), MOM confluence (are H4 and D1 MOM pointing the same way?), ';
+  t+='CSM agreement across timeframes, ADX trend strength, regime fit. ';
+  t+='Output: Edge or Flaw / Direction / Key risk. Max 60 words.\n';
+
+  navigator.clipboard.writeText(t).then(()=>{
+    const btn=btnEl||document.getElementById('cht-copy-btn');
+    if(btn){
+      const orig=btn.textContent;
+      btn.textContent='Copied!';
+      btn.style.background='rgba(46,160,67,0.15)';
+      btn.style.borderColor='rgba(46,160,67,0.6)';
+      btn.style.color='var(--buy)';
+      setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.borderColor='';btn.style.color='';},2000);
+    }
+  });
+}
 // Chart colours
 const CHT_UP='#3fb950',CHT_UP_B='#238636',CHT_DN='#f85149',CHT_DN_B='#b62324';
 const CHT_BLUE='#58a6ff',CHT_WHITE='#e6edf3',CHT_GREY='rgba(139,148,158,0.5)';
@@ -1961,7 +2034,203 @@ function buildRankedShortlist(){
   }).sort((a,b)=>b.score-a.score);
   return{kept:ranked.slice(0,5)};
 }
-function copyBriefPrompt(){const{h1,h4,d1,csm,regime}=D;const{kept}=buildRankedShortlist();let t='MARKET BRIEF - '+new Date().toLocaleString()+'\n\n';if(csm&&csm.rankings){t+='CURRENCY STRENGTH:\n';Object.entries(csm.rankings).forEach(([c,v])=>{t+=c+' '+v.toFixed(0)+'  ';});t+='\n\n';}t+='TECHNICAL SCORES:\n';PAIRS.forEach(p=>{const h1d=h1&&h1[p],h4d=h4&&h4[p],d1d=d1&&d1[p];const h1l=h1d?h1d.label:'N/A',h4l=h4d?h4d.label:'N/A',d1l=d1d?d1d.label:'N/A';const sc=h4d?h4d.score:0;if(h1l==='Neutral'&&h4l==='Neutral'&&d1l==='Neutral')return;t+=p.replace('/','')+'  D1:'+d1l+' H4:'+h4l+' H1:'+h1l+' [score:'+sc+']\n';});if(regime&&regime.regime)t+='\nREGIME: '+regime.regime+' ('+regime.confidence+')\n';if(kept.length)t+='SHORTLIST: '+kept.map(x=>x.pair.replace('/',''))+'\n';navigator.clipboard.writeText(t).then(()=>{});}
+function copyBBPrompt(btnEl){
+  const pair=selectedPair;
+  const h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair],h1d=D.h1&&D.h1[pair];
+  const now=new Date();
+  const hr=now.getUTCHours();
+  const SESS={Sydney:[21,6],Tokyo:[23,8],London:[7,16],'New York':[13,22]};
+  const activeSess=Object.entries(SESS).filter(([,s])=>s[0]>s[1]?(hr>=s[0]||hr<s[1]):(hr>=s[0]&&hr<s[1])).map(([n])=>n);
+  const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getUTCDay()];
+
+  // 1212 MOM
+  const mom=compute1212(pair);
+  const fmtMom=(v,d)=>{
+    if(v==null)return'—';
+    const arr=d==null?'':d>0?' ↑':d<0?' ↓':' →';
+    return v+(d!=null?arr+'(Δ'+(d>0?'+':'')+d+')':'');
+  };
+
+  // CSM
+  const d1Rnk=D.csm&&D.csm.rankings||{};
+  const h4Rnk=D.csm&&D.csm.h4_rankings&&Object.keys(D.csm.h4_rankings).length?D.csm.h4_rankings:{};
+  const [base,quote]=pair.split('/');
+  const csmD1B=d1Rnk[base]!=null?d1Rnk[base].toFixed(0):'—';
+  const csmD1Q=d1Rnk[quote]!=null?d1Rnk[quote].toFixed(0):'—';
+  const csmH4B=h4Rnk[base]!=null?h4Rnk[base].toFixed(0):'—';
+  const csmH4Q=h4Rnk[quote]!=null?h4Rnk[quote].toFixed(0):'—';
+
+  // Signal labels
+  const d1l=(d1d&&d1d.label)||'N/A';
+  const h4l=(h4d&&h4d.label)||'N/A';
+  const h1l=(h1d&&h1d.label)||'N/A';
+
+  // Regime
+  const fr=D.regime&&D.regime.final_regime||{};
+  const regStr=fr.regime||D.regime&&D.regime.regime||'Unknown';
+  const regConf=fr.confidence||'';
+  const regDir=fr.direction||'';
+
+  // Setup + ADX
+  const qai=computeQAI(pair);
+  const edge=getEdgeScore(pair);
+  const adxV=h4d&&h4d.raw&&h4d.raw.adx!=null?h4d.raw.adx.toFixed(1):'—';
+  const extFlag=h4d&&h4d.extended&&h4d.extended.extended?'YES':'No';
+  const conflict=h4d&&h4d.conflict?'YES':'No';
+
+  // BB values from raw if available
+  const bbUpper=h4d&&h4d.raw&&h4d.raw.bb_upper!=null?h4d.raw.bb_upper.toFixed(5):'—';
+  const bbLower=h4d&&h4d.raw&&h4d.raw.bb_lower!=null?h4d.raw.bb_lower.toFixed(5):'—';
+  const bbMid=h4d&&h4d.raw&&h4d.raw.bb_mid!=null?h4d.raw.bb_mid.toFixed(5):'—';
+  const close=h4d&&h4d.raw&&h4d.raw.close!=null?h4d.raw.close:'—';
+
+  let t='FOREX1212 — BB BAND TOUCH ANALYSIS: '+pair.replace('/','')+'\n';
+  t+=now.toUTCString()+' | '+dow+' | Session: '+(activeSess.length?activeSess.join(', '):'Closed')+'\n';
+  t+='═'.repeat(52)+'\n\n';
+
+  t+='PRICE & BB:\n';
+  t+='  H4 close: '+close+'  |  Upper: '+bbUpper+'  |  Mid: '+bbMid+'  |  Lower: '+bbLower+'\n\n';
+
+  t+='1212 MOMENTUM (custom oscillator: 0=max bearish, 50=neutral, 100=max bullish):\n';
+  t+='  W1: '+fmtMom(mom.w1,null)+'\n';
+  t+='  D1: '+fmtMom(mom.d1,mom.dd1)+'  ← Δ = change vs prior bar (positive=rising, negative=falling)\n';
+  t+='  H4: '+fmtMom(mom.h4,mom.dh4)+'\n';
+  t+='  H1: '+fmtMom(mom.h1,mom.dh1)+'\n\n';
+
+  t+='SIGNAL PILLS (6-signal trend scoring per TF):\n';
+  t+='  D1: '+d1l+'  |  H4: '+h4l+'  |  H1: '+h1l+'\n\n';
+
+  t+='CURRENCY STRENGTH RANKINGS (0=weakest, 100=strongest):\n';
+  t+='  '+base+': D1='+csmD1B+'  H4='+csmH4B+'\n';
+  t+='  '+quote+': D1='+csmD1Q+'  H4='+csmH4Q+'\n';
+  t+='  (H4 CSM vs D1 CSM disagreement = cross-timeframe strength divergence)\n\n';
+
+  t+='REGIME: '+regStr+(regConf?' ('+regConf+')':'')+(regDir?' Dir: '+regDir:'')+'\n\n';
+
+  t+='ADDITIONAL FILTERS:\n';
+  t+='  Setup: '+(qai.score>0?qai.score+'%':'—')+'  |  Edge: '+(edge!=null?edge+'/10':'—')+'  |  ADX: '+adxV+'\n';
+  t+='  Extended: '+extFlag+'  |  Conflict flag: '+conflict+'\n\n';
+
+  t+='TASK:\n';
+  t+='You are an institutional FX analyst specialising in Bollinger Band reversals. ';
+  t+='Price has just touched the BB band on H4 for '+pair.replace('/','')+'. ';
+  t+='Evaluate whether this is more likely a REVERSAL or CONTINUATION. ';
+  t+='Analyse each factor in order:\n';
+  t+='1. MOM divergence: do H4 and D1 deltas point in OPPOSITE directions? (opposite = reversal signal)\n';
+  t+='2. MOM levels: is D1 MOM near 50 while H4 is extended? (yes = reversal signal)\n';
+  t+='3. W1 MOM: does the weekly context agree or disagree with the band touch direction?\n';
+  t+='4. Signal pills: do D1 and H4 labels agree or diverge?\n';
+  t+='5. CSM: do H4 and D1 CSM rankings agree on which currency is stronger?\n';
+  t+='6. Regime: does the current regime favour trend continuation or ranging/reversal?\n';
+  t+='7. ADX: >25 favours continuation, <20 favours reversal.\n';
+  t+='Then give a FINAL VERDICT: REVERSAL or CONTINUATION, with confidence (High/Medium/Low) and one key risk. Max 80 words.\n';
+
+  navigator.clipboard.writeText(t).then(()=>{
+    const btn=btnEl||document.getElementById('cht-bb-btn');
+    if(btn){
+      const orig=btn.textContent;
+      btn.textContent='Copied!';
+      btn.style.background='rgba(46,160,67,0.15)';
+      btn.style.borderColor='rgba(46,160,67,0.6)';
+      btn.style.color='var(--buy)';
+      setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.borderColor='';btn.style.color='';},2000);
+    }
+  });
+}
+function copyBriefPrompt(){
+  const{h1,h4,d1,csm,regime,newsBrief}=D;
+  const now=new Date();
+  const hr=now.getUTCHours();
+  const SESS={Sydney:[21,6],Tokyo:[23,8],London:[7,16],'New York':[13,22]};
+  const activeSess=Object.entries(SESS).filter(([,s])=>s[0]>s[1]?(hr>=s[0]||hr<s[1]):(hr>=s[0]&&hr<s[1])).map(([n])=>n);
+  const dow=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getUTCDay()];
+
+  // Regime
+  const fr=regime&&regime.final_regime||{};
+  const regStr=(fr.regime||regime&&regime.regime||'Unknown');
+  const regConf=fr.confidence||'';
+  const regDir=fr.direction||'';
+
+  // CSM
+  const d1Rnk=csm&&csm.rankings||{};
+  const h4Rnk=csm&&csm.h4_rankings&&Object.keys(csm.h4_rankings).length?csm.h4_rankings:null;
+
+  let t='FOREX1212 — MARKET BRIEF\n';
+  t+=now.toUTCString()+' | '+dow+' | Session: '+(activeSess.length?activeSess.join(', '):'Closed')+'\n';
+  t+='═'.repeat(52)+'\n\n';
+
+  // Regime block
+  t+='REGIME: '+regStr;
+  if(regConf)t+=' ('+regConf+')';
+  if(regDir)t+='  Dir: '+regDir;
+  if(fr.spread!=null)t+='  Spread: '+fr.spread.toFixed(1);
+  t+='\n\n';
+
+  // CSM block
+  t+='CURRENCY STRENGTH (D1 / H4):\n';
+  const CCYLIST=['USD','EUR','GBP','JPY','AUD','NZD','CAD','CHF'];
+  CCYLIST.forEach(c=>{
+    const d1v=d1Rnk[c]!=null?d1Rnk[c].toFixed(0).padStart(3):'  —';
+    const h4v=h4Rnk&&h4Rnk[c]!=null?h4Rnk[c].toFixed(0).padStart(3):'  —';
+    t+=c+'  D1:'+d1v+'  H4:'+h4v+'\n';
+  });
+  t+='\n';
+
+  // Pair signals block
+  t+='PAIR SIGNALS  [D1 | H4 | H1 | Setup% | Edge | MOM-H4 | MOM-D1]:\n';
+  PAIRS.forEach(p=>{
+    const h1d=h1&&h1[p],h4d=h4&&h4[p],d1d=d1&&d1[p];
+    const d1l=(d1d&&d1d.label)||'N/A';
+    const h4l=(h4d&&h4d.label)||'N/A';
+    const h1l=(h1d&&h1d.label)||'N/A';
+    if(d1l==='Neutral'&&h4l==='Neutral'&&h1l==='Neutral')return;
+    const setup=computeQAI(p).score;
+    const edge=getEdgeScore(p);
+    const mom=compute1212(p);
+    const mh4=mom.h4!=null?mom.h4:'—';
+    const md1=mom.d1!=null?mom.d1:'—';
+    const dh4=mom.dh4!=null?(mom.dh4>0?'+':'')+mom.dh4:'—';
+    const dd1=mom.dd1!=null?(mom.dd1>0?'+':'')+mom.dd1:'—';
+    t+=p.replace('/','')+': '+d1l+' | '+h4l+' | '+h1l;
+    t+=' | '+(setup>0?setup+'%':'—');
+    t+=' | '+(edge!=null?edge+'/10':'—');
+    t+=' | MOM-H4:'+mh4+'(Δ'+dh4+') MOM-D1:'+md1+'(Δ'+dd1+')\n';
+  });
+  t+='\n';
+
+  // News themes
+  if(newsBrief&&newsBrief.themes&&newsBrief.themes.length){
+    t+='NEWS THEMES:\n';
+    newsBrief.themes.slice(0,4).forEach(th=>{ t+='• '+th+'\n'; });
+    t+='\n';
+  }
+
+  // Definitions (so AI understands custom indicators)
+  t+='INDICATOR DEFINITIONS:\n';
+  t+='MOM = 1212 momentum oscillator, 0-100 scale. 50 = neutral. >50 = bullish pressure, <50 = bearish. Δ = change vs prior bar (positive = rising).\n';
+  t+='Setup% = multi-factor technical alignment score (TF alignment, entry position, CSM divergence, regime fit, rate differential, session). Higher = stronger confluence.\n';
+  t+='Edge = AI-assessed macro-technical coherence score 1-10 from news/COT/CSM cross-analysis.\n\n';
+
+  // The ask
+  t+='TASK:\n';
+  t+='You are an institutional FX analyst using the Pain-Free Performance methodology (Dr. John Rusin). ';
+  t+='Identify the 2-3 highest-probability setups for the current session. ';
+  t+='For each: state direction, key confluence factors, and one risk. ';
+  t+='Flag any pairs where H4 and D1 MOM are diverging (different delta directions) — these may be at inflection points. ';
+  t+='Consider regime context. Be direct and concise. Max 150 words total.\n';
+
+  navigator.clipboard.writeText(t).then(()=>{
+    const btn=document.getElementById('brief-copy-btn');
+    if(btn){
+      const orig=btn.textContent;
+      btn.textContent='Copied!';
+      btn.style.background='rgba(46,160,67,0.15)';
+      btn.style.borderColor='rgba(46,160,67,0.6)';
+      btn.style.color='var(--buy)';
+      setTimeout(()=>{btn.textContent=orig;btn.style.background='';btn.style.borderColor='';btn.style.color='';},2000);
+    }
+  });
+}
 function buildCorrSelect(){if(!D.corr||!D.corr.pairs)return;const sel=document.getElementById('corr-pair-select');if(!sel)return;sel.innerHTML=D.corr.pairs.map(p=>`<option value="${p}">${p}</option>`).join('');if(corrSelectedPair)sel.value=corrSelectedPair;const disp=document.getElementById('corr-pair-display');if(disp)disp.textContent=sel.value||corrSelectedPair||'Select Pair';}
 function openCorrPairSheet(){if(!D.corr||!D.corr.pairs){openSheet('Select Pair','<div class="loading">No correlation data yet.</div>');return;}const pairs=D.corr.pairs;let h='<div>';pairs.forEach(p=>{const active=p===(corrSelectedPair||pairs[0]);h+=`<div onclick="corrSelectedPair='${p}';document.getElementById('corr-pair-display').textContent='${p}';const sel=document.getElementById('corr-pair-select');if(sel)sel.value='${p}';renderCorr(D.corr);closeSheet();" style="padding:12px var(--pad);border-bottom:1px solid var(--border2);display:flex;align-items:center;justify-content:space-between;cursor:pointer;background:${active?'rgba(56,139,253,.08)':'transparent'};"><span style="font-size:var(--md);font-weight:700;color:${active?'var(--accent)':'var(--text)'};">${p}</span>${active?'<span style="color:var(--accent);">✓</span>':''}</div>`;});h+='</div>';openSheet('Base Pair',h);}
 function renderCorr(corr){const el=document.getElementById('corr-chart-wrap');if(!el)return;if(!corr||!corr.pairs||!corr.matrix){el.innerHTML='<div class="loading">No data yet — runs after next H4 scan.</div>';return;}const{pairs,matrix}=corr;if(!corrSelectedPair||!pairs.includes(corrSelectedPair))corrSelectedPair=pairs[0];const sel=document.getElementById('corr-pair-select');if(sel&&!sel.options.length)buildCorrSelect();const idx=pairs.indexOf(corrSelectedPair),row=matrix[idx];let h='<div style="display:flex;flex-direction:column;gap:10px;padding:4px 0;">';pairs.forEach((p,j)=>{if(p===corrSelectedPair)return;const v=row[j];if(v===null||v===1)return;const pct=Math.round(v*100),barPct=Math.abs(v)*50,isPos=v>=0,col=corrDotColor(v);h+=`<div style="display:flex;align-items:center;gap:8px;"><span style="width:52px;font-size:var(--sm);font-weight:700;color:var(--muted);text-align:right;flex-shrink:0;">${p.replace('/','')}</span><div style="flex:1;position:relative;height:20px;min-width:100px;"><div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--border);"></div><div style="position:absolute;top:50%;height:2px;background:${col};transform:translateY(-50%);${isPos?'left:50%;width:'+barPct+'%':'right:50%;width:'+barPct+'%'}"></div><div style="position:absolute;top:50%;width:8px;height:8px;border-radius:50%;background:${col};transform:translate(-50%,-50%);left:calc(${isPos?50+barPct:50-barPct}%)"></div></div><span style="width:34px;font-size:var(--sm);font-weight:700;color:${col};flex-shrink:0;">${isPos?'+':''}${pct}</span></div>`;});h+=`</div><div style="margin-top:10px;font-size:var(--xs);color:var(--muted);">${corr.lookback||50}-bar H4 returns · ${corr.updated?new Date(corr.updated).toLocaleString():''}</div>`;el.innerHTML=h;}
