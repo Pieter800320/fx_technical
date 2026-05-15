@@ -674,60 +674,275 @@ RULES:
     return narrative
 
 
-def call_edge_scores(macro, themes_data, tech_text, corr_text):
-    """Score all 12 pairs 1-10 on cross-source coherence (Edge score)."""
-    macro_lines = []
-    for key, _, label, invert in STOOQ_INSTRUMENTS:
-        d = macro.get(key)
-        if not d:
-            continue
-        chg = d["change_pct"]
-        arr = "up" if chg > 0 else "down" if chg < 0 else "flat"
-        macro_lines.append(f"{label}: {fmt_val(d['value'])} ({arr} {abs(chg):.2f}%)")
-    macro_text = "\n".join(macro_lines) or "No macro data"
 
+# ── Edge component helpers ────────────────────────────────────────────────────
+
+# Risk sensitivity map for regime fit scoring
+_RISK_ON  = {"AUD", "NZD", "GBP", "EUR", "CAD"}
+_RISK_OFF = {"JPY", "CHF", "USD"}
+
+# Primary session windows per currency (UTC hours, same as config/pairs.py logic)
+_CCY_SESSION = {
+    "EUR": ("London",   7, 16),
+    "GBP": ("London",   7, 16),
+    "CHF": ("London",   7, 16),
+    "USD": ("New York", 13, 22),
+    "CAD": ("New York", 13, 22),
+    "JPY": ("Tokyo",    23,  8),
+    "AUD": ("Tokyo",    23,  8),
+    "NZD": ("Tokyo",    23,  8),
+}
+
+
+def _score_regime_fit(pair, direction, regime):
+    """
+    Score 0-3: does the current market-wide regime support the trade direction?
+
+    Uses final_regime if available, falls back to h4 regime.
+    Regime type + confidence + currency risk sensitivity = score.
+
+    3 = regime explicitly and confidently supports direction
+    2 = regime supports direction but confidence is Low, or Ranging
+    1 = Mixed or Deteriorating — genuine ambiguity
+    0 = regime actively contradicts direction
+    """
+    fr = regime.get("final_regime") or regime.get("h4") or {}
+    reg_name = fr.get("regime", "Mixed")
+    conf     = fr.get("confidence", "Low")
+
+    base, quote = pair.split("/")
+
+    # Determine what the trade direction implies for risk appetite
+    # BUY pair = long base, short quote
+    base_is_risk_on  = base in _RISK_ON
+    base_is_risk_off = base in _RISK_OFF
+    quot_is_risk_on  = quote in _RISK_ON
+    quot_is_risk_off = quote in _RISK_OFF
+
+    # Does this trade direction align with the regime?
+    if direction == "bull":
+        # Buying base, selling quote
+        # Favoured by Risk-On if base is risk-on (e.g. AUD/JPY buy in Risk-On)
+        # Favoured by Risk-Off if base is risk-off (e.g. USD/JPY buy in Risk-Off — USD stronger)
+        regime_agrees = (
+            (reg_name == "Risk-On"  and (base_is_risk_on  or quot_is_risk_off)) or
+            (reg_name == "Risk-Off" and (base_is_risk_off or quot_is_risk_on))
+        )
+        regime_contradicts = (
+            (reg_name == "Risk-On"  and (base_is_risk_off and quot_is_risk_on)) or
+            (reg_name == "Risk-Off" and (base_is_risk_on  and quot_is_risk_off))
+        )
+    else:  # bear
+        regime_agrees = (
+            (reg_name == "Risk-On"  and (quot_is_risk_on  or base_is_risk_off)) or
+            (reg_name == "Risk-Off" and (quot_is_risk_off or base_is_risk_on))
+        )
+        regime_contradicts = (
+            (reg_name == "Risk-On"  and (quot_is_risk_off and base_is_risk_on)) or
+            (reg_name == "Risk-Off" and (quot_is_risk_on  and base_is_risk_off))
+        )
+
+    if reg_name in ("Mixed", "Ranging", "Unknown"):
+        return 1  # ambiguous — neither supports nor contradicts
+
+    if regime_contradicts:
+        return 0
+
+    if regime_agrees:
+        return 3 if conf in ("High", "Medium") else 2
+
+    # Partial or unclear relationship
+    return 1
+
+
+def _score_session(pair, now=None):
+    """
+    Score 0-2: is this pair in a primary liquidity window?
+
+    2 = at least one currency is in its primary session
+    1 = adjacent/overlap session (e.g. London/New York crossover)
+    0 = both currencies in off-hours
+    """
+    if now is None:
+        now = datetime.now(timezone.utc)
+    hour = now.hour
+
+    def _active(ccy):
+        entry = _CCY_SESSION.get(ccy)
+        if not entry:
+            return False
+        _, start, end = entry
+        if start > end:  # overnight session (e.g. Tokyo 23-8)
+            return hour >= start or hour < end
+        return start <= hour < end
+
+    base, quote = pair.split("/")
+    base_active  = _active(base)
+    quote_active = _active(quote)
+
+    if base_active or quote_active:
+        return 2
+
+    # Check if we're in an overlap window (within 1 hour of a primary session boundary)
+    # London/NY overlap: 13-16 UTC — already captured above
+    # Sydney/Tokyo partial: 23-01 UTC — already captured above
+    # Check proximity: if within 1h of primary session start for either currency
+    def _near(ccy):
+        entry = _CCY_SESSION.get(ccy)
+        if not entry:
+            return False
+        _, start, _ = entry
+        return (hour % 24) in ((start - 1) % 24, start % 24)
+
+    if _near(base) or _near(quote):
+        return 1
+
+    return 0
+
+
+def _score_atr_contraction(pair, h4_ohlcv):
+    """
+    Bonus 0-1: is ATR contracting? Contracting ATR at a signal = diminishing
+    momentum energy = slightly increases reversal/extreme probability.
+
+    Uses last 3 bars vs prior 11 bars (14-bar ATR split).
+    Returns 1 if current ATR < 85% of recent average, else 0.
+    """
+    bars = h4_ohlcv.get(pair, [])
+    if len(bars) < 20:
+        return 0
+
+    def _tr(b, prev):
+        return max(
+            b["high"] - b["low"],
+            abs(b["high"] - prev["close"]),
+            abs(b["low"]  - prev["close"])
+        )
+
+    recent_trs = [_tr(bars[i], bars[i-1]) for i in range(len(bars)-3, len(bars))]
+    prior_trs  = [_tr(bars[i], bars[i-1]) for i in range(len(bars)-14, len(bars)-3)]
+
+    if not prior_trs:
+        return 0
+
+    atr_recent = sum(recent_trs) / len(recent_trs)
+    atr_prior  = sum(prior_trs)  / len(prior_trs)
+
+    return 1 if atr_prior > 0 and atr_recent < 0.85 * atr_prior else 0
+
+
+def call_edge_scores(themes_data, h4, d1, regime, h4_ohlcv, now=None):
+    """
+    Compute Edge scores 1-10 for all 12 pairs using 4 components:
+
+      News sentiment   0-5  (Haiku — 24h directional catalyst pressure)
+      Regime fit       0-3  (Python — market environment vs trade direction)
+      Session          0-2  (Python — primary liquidity window active)
+      ATR contraction  0-1  (Python — diminishing momentum energy bonus)
+
+      Raw max = 11, displayed as min(10, raw)
+
+    Stored in news_brief.json as both composite and per-component breakdown.
+    """
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    # ── 1. News sentiment — Haiku call (0-5 per pair) ─────────────────────────
     themes      = themes_data.get("themes", [])
+    usd_bias    = themes_data.get("usd_bias", "neutral")
+    risk_sent   = themes_data.get("risk_sentiment", "neutral")
     themes_text = (
-        f"USD bias: {themes_data.get('usd_bias', '?')} | "
-        f"Risk: {themes_data.get('risk_sentiment', '?')}\n"
-        + "\n".join(f"- {t['theme']} [{t['direction'].upper()}]" for t in themes[:6])
+        f"USD bias: {usd_bias} | Risk sentiment: {risk_sent}\n"
+        + "\n".join(f"- {t['theme']} [{t['direction'].upper()}] ({t.get('confidence','?')})"
+                   for t in themes[:8])
     )
 
-    prompt = (
-        "You are a professional FX analyst. Score each currency pair 1-10 on EDGE - "
-        "how coherently all four data sources (correlation, technicals, macro, news) "
-        "agree on a tradeable direction for that pair right now.\n\n"
-        "Scoring guide:\n"
-        "10 = All four sources fully aligned, clear direction, no contradictions\n"
-        "7-9 = Three sources agree, one mild conflict\n"
-        "4-6 = Mixed signals, sources partially agree\n"
-        "1-3 = Contradictory sources, no clear edge\n\n"
-        f"DATA:\nCORRELATIONS: {corr_text[:800]}\n"
-        f"TECHNICALS: {tech_text}\n"
-        f"MACRO: {macro_text}\n"
-        f"NEWS: {themes_text}\n\n"
-        "Score ALL 12 pairs. Respond ONLY with valid JSON, no markdown, no explanation:\n"
-        '{"EURUSD":7,"GBPUSD":5,"USDJPY":9,"USDCHF":6,"AUDUSD":4,"USDCAD":5,'
-        '"NZDUSD":8,"EURJPY":6,"GBPJPY":5,"AUDJPY":4,"NZDJPY":7,"CADJPY":5}\n\n'
-        "Replace the example numbers with your actual scores. Return only the JSON object."
-    )
-
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    resp = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=200,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    raw    = resp.content[0].text.strip()
-    scores = json.loads(_strip_json(raw))
+    # Build a concise directional label per pair for the Haiku prompt
+    pair_labels = []
     for pair in PAIRS:
-        key = pair.replace("/", "")
-        if key not in scores:
-            scores[key] = 5
+        h4d = h4.get(pair, {})
+        d1d = d1.get(pair, {})
+        h4l = h4d.get("label", "Neutral")
+        d1l = d1d.get("label", "Neutral")
+        direction = h4d.get("direction", "neutral")
+        if direction == "neutral":
+            pair_labels.append(f"{pair.replace('/','')}: Neutral")
         else:
-            scores[key] = max(1, min(10, int(scores[key])))
-    print(f"  [Claude edge] scores: {scores}")
-    return scores
+            pair_labels.append(
+                f"{pair.replace('/','')}: {direction.upper()} (D1={d1l} H4={h4l})"
+            )
+
+    haiku_prompt = (
+        "You are an FX news analyst. For each pair below, score 0-5: "
+        "how strongly does today's news flow (last 24 hours only) create "
+        "fresh directional catalyst pressure SUPPORTING the stated technical direction?\n\n"
+        "Scale:\n"
+        "5 = Strong 24h news catalyst directly supports this direction\n"
+        "4 = Clear news support, moderate catalyst\n"
+        "3 = Mild news support or neutral news (no contradiction)\n"
+        "2 = News is mixed or ambiguous for this direction\n"
+        "1 = News leans against this direction\n"
+        "0 = News clearly contradicts or actively opposes this direction\n\n"
+        "For Neutral pairs, score 3 (no directional news assessment possible).\n\n"
+        f"NEWS THEMES (24h):\n{themes_text}\n\n"
+        f"PAIRS AND DIRECTIONS:\n" + "\n".join(pair_labels) + "\n\n"
+        "Respond ONLY with valid JSON, no markdown, no explanation:\n"
+        '{"EURUSD":3,"GBPUSD":3,"USDJPY":3,"USDCHF":3,"AUDUSD":3,"USDCAD":3,'
+        '"NZDUSD":3,"EURJPY":3,"GBPJPY":3,"AUDJPY":3,"NZDJPY":3,"CADJPY":3}\n\n'
+        "Replace example numbers with your actual scores 0-5."
+    )
+
+    news_scores = {}
+    try:
+        client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+        resp = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=200,
+            messages=[{"role": "user", "content": haiku_prompt}],
+        )
+        raw = resp.content[0].text.strip()
+        parsed = json.loads(_strip_json(raw))
+        for pair in PAIRS:
+            key = pair.replace("/", "")
+            v = parsed.get(key, 3)
+            news_scores[key] = max(0, min(5, int(v)))
+        print(f"  [Edge news] scores: {news_scores}")
+    except Exception as e:
+        print(f"  [Edge news] Haiku error: {e} — defaulting to 3")
+        for pair in PAIRS:
+            news_scores[pair.replace("/", "")] = 3
+
+    # ── 2-4. Python components — no API cost ──────────────────────────────────
+    composite   = {}
+    breakdowns  = {}
+
+    for pair in PAIRS:
+        key       = pair.replace("/", "")
+        h4d       = h4.get(pair, {})
+        direction = h4d.get("direction", "neutral")
+
+        news   = news_scores[key]
+        regime_pts = _score_regime_fit(pair, direction, regime)
+        session_pts = _score_session(pair, now)
+        atr_pts = _score_atr_contraction(pair, h4_ohlcv)
+
+        raw_total = news + regime_pts + session_pts + atr_pts
+        final     = max(1, min(10, raw_total))  # cap at 10, floor at 1
+
+        composite[key]  = final
+        breakdowns[key] = {
+            "news":    news,
+            "regime":  regime_pts,
+            "session": session_pts,
+            "atr":     atr_pts,
+            "raw":     raw_total,
+            "final":   final,
+        }
+
+    print(f"  [Edge final] {composite}")
+    return composite, breakdowns
+
+
 
 
 
@@ -870,7 +1085,12 @@ def main():
             except Exception as e:
                 print(f"  Claude narrative error: {e}")
             try:
-                result["edge_scores"] = call_edge_scores(macro, result, tech_text, corr_text)
+                h4_ohlcv = h4.get("_ohlcv", {})
+                edge_composite, edge_breakdown = call_edge_scores(
+                    result, h4, d1, regime, h4_ohlcv, now=datetime.now(timezone.utc)
+                )
+                result["edge_scores"]    = edge_composite
+                result["edge_breakdown"] = edge_breakdown
             except Exception as e:
                 print(f"  Claude edge error: {e}")
 
