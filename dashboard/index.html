@@ -1241,7 +1241,7 @@ function updateDrum(){
   for(let c=0;c<DRUM_COPIES;c++){
     ranked.forEach((r,i)=>{
       const hasTrade=openTradePairs.has(r.pair);
-      const pairLabel=r.pair.replace('/','')+(hasTrade?'<span style="color:rgba(227,179,65,0.9);font-size:13px;vertical-align:super;line-height:0;">*</span>':'');
+      const pairLabel=r.pair.replace('/','')+(hasTrade?'<span style="color:#00ff55;font-size:13px;vertical-align:super;line-height:0;text-shadow:0 0 6px rgba(0,255,65,.45);">*</span>':'');
       html+=`<div class="drum-strip-row" data-idx="${i}" data-pair="${r.pair}" style="height:${ROW_H}px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border-bottom:1px solid rgba(0,204,51,.06);scroll-snap-align:center;">
         <span class="dsr-num" style="font-family:'VT323',monospace;font-size:11px;color:rgba(0,153,38,0.45);line-height:1;">${i+1}</span>
         <span class="dsr-pair" style="font-family:'VT323',monospace;font-size:18px;color:#00cc44;line-height:1.1;">${pairLabel}</span>
@@ -2123,6 +2123,7 @@ function copyBBPrompt(btnEl){
   t+='5. CSM: do H4 and D1 CSM rankings agree on which currency is stronger?\n';
   t+='6. Regime: does the current regime favour trend continuation or ranging/reversal?\n';
   t+='7. ADX: >25 favours continuation, <20 favours reversal.\n';
+  t+='8. Setup score: >70% = strong trend alignment = favours CONTINUATION. <50% = weak alignment = favours REVERSAL. 50-70% = neutral.\n';
   t+='Then give a FINAL VERDICT: REVERSAL or CONTINUATION, with confidence (High/Medium/Low) and one key risk. Max 80 words.\n';
 
   navigator.clipboard.writeText(t).then(()=>{
