@@ -1175,9 +1175,8 @@ function renderDrumData(pair){
   const momBull=momVal>=50;
   const momBarHtml=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:8px;">
     <span style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.06em;width:30px;flex-shrink:0;">MOM</span>
-    <div style="flex:1;height:4px;background:rgba(0,70,17,0.28);border-radius:2px;overflow:hidden;position:relative;">
-      <div style="position:absolute;top:0;bottom:0;left:50%;width:2px;background:rgba(0,180,45,0.7);transform:translateX(-50%);box-shadow:0 0 3px rgba(0,180,45,0.4);"></div>
-      <div style="position:absolute;top:0;bottom:0;width:${momFillPct/2}%;background:${momCol};border-radius:2px;${momBull?'left:50%':'right:50%'};"></div>
+    <div style="flex:1;height:4px;background:rgba(0,70,17,0.28);border-radius:2px;overflow:hidden;">
+      <div style="width:${momFillPct}%;height:100%;background:${momCol};border-radius:2px;"></div>
     </div>
     <span style="${vt}font-size:14px;color:${BRIGHT};width:44px;text-align:right;">${momVal}${_1212Delta(s1212.dcmp)}</span>
   </div>`;
