@@ -561,12 +561,22 @@ function renderIndStrip(pair){
   // Setup
   const qai=computeQAI(pair),qv=document.getElementById('ic-qai-val');
   if(qv){qv.textContent=qai.score>0?qai.score+'%':'—';qv.style.color=qai.col;}
-  // Edge
+  // Edge — with breakdown tooltip if available
   const edge=getEdgeScore(pair);
+  const eb=getEdgeBreakdown(pair);
   const ev=document.getElementById('ic-edge-val');
+  const eic=document.getElementById('ic-edge');
   if(ev){
     ev.textContent=edge!==null?edge+'/10':'—';
     ev.style.color=edge===null?'var(--muted)':edge>=8?'var(--buy)':edge>=6?'var(--amber)':'var(--sell)';
+  }
+  if(eic&&eb){
+    const tip=`News:${eb.news}/5  Regime:${eb.regime}/3  Session:${eb.session}/2  ATR:${eb.atr}/1`;
+    eic.title=tip;
+    eic.style.cursor='help';
+  }else if(eic){
+    eic.title='';
+    eic.style.cursor='';
   }
 }
 function highlightCSM(pair){
@@ -978,6 +988,7 @@ function renderCSM(csm,conviction){
 }
 function getCorrVal(p1,p2){if(!D.corr||!D.corr.pairs||!D.corr.matrix)return null;const i=D.corr.pairs.indexOf(p1.replace('/',''));const j=D.corr.pairs.indexOf(p2.replace('/',''));if(i<0||j<0)return null;return D.corr.matrix[i][j];}
 function getEdgeScore(pair){const es=D.newsBrief&&D.newsBrief.edge_scores;if(!es)return null;const key=pair.replace('/','');return es[key]!==undefined?es[key]:null;}
+function getEdgeBreakdown(pair){const eb=D.newsBrief&&D.newsBrief.edge_breakdown;if(!eb)return null;const key=pair.replace('/','');return eb[key]||null;}
 // ── DRUM — redesigned left data panel + right scroll strip
 let drumRows=[],_drumCorrFlags=new Set();
 const DRUM_COPIES=3;
