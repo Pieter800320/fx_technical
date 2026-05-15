@@ -1150,13 +1150,12 @@ function renderDrumData(pair){
   // Zone 2: 1212 W1/D1/H4/H1 tiles with deltas
   h+=`<div style="display:flex;gap:3px;margin-bottom:9px;">`;
   [['W1',s1212.w1,s1212.dw1],['D1',s1212.d1,s1212.dd1],['H4',s1212.h4,s1212.dh4],['H1',s1212.h1,s1212.dh1]].forEach(([tf,val,dlt])=>{
-    const vc=scoreCol(val);
-    const bull=val>52,bear=val<48;
-    const bg=bull?'rgba(0,204,51,0.09)':bear?'rgba(0,60,15,0.07)':'rgba(0,100,25,0.04)';
-    const bdr=bull?'rgba(0,180,45,0.25)':bear?'rgba(0,120,30,0.18)':'rgba(0,80,20,0.12)';
-    h+=`<div style="flex:1;padding:3px 0;text-align:center;background:${bg};border:1px solid ${bdr};border-radius:3px;">
+    const glow10=Math.abs(dlt||0)>=10;
+    const bdr=glow10?'rgba(0,220,55,0.75)':'rgba(0,80,20,0.15)';
+    const shadow=glow10?'box-shadow:0 0 6px rgba(0,220,55,0.3);':'';
+    h+=`<div style="flex:1;padding:3px 0;text-align:center;background:rgba(0,100,25,0.04);border:1px solid ${bdr};border-radius:3px;${shadow}">
       <div style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.2;">${tf}</div>
-      <div style="${vt}font-size:17px;color:${BRIGHT};line-height:1.2;${Math.abs(val-50)>=15?'text-shadow:0 0 6px rgba(0,255,65,0.35)':''}">${val}</div>
+      <div style="${vt}font-size:17px;color:${BRIGHT};line-height:1.2;">${val}</div>
       <div style="height:15px;display:flex;align-items:center;justify-content:center;">${_1212Delta(dlt)}</div>
     </div>`;
   });
