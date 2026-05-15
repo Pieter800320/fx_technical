@@ -22,6 +22,8 @@ from scanner.correlate import compute_correlation
 from scanner.cooldown import is_on_cooldown, record_alert
 from scanner.regime import classify_regime, compute_final_regime
 from scanner.bb import detect_bb_events
+from alerts.news import get_alert_context
+from alerts.log import log_alert
 from alerts.telegram import send_bb_band_alert, send_bb_midline_alert
 
 def compute_reset_score(ohlcv_closes, period=20, direction='neutral'):
