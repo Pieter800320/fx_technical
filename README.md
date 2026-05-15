@@ -1,266 +1,343 @@
 # Forex1212
 
-A fully automated FX analysis dashboard built on a free infrastructure stack. Multi-timeframe technical scoring, AI-powered narrative and edge scoring, currency strength modelling, Telegram alerts, and a mobile-first trading journal — all running on GitHub Actions, GitHub Pages, and the Anthropic API.
+A fully automated G10 forex scanner, regime classifier, and mobile trading dashboard — built on a zero-cost stack using GitHub Actions, GitHub Pages, Twelvedata free tier, the Anthropic API, and Telegram.
 
-**Live:** [pieter800320.github.io/fx_technical](https://pieter800320.github.io/fx_technical)
+No server. No cloud bill. No subscription. Everything runs on GitHub's free compute.
 
 ---
 
-## Architecture
+## What it does
+
+The system continuously scans 12 G10 currency pairs across four timeframes (W1, D1, H4, H1), classifies the current market regime, generates an AI-assisted news brief, and delivers a progressive mobile dashboard with chart drawing tools, a trade journal, and Telegram alerts.
+
+**12 pairs tracked**
+EUR/USD · GBP/USD · USD/JPY · USD/CHF · AUD/USD · USD/CAD · NZD/USD · EUR/JPY · GBP/JPY · AUD/JPY · NZD/JPY · CAD/JPY
+
+---
+
+## Architecture overview
 
 ```
-GitHub Actions (5 scheduled workflows)
-    │
-    ├── scan_h1.py      → H1 technical scores
-    ├── scan_h4.py      → H4 scores + CSM + correlation + regime
-    ├── scan_d1.py      → D1 scores
-    ├── scan_news.py    → macro data + Claude AI pipeline
-    └── scan_alerts.py  → Telegram alert dispatcher (called by H4)
+GitHub Actions (free tier)
+  ├── scan_d1.py        Weekdays 00:10 UTC
+  ├── scan_h4.py        Every 4h at :25 UTC  ← deploys dashboard
+  ├── scan_h1.py        Every 1h at :02 UTC
+  ├── scan_alerts.py    Every 1h at :05 UTC
+  ├── scan_news.py      06:00 / 11:00 / 15:00 / 21:00 UTC
+  ├── scan_rates.py     Daily 06:30 UTC
+  ├── scan_cot.py       Saturdays 14:00 UTC
+  └── scan_calendar.py  Daily 06:00 UTC
          │
          ▼
-    data/*.json  →  dashboard/*.json  →  GitHub Pages
-                                              │
-                                              ▼
-                                    dashboard/index.html
-                                    (single-file PWA)
+  data/*.json  ──►  dashboard/  ──►  GitHub Pages
+                                      (live mobile app)
 ```
 
-### Scan Schedule
-
-| Workflow | Schedule (UTC) | Outputs |
-|---|---|---|
-| `scan_h1.yml` | Hourly | `h1_scores.json` |
-| `scan_h4.yml` | Every 4h at :25 | `h4_scores.json`, `csm.json`, `correlation.json`, `regime.json` (h4 key) |
-| `scan_d1.yml` | Daily 00:00 | `d1_scores.json`, `regime.json` (D1 signals) |
-| `scan_news.yml` | 05/09/13/17 UTC | `news_brief.json`, `regime.json` (macro + AI + final_regime) |
-| `scan_alerts.yml` | Called by H4 | Telegram messages |
+All scan outputs are JSON files committed to the repo. GitHub Pages serves the dashboard directly from the `dashboard/` folder — no build step, no bundler.
 
 ---
 
-## Pairs Covered
+## Dashboard features
 
-| # | Pair | # | Pair |
-|---|---|---|---|
-| 1 | EUR/USD | 7 | NZD/USD |
-| 2 | GBP/USD | 8 | EUR/JPY |
-| 3 | USD/JPY | 9 | GBP/JPY |
-| 4 | USD/CHF | 10 | AUD/JPY |
-| 5 | AUD/USD | 11 | NZD/JPY |
-| 6 | USD/CAD | 12 | CAD/JPY |
+### Home screen — Drum
+- Infinite-scroll vertical drum showing all 12 pairs ranked by `Setup × Edge`
+- Pairs with open trades marked with a glow indicator
+- Per-pair data panel: D1/H4/H1 signal labels, Setup %, Edge score, 1212 MOM (W1/D1/H4/H1 with deltas), session badges, regime label, trade position bar
+
+### Chart screen
+- LightweightCharts price chart (H1 / H4 / D1) with live current-bar update via Twelvedata WebSocket
+- Sub-chart: 1212 Momentum oscillator showing current TF line (blue), next higher TF line (red), and CMP composite (dotted)
+- Sub-chart: MACD and RSI overlays
+- EMA 200, EMA 50, Bollinger Bands, two configurable SMAs
+- **Level tools** — draw horizontal price alerts, set Above/Below trigger, long-press to delete
+- **Analysis button** — copies a full structured prompt (MOM, CSM, regime, session, news themes) for paste into any AI assistant
+- **BB button** — copies a Bollinger Band reversal/continuation prompt with 9 scored factors for AI evaluation
+- Candle countdown timer
+
+### Signal strip
+- Six-signal breakdown per pair per timeframe (EMA200, EMA50, RSI, MACD, ADX/DMI, Market Structure)
+- Setup score, Edge score with breakdown tooltip (News / Regime / Session / ATR)
+- 1212 MOM indicators per TF
+
+### CSM sheet
+- Currency Strength Model — D1 and H4 rankings for all 8 currencies
+- Per-pair CSM breakdown showing which currency is driving the move
+
+### Regime sheet
+- Final regime (Risk-On / Risk-Off / Mixed / Ranging) with confidence
+- Built from four weighted layers: W1 macro anchor, H4 structural, macro overlay, AI sentiment score
+- Conviction bars per currency from COT + institutional positioning
+
+### News brief
+- AI-generated market narrative (Sonnet): DRIVER / MOMENTUM / WATCH
+- News themes extracted from FXStreet, ForexLive, Nasdaq RSS (last 4h)
+- Cross-asset macro panel: VIX, DXY, US10Y, US2Y, WTI, Gold, Silver, S&P500, BTC, Copper
+- Copy Prompt button — sends full market brief to clipboard for AI analysis
+
+### Trade journal
+- Enter trades with full technical snapshot at open (MOM, CSM, regime, session, day, setup/edge scores)
+- TP/SL monitoring via H1 scan (wick-accurate fill and close detection)
+- Trade lifecycle Telegram alerts: filled / TP hit / SL hit
+- Log tab: open trades, closed trades, pattern analysis by session/regime/day, performance stats (win rate, avg R, expectancy)
+- CSV export with full trade schema
+
+### Rates tab
+- Live interest rate differentials for all 8 currencies
+- Manual entry with GitHub sync
+
+### Correlation sheet
+- 50-bar H4 correlation matrix for all 12 pairs
 
 ---
 
-## Setup Score (computeQAI)
+## Scoring systems
 
-The Setup score (0–100%) is the primary ranking signal. It combines 7 orthogonal components. ADX is a hard gate, not a component.
+### Setup score (0–100%)
+Six-signal technical alignment score computed per pair per timeframe in `score.py`:
 
-| Component | Weight | Description |
-|---|---|---|
-| TF Alignment | 28% | D1 + H4 + H1 unified direction |
-| Entry Position | 18% | Reset score × 0.6 + ATR percentile × 0.4 |
-| CSM Divergence | 16% | H4 base vs quote currency strength gap |
-| Regime Fit | 13% | Macro context alignment (risk/growth/haven) |
-| Edge (AI) | 12% | Claude cross-source coherence score 1–10 |
-| Session Fit | 8% | Active trading session matches pair's optimal window |
-| Rate Differential | 5% | Interest rate tailwind in trade direction |
+| Signal | Weight |
+|--------|--------|
+| EMA 200 (trend gate) | High |
+| EMA 50 (momentum bias) | Medium |
+| RSI midline position | Medium |
+| MACD histogram direction | Medium |
+| DMI+/- crossover | Medium |
+| Market structure (BOS/CHoCH) | Medium |
 
-**Hard gates and caps:**
-- ADX < 20 → score capped at 45% (no trend, no alert)
-- Counter-regime trades (e.g. bullish risk pair in Risk-Off) → score capped at 40–70% depending on pair type
+Adjusted by: ADX weight, conflict penalty (H4 structure vs momentum), reset score (mean-reversion proximity).
 
-**Regime currency classification:**
-- Risk pairs: AUD, NZD, CAD
-- Growth pairs: EUR, GBP
-- Safe havens: CHF, JPY
+### Edge score (1–10)
+Multi-component environmental quality score computed in `scan_news.py`:
+
+| Component | Max | Method |
+|-----------|-----|--------|
+| News sentiment (24h directional catalyst) | 5 | Claude Haiku |
+| Regime fit (market environment vs trade direction) | 3 | Python rule-based |
+| Session relevance (primary liquidity window) | 2 | Python time-check |
+| ATR contraction bonus (diminishing energy) | 1 | Python — ATR split |
+
+Raw max = 11, displayed as min(10, raw). Breakdown visible as tooltip on the Edge pill.
+
+### 1212 Momentum oscillator (0–100)
+ATR-normalised momentum oscillator computed from a 12-period SMA displacement:
+- 50 = neutral
+- Above 50 = bullish pressure
+- Below 50 = bearish pressure
+- Delta = change vs prior bar (direction of momentum shift)
+
+Computed for W1, D1, H4, H1. CMP (Composite Momentum Pulse) = weighted blend: W1×0.1 + D1×0.4 + H4×0.3 + H1×0.2.
+
+### Drum ranking
+`rank = Setup% × edgeMult`
+
+where `edgeMult` = 0.50 (Edge 1–4) / 0.75 (Edge 5–6) / 1.00 (Edge 7–8) / 1.15 (Edge 9–10).
 
 ---
 
-## Regime System
+## Regime system
 
-Three sources combine into one `final_regime`:
+Four-layer weighted composite:
+
+| Layer | Weight | Source | Updates |
+|-------|--------|---------|---------|
+| W1 macro anchor | 25% | SPX, VIX, Gold, DXY 4-week returns | Daily via `scan_news.py` |
+| H4 structural | 30% | CSM divergence + H4 signal alignment | Every 4h via `scan_h4.py` |
+| Macro overlay | 30% | VIX, DXY, US2Y, Gold, SPX, Copper intraday | Every 4h via `scan_news.py` |
+| AI sentiment | 15% | Claude Haiku news/macro risk appetite score | 4× daily via `scan_news.py` |
+
+W1 requires two consecutive identical readings before confirming a regime flip (persistence filter).
+
+Outputs: `Risk-On` / `Risk-Off` / `Mixed` / `Ranging` with confidence (High/Medium/Low) and direction (Strengthening/Stable/Deteriorating).
+
+---
+
+## Telegram alerts
+
+Six alert types:
+
+| Alert | Trigger | Source |
+|-------|---------|--------|
+| Signal summary | Setup ≥ 70% AND Edge ≥ 7 AND D1 confirms H4 AND ADX ≥ 20, not on 20h cooldown | `scan_alerts.py` |
+| Level alert | Price crosses a horizontal level drawn in the dashboard | `scan_h1.py` |
+| BB band touch | H4 wick touches upper/lower Bollinger Band | `scan_h4.py` via `bb.py` |
+| BB midline return | H4 returns to 20-SMA after a band touch | `scan_h4.py` via `bb.py` |
+| Trade filled | Pending order triggered (wick-accurate) | `scan_h1.py` |
+| Trade closed | TP or SL hit (TP wins on same-bar gap) | `scan_h1.py` |
+
+---
+
+## Scan schedule
+
+| Workflow | Schedule (UTC) | Deploys dashboard |
+|----------|---------------|-------------------|
+| `scan_d1.py` | Weekdays 00:10 | No |
+| `scan_h4.py` | Every 4h at :25 | **Yes** |
+| `scan_h1.py` | Every 1h at :02 | No |
+| `scan_alerts.py` | Every 1h at :05 | No |
+| `scan_news.py` | 06:00 / 11:00 / 15:00 / 21:00 | Yes (regime only) |
+| `scan_rates.py` | Daily 06:30 | No |
+| `scan_cot.py` | Saturdays 14:00 | No |
+| `scan_calendar.py` | Daily 06:00 | No |
+
+---
+
+## Setup
+
+### 1. Fork the repository
+
+Fork to your own GitHub account. GitHub Pages and GitHub Actions both require the repo to be yours.
+
+### 2. Enable GitHub Pages
+
+Go to **Settings → Pages → Source** and select `Deploy from a branch`, branch `main`, folder `/dashboard`.
+
+### 3. Configure repository secrets
+
+Go to **Settings → Secrets and variables → Actions** and add the following:
+
+| Secret | Required by | Where to get it |
+|--------|-------------|-----------------|
+| `TWELVEDATA_API_KEY` | H1, H4 scans | [twelvedata.com](https://twelvedata.com) — free tier |
+| `TELEGRAM_BOT_TOKEN` | H1, H4, alert scans | Create a bot via [@BotFather](https://t.me/BotFather) on Telegram |
+| `TELEGRAM_CHAT_ID` | H1, H4, alert scans | Your personal chat ID — send `/start` to [@userinfobot](https://t.me/userinfobot) |
+| `ANTHROPIC_API_KEY` | News scan | [console.anthropic.com](https://console.anthropic.com) |
+| `DASHBOARD_URL` | H1, H4 scans (alert links) | Your GitHub Pages URL, e.g. `https://yourusername.github.io/fx_technical` |
+
+`GITHUB_TOKEN` is provided automatically by GitHub Actions — you do not need to create it.
+
+### 4. Enable GitHub Actions
+
+Go to **Actions** and enable workflows if prompted. Run `scan_d1.py` and `scan_h4.py` manually first via **Run workflow** to populate the initial data files before the schedule kicks in.
+
+### 5. Dashboard PAT (for alert sync)
+
+The dashboard syncs level alerts and trades to GitHub via the Contents API. To enable this, go to the Rates tab in the dashboard, enter a GitHub Personal Access Token (classic, with `repo` scope), and press Save. The token is stored in your browser's localStorage under `fx1212_gh_pat`.
+
+### 6. Twelvedata WebSocket (live prices in chart)
+
+The chart fetches the current live bar via Twelvedata when the chart is open. In the dashboard **Settings**, enter your Twelvedata API key. It is stored locally under `fx1212_td_key`.
+
+---
+
+## Data flow
 
 ```
-H4 Structural (40%) + Macro Overlay (40%) + AI Sentiment (20%) = final_regime
-```
+Twelvedata API
+  └── fetch.py ──► score.py ──► scan_h4.py ──► h4_scores.json
+                            └── scan_d1.py ──► d1_scores.json
+                            └── scan_h1.py ──► h1_scores.json
 
-| Source | Computed by | Method |
-|---|---|---|
-| H4 Structural | `scan_h4.py` → `regime.py:classify_regime()` | H4 CSM rankings, safe-haven divergence, USD proxy, risk basket |
-| Macro Overlay | `scan_news.py:compute_macro_bias()` | VIX/DXY/US2Y/Gold/SPX/Copper each scored +1/0/-1 |
-| AI Sentiment | `scan_news.py:call_regime_sentiment()` | Claude Haiku scores news-only risk appetite 1–10 |
+  ├── csm.py     ──► csm.json         (Currency Strength Model)
+  ├── bb.py      ──► Telegram          (BB band/midline alerts)
+  ├── regime.py  ──► regime.json       (structural regime)
+  ├── structure.py ──► BOS/CHoCH data  (embedded in scores)
+  ├── conviction.py ──► conviction.json (COT-based scores)
+  └── correlate.py ──► correlation.json
 
-If component spread ≥ 4 → `Mixed/Low` regardless of average.
+Yahoo Finance API
+  └── scan_news.py ──► macro data ──► news_brief.json
+                   └── regime.json (macro overlay + W1 anchor)
 
----
+FXStreet / ForexLive / Nasdaq RSS
+  └── scan_news.py ──► Claude (Haiku: themes + edge scores)
+                   └── Claude (Sonnet: narrative)
+                   └── news_brief.json
 
-## AI Pipeline (scan_news.py)
+CFTC COT data
+  └── scan_cot.py ──► cot.json ──► conviction.json
 
-Four sequential Claude API calls per run:
-
-| Call | Model | Output |
-|---|---|---|
-| `call_themes()` | Haiku | Structured theme extraction from RSS headlines |
-| `call_narrative()` | Sonnet | 5-section FX narrative (Drivers/Price/Regime/Contradictions/Implications) |
-| `call_edge_scores()` | Haiku | Edge coherence scores 1–10 for all 12 pairs |
-| `call_regime_sentiment()` | Haiku | News-only risk appetite score 1–10 |
-
-**Macro data sources (Yahoo Finance v8 API):**
-VIX, DXY, US10Y, US2Y, WTI, Gold, Silver, SPX, BTC, Copper
-
-**News sources (RSS):**
-FXStreet, ForexLive, Nasdaq FX
-
----
-
-## Currency Strength Model (CSM)
-
-Two CSM rankings are maintained:
-
-| Type | Key in csm.json | Source | Used for |
-|---|---|---|---|
-| D1 Composite | `rankings` | D1 × 0.7 + H4 × 0.3, ATR-adjusted returns | CSM sheet display, historical bias |
-| H4 Only | `h4_rankings` | H4 bars only, 5-bar lookback (20h) | Setup score CSM component |
-
-The H4 rankings are preferred in `computeQAI` when available, giving the setup score a current-session bias rather than a daily-close bias.
-
----
-
-## Session Scoring
-
-Session fit contributes 8% to the Setup score. Optimal sessions per pair:
-
-| Session | Abbr | UTC Window | Best Pairs |
-|---|---|---|---|
-| Sydney | SY | 22:00–07:00 | AUD/USD, NZD/USD, AUD/JPY, NZD/JPY |
-| Tokyo | TK | 23:00–08:00 | USD/JPY, EUR/JPY, GBP/JPY, AUD/JPY, NZD/JPY, CAD/JPY |
-| London | LN | 07:00–16:00 | EUR/USD, GBP/USD, USD/CHF, EUR/JPY, GBP/JPY |
-| New York | NY | 12:00–21:00 | USD/JPY, USD/CHF, USD/CAD, AUD/USD, NZD/USD, CAD/JPY |
-| LN/NY Overlap | LN/NY | 12:00–16:00 | Highest liquidity — all USD majors |
-
-Session match → score 10. No match → score 2. Market closed or no active session → score 3 (neutral).
-
----
-
-## Telegram Alert Filters
-
-Alerts fire via `scan_alerts.py`, called at the end of each H4 workflow. All conditions must pass:
-
-| Filter | Threshold |
-|---|---|
-| Setup score | ≥ 70% |
-| Edge score | ≥ 7 |
-| D1 confirms H4 | D1 direction must match H4 |
-| ADX | ≥ 20 |
-| ATR | Must be within normal range |
-| Conflict signals | None |
-| Cooldown | 20h per pair (persisted in `alert_cooldown.json`) |
-
----
-
-## Data Files
-
-All files live in `data/` (raw) and `dashboard/` (served via Pages).
-
-| File | Written by | Contents |
-|---|---|---|
-| `h1_scores.json` | scan_h1.py | H1 technical scores per pair |
-| `h4_scores.json` | scan_h4.py | H4 scores, ADX, reset score, direction |
-| `d1_scores.json` | scan_d1.py | D1 scores, ATR percentile, direction |
-| `csm.json` | scan_h4.py | D1 CSM rankings + H4 rankings + breakdown |
-| `regime.json` | scan_h4/d1/news | D1 signals, H4 structural, macro_bias, ai_sentiment, final_regime |
-| `correlation.json` | scan_h4.py | 12×12 rolling correlation matrix |
-| `news_brief.json` | scan_news.py | Narrative, themes, edge_scores, macro values |
-| `rates.json` | Manual (frontend) | Central bank policy rates per currency |
-| `alert_cooldown.json` | scan_alerts.py | Last alert timestamp per pair |
-| `level_alerts.json` | Frontend | User-set price level alerts |
-| `conviction.json` | Manual / future | COT-based conviction scores (CSM sheet) |
-
----
-
-## Frontend (dashboard/index.html)
-
-Single-file PWA. No build step. All data fetched via GitHub raw API with cache-busting.
-
-### Navigation Tabs
-
-| Tab | Contents |
-|---|---|
-| Home | Drum, signal strips, indicators, quick actions, currency strength |
-| Log | Trade journal, statistics, pattern analysis, open trades |
-| Corr | Rolling correlation chart per base pair |
-| Rates | Policy rate entry, differentials popup |
-
-### Drum
-
-Ranks all 12 pairs by: `Setup% × 0.6 + Edge × 4`
-
-Each row displays: **Pair name · Setup% · Edge · Session abbr**
-
-Session abbreviation is bright when the current session matches the pair's optimal window, dim otherwise. Trade RR bars appear below the text when a trade is active on that pair.
-
-### Signal Strips
-
-**Regime strip** (4 cells): Final regime + confidence + direction | Macro score | AI sentiment | Combined score
-
-**Indicator strip** (4 cells): H4 Regime | D1 % score | Setup% | Edge score
-
-### Sheets (bottom drawers)
-
-All detail views open as bottom sheets from the home screen: Regime breakdown, Pair Summary (QAI), News Brief, Sessions, Live Prices, Charts (fullscreen landscape), Enter Trade, Closed Trades (Log tab), Rates Data (Rates tab).
-
----
-
-## Stack & Cost
-
-| Component | Service | Cost |
-|---|---|---|
-| Data scanning | GitHub Actions | Free (2,000 min/month) |
-| Dashboard hosting | GitHub Pages | Free |
-| OHLCV data | Twelvedata free tier | Free (800 credits/day) |
-| Macro data | Yahoo Finance v8 API | Free |
-| AI narrative + scoring | Anthropic API | ~$0.10–0.20/day (Haiku + Sonnet) |
-| Alerts | Telegram Bot API | Free |
-
----
-
-## Environment Variables (GitHub Secrets)
-
-| Secret | Used by |
-|---|---|
-| `TWELVEDATA_API_KEY` | scan_h1, scan_h4, scan_d1 |
-| `ANTHROPIC_API_KEY` | scan_news |
-| `TELEGRAM_BOT_TOKEN` | scan_alerts |
-| `TELEGRAM_CHAT_ID` | scan_alerts |
-| `DASHBOARD_URL` | scan_alerts (alert message link) |
-
----
-
-## Local Development
-
-```bash
-git clone https://github.com/Pieter800320/fx_technical.git
-cd fx_technical
-pip install -r requirements.txt
-
-# Run individual scanners
-python scanner/scan_h4.py
-python scanner/scan_news.py
-python scanner/scan_alerts.py H4
-
-# Serve the dashboard locally
-cd dashboard
-python -m http.server 8000
-# Open http://localhost:8000
+All JSON ──► dashboard/ ──► GitHub Pages ──► Mobile browser
 ```
 
 ---
 
-## Key Design Decisions
+## Repository structure
 
-**Why single-file HTML?** Zero build tooling, zero dependencies, deployable anywhere. The entire frontend is one file that can be opened directly from disk.
+```
+fx_technical/
+├── .github/workflows/     GitHub Actions scan schedules
+├── alerts/
+│   ├── telegram.py        Telegram message formatters (all 6 alert types)
+│   ├── log.py             Alert logging to alerts.json
+│   └── news.py            FXStreet news context fetcher for H4 alerts
+├── config/
+│   └── pairs.py           Pair list, session windows, session-pair mapping
+├── scanner/
+│   ├── fetch.py           Twelvedata OHLCV fetcher (H1/H4/D1)
+│   ├── score.py           Six-signal scoring engine (all timeframes)
+│   ├── csm.py             Currency Strength Model
+│   ├── regime.py          Regime classifier (H4 structural + W1 + final)
+│   ├── bb.py              Bollinger Band touch detection + state machine
+│   ├── structure.py       BOS / CHoCH market structure detector
+│   ├── conviction.py      COT-based currency conviction scores
+│   ├── correlate.py       H4 correlation matrix
+│   ├── levels.py          Support/resistance level detection
+│   ├── cooldown.py        Alert cooldown manager
+│   ├── cot.py             CFTC COT data fetcher
+│   ├── scan_d1.py         Daily scan: D1 scores, regime, COT CSM
+│   ├── scan_h4.py         H4 scan: scores, CSM, BB alerts, correlation
+│   ├── scan_h1.py         H1 scan: scores, level alerts, trade monitoring
+│   ├── scan_alerts.py     Alert gate: Setup/Edge/D1/ADX filters → Telegram
+│   ├── scan_news.py       News brief: themes, narrative, Edge scores
+│   ├── scan_rates.py      Interest rate data
+│   ├── scan_cot.py        COT weekly data
+│   └── scan_calendar.py   Economic calendar
+├── data/                  Live JSON data (source of truth)
+├── dashboard/             GitHub Pages root
+│   ├── index.html         Single-file mobile dashboard (~180KB)
+│   └── *.json             Copied from data/ by workflows
+├── state/
+│   └── cooldown.json      Alert cooldown state (24h per pair/direction)
+└── requirements.txt       pandas · numpy · requests
+```
 
-**Why GitHub raw API instead of Pages URLs?** Pages has a CDN cache with up to 10-minute TTL. The raw API (`api.github.com/repos/.../contents/...`) serves current committed content immediately, which matters for a live trading dashboard.
+---
 
-**Why H4 CSM over D1 CSM in scoring?** D1 CSM reflects the daily close — it lags intraday shifts by hours. H4 CSM captures the current 20-hour momentum window, which is more relevant to the timeframe you're actually trading.
+## Dependencies
 
-**Why separate `final_regime` from the D1 structural regime?** The D1 structural regime is a pure price-action signal. `final_regime` incorporates macro data and AI sentiment, making it more forward-looking. They're intentionally kept separate so divergence between them is visible — a useful caution signal.
+**Python (scanner):** `pandas==2.1.4` · `numpy==1.26.2` · `requests==2.31.0` · `anthropic` (installed at runtime by `scan_news.py` workflow)
+
+**JavaScript (dashboard):** [LightweightCharts](https://github.com/tradingview/lightweight-charts) v4 (CDN) · Vanilla JS · No build toolchain
+
+**External APIs (all free tier):**
+- Twelvedata — OHLCV data (H1/H4/D1), WebSocket live prices
+- Yahoo Finance v8 — Cross-asset macro data (VIX, DXY, SPX, Gold, etc.)
+- FXStreet, ForexLive, Nasdaq — RSS news feeds
+- CFTC — Weekly COT reports (public)
+- Anthropic — Claude Haiku (Edge scoring + themes) and Claude Sonnet (narrative)
+
+---
+
+## Methodology
+
+Signal scoring follows the **Pain-Free Performance** top-down framework (Dr. John Rusin adapted for FX):
+
+1. D1 sets the directional bias — H4 must confirm before any signal fires
+2. H1 provides precision entry context and monitors open trades
+3. Regime filters environmental fit — Risk-On pairs flagged in Risk-Off conditions
+4. ADX ≥ 20 required for signal alerts (no alerts in flat/ranging conditions)
+5. 20-hour cooldown per pair/direction prevents alert clustering
+
+The 1212 Momentum oscillator is a proprietary ATR-normalised SMA displacement indicator. It answers "is momentum building or exhausting?" on each timeframe independently, and the CMP composite answers "what is the multi-timeframe consensus?"
+
+---
+
+## Cost
+
+| Service | Cost |
+|---------|------|
+| GitHub Actions | Free (2,000 min/month on free tier — well within limits) |
+| GitHub Pages | Free |
+| Twelvedata | Free tier (800 API calls/day — sufficient for 12 pairs) |
+| Yahoo Finance | Free (unofficial v8 API) |
+| RSS feeds | Free |
+| CFTC COT data | Free (public) |
+| Anthropic API | ~$0.01–0.05/day depending on scan frequency |
+
+Total infrastructure cost: **~$0.30–1.50/month** (Anthropic API only).
+
+---
+
+## License
+
+Private repository. Not licensed for redistribution.
