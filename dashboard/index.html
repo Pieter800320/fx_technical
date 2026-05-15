@@ -272,7 +272,6 @@ tr:last-child td{border-bottom:none;}
     <!-- Row 2a: draw tool toggles -->
     <div style="display:flex;gap:4px;padding:5px var(--pad) 4px;border-bottom:1px solid var(--border2);align-items:center;">
       <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" title="Tap chart to place level line" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);">— Level</button>
-      <button id="draw-btn-vline" class="btn btn-muted" onclick="setDrawTool('vline')" title="Tap chart to place time line" style="padding:4px 10px;flex-shrink:0;font-size:var(--xs);">| Time</button>
       <button class="btn btn-muted" onclick="clearDrawings()" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);margin-left:auto;">✕ Clear</button>
     </div>
     <!-- Row 2b: staging inputs (price + dir + Set) -->
@@ -1433,7 +1432,7 @@ function toggleInd(key){
   renderChtPrice();
 }
 function openChart(){const el=document.getElementById('screen-chart');el.style.display='flex';document.getElementById('cht-pair-lbl').textContent=selectedPair.replace('/','');['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===chtTf));startCandleTimer();updateCloseTradeBtn();renderChtAlerts();wsStart(selectedPair);requestAnimationFrame(()=>requestAnimationFrame(()=>renderChtPrice()));}
-function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);_removeStagingLine();_removeStagingVLine();_hideFloatDel();document.querySelectorAll('.cht-vline-div').forEach(d=>d.remove());if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;_drawTool=null;_stagingLine=null;}
+function closeChart(){document.getElementById('screen-chart').style.display='none';wsStop();if(candleTimerInt)clearInterval(candleTimerInt);_removeStagingLine();_hideFloatDel();if(chtMainInst){try{chtMainInst.remove();}catch(e){}chtMainInst=null;}if(chtSubInst){try{chtSubInst.remove();}catch(e){}chtSubInst=null;}_wsPriceLine=null;_chtCandles=null;_drawTool=null;_stagingLine=null;}
 function setChtTf(tf){chtTf=tf;['D1','H4','H1'].forEach(t=>document.getElementById('cht-tf-'+t).classList.toggle('active',t===tf));startCandleTimer();renderChtPrice();}
 // Pane drag-resize: drag the handle between price chart and sub-pane
 (function initPaneDrag(){
@@ -1489,26 +1488,21 @@ function wsUpdatePrice(price){
 let _drawTool=null;
 let _stagingLine=null;       // LW priceLine for staged hline
 let _stagingPrice=null;      // price of staged hline
-let _stagingVTs=null;        // unix ts of staged vline
-let _stagingVDiv=null;       // DOM div for staged vline
 let _alertLineRefs=[];       // [{id, priceLine, price}]
 let _draggingLine=false;     // dragging staging hline
-let _draggingVLine=false;    // dragging staging vline
 let _longTimer=null;
-let _selectedAlertId=null;   // for float-del (both hlines + vlines)
+let _selectedAlertId=null;   // for float-del
 
 function setDrawTool(tool){
   if(tool==='hline'&&_stagingPrice!==null&&_drawTool==='hline'){_disengage();return;}
   _drawTool=_drawTool===tool?null:tool;_updateDrawBtns();
 }
 function _updateDrawBtns(){
-  [['hline','draw-btn-hline'],['vline','draw-btn-vline']].forEach(([t,id])=>{
-    const b=document.getElementById(id);if(!b)return;
-    const on=_drawTool===t;
-    b.style.background=on?'rgba(227,179,65,.15)':'transparent';
-    b.style.color=on?'var(--amber)':'var(--muted)';
-    b.style.borderColor=on?'rgba(227,179,65,.4)':'var(--border)';
-  });
+  const b=document.getElementById('draw-btn-hline');if(!b)return;
+  const on=_drawTool==='hline';
+  b.style.background=on?'rgba(227,179,65,.15)':'transparent';
+  b.style.color=on?'var(--amber)':'var(--muted)';
+  b.style.borderColor=on?'rgba(227,179,65,.4)':'var(--border)';
 }
 function _disengage(){_drawTool=null;_updateDrawBtns();}
 
@@ -1540,46 +1534,9 @@ function _commitStagingAsAlert(){
   laSave(alerts);_removeStagingLine();_renderAlertLines();renderChtAlerts();pushAlertsToGitHub(alerts);
 }
 
-// ── VLINE staging ────────────────────────────────────────────────────────────
-function _renderStagingVLine(){
-  if(_stagingVDiv){_stagingVDiv.remove();_stagingVDiv=null;}
-  if(_stagingVTs===null||!chtMainInst)return;
-  const canvasArea=document.getElementById('cht-canvas-area');
-  const priceEl=document.getElementById('cht-price');
-  if(!canvasArea||!priceEl)return;
-  const x=_timeToCoordExtrap(_stagingVTs);if(x===null)return;
-  const pr=priceEl.getBoundingClientRect(),ar=canvasArea.getBoundingClientRect();
-  const absX=pr.left-ar.left+x,top=pr.top-ar.top,h=priceEl.clientHeight;
-  const div=document.createElement('div');
-  div.id='cht-vline-staging';
-  div.style.cssText='position:absolute;top:'+top+'px;height:'+h+'px;left:'+(absX-5)+'px;width:11px;'+
-    'background:transparent;pointer-events:none;z-index:13;';
-  const vis=document.createElement('div');
-  vis.style.cssText='position:absolute;top:0;bottom:0;left:5px;width:1px;pointer-events:none;'+
-    'background:repeating-linear-gradient(to bottom,rgba(227,179,65,.9) 0,rgba(227,179,65,.9) 2px,transparent 2px,transparent 5px);';
-  div.appendChild(vis);
-  const lbl=document.createElement('div');
-  lbl.style.cssText='position:absolute;bottom:4px;left:8px;font-family:\'VT323\',monospace;font-size:11px;'+
-    'color:rgba(227,179,65,.9);background:rgba(13,17,23,.8);padding:0 3px;border-radius:2px;pointer-events:none;white-space:nowrap;';
-  const _sd=new Date(_stagingVTs*1000);
-  lbl.textContent=_sd.toLocaleDateString([],{month:'short',day:'numeric'})+' '+_sd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  div.appendChild(lbl);canvasArea.appendChild(div);_stagingVDiv=div;
-}
-function _removeStagingVLine(){
-  if(_stagingVDiv){_stagingVDiv.remove();_stagingVDiv=null;}_stagingVTs=null;
-}
-function _commitStagingVLine(){
-  if(_stagingVTs===null)return;
-  const ts=_stagingVTs;
-  const _cd=new Date(ts*1000);
-  const label=_cd.toLocaleDateString([],{month:'short',day:'numeric'})+' '+_cd.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  const alerts=laLoad();
-  alerts.push({id:Date.now(),pair:selectedPair,time:ts,label,active:true,type:'v',created:new Date().toLocaleString()});
-  laSave(alerts);pushAlertsToGitHub(alerts);_removeStagingVLine();_renderVLines();
-}
+// Unified Set button
 function _commitStaging(){
   if(_stagingPrice!==null)_commitStagingAsAlert();
-  if(_stagingVTs!==null)_commitStagingVLine();
 }
 
 // ── ALERT LINES (hlines from laLoad) ─────────────────────────────────────────
@@ -1596,54 +1553,6 @@ function _renderAlertLines(){
       _alertLineRefs.push({id:a.id,priceLine:pl,price:a.price});
     }catch(e){}
   });
-}
-
-// ── VLINES ───────────────────────────────────────────────────────────────────
-function _renderVLines(){
-  document.querySelectorAll('.cht-vline-div').forEach(d=>d.remove());
-  if(!chtMainInst)return;
-  const canvasArea=document.getElementById('cht-canvas-area');
-  const priceEl=document.getElementById('cht-price');
-  if(!priceEl||!canvasArea)return;
-  const pr=priceEl.getBoundingClientRect(),ar=canvasArea.getBoundingClientRect();
-  const offsetLeft=pr.left-ar.left,offsetTop=pr.top-ar.top,h=priceEl.clientHeight;
-  laLoad().filter(a=>a.type==='v'&&a.pair===selectedPair&&a.active).forEach(v=>{
-    const x=_timeToCoordExtrap(v.time);if(x===null)return;
-    const absX=offsetLeft+x;
-    const div=document.createElement('div');div.className='cht-vline-div';div.dataset.id=v.id;
-    // 12px wide touch target, visual 1px line centered at offset 5px
-    div.style.cssText='position:absolute;top:'+offsetTop+'px;height:'+h+'px;left:'+(absX-5)+'px;width:11px;'+
-      'background:transparent;pointer-events:all;cursor:pointer;z-index:12;';
-    const vis=document.createElement('div');
-    vis.style.cssText='position:absolute;top:0;bottom:0;left:5px;width:1px;pointer-events:none;'+
-      'background:repeating-linear-gradient(to bottom,rgba(139,148,158,.7) 0,rgba(139,148,158,.7) 2px,transparent 2px,transparent 5px);';
-    div.appendChild(vis);
-    const lbl=document.createElement('div');
-    lbl.style.cssText='position:absolute;bottom:4px;left:8px;font-family:\'VT323\',monospace;font-size:11px;'+
-      'color:rgba(139,148,158,.85);background:rgba(13,17,23,.75);padding:0 3px;border-radius:2px;pointer-events:none;white-space:nowrap;';
-    lbl.textContent=v.label||'';div.appendChild(lbl);canvasArea.appendChild(div);
-  });
-}
-function _repositionVLines(){
-  if(!chtMainInst)return;
-  const canvasArea=document.getElementById('cht-canvas-area');
-  const priceEl=document.getElementById('cht-price');
-  if(!priceEl||!canvasArea)return;
-  const pr=priceEl.getBoundingClientRect(),ar=canvasArea.getBoundingClientRect();
-  const offsetLeft=pr.left-ar.left,offsetTop=pr.top-ar.top,h=priceEl.clientHeight;
-  const vtMap=new Map(laLoad().filter(a=>a.type==='v').map(v=>[v.id,v]));
-  document.querySelectorAll('.cht-vline-div').forEach(div=>{
-    const id=parseInt(div.dataset.id);const v=vtMap.get(id);
-    if(!v){div.remove();return;}
-    const x=_timeToCoordExtrap(v.time);
-    if(x===null){div.style.display='none';return;}
-    div.style.display='';
-    div.style.left=(offsetLeft+x-5)+'px';div.style.top=offsetTop+'px';div.style.height=h+'px';
-  });
-  if(_stagingVTs!==null&&_stagingVDiv){
-    const x=_timeToCoordExtrap(_stagingVTs);
-    if(x!==null){const absX=offsetLeft+x;_stagingVDiv.style.left=absX+'px';_stagingVDiv.style.top=offsetTop+'px';_stagingVDiv.style.height=h+'px';}
-  }
 }
 
 // ── FLOAT-DEL ────────────────────────────────────────────────────────────────
@@ -1665,32 +1574,6 @@ function _deleteSelectedAlert(){
 }
 
 // ── COORD HELPERS ─────────────────────────────────────────────────────────────
-function _timeToCoordExtrap(ts){
-  if(!chtMainInst)return null;
-  const tsObj=chtMainInst.timeScale();
-  const x=tsObj.timeToCoordinate(ts);if(x!==null)return x;
-  const ohlcv=getOhlcv(selectedPair,chtTf);if(ohlcv.length<2)return null;
-  const lastBar=ohlcv[ohlcv.length-1];
-  const barDur=lastBar.time-ohlcv[ohlcv.length-2].time;
-  const lastX=tsObj.timeToCoordinate(lastBar.time);if(lastX===null)return null;
-  const range=tsObj.getVisibleLogicalRange();if(!range)return null;
-  const priceEl=document.getElementById('cht-price');if(!priceEl)return null;
-  const pixPerBar=priceEl.clientWidth/Math.max(1,range.to-range.from);
-  return lastX+((ts-lastBar.time)/barDur)*pixPerBar;
-}
-function _coordToTime(clientX){
-  if(!chtMainInst)return null;
-  const priceEl=document.getElementById('cht-price');if(!priceEl)return null;
-  const rect=priceEl.getBoundingClientRect();const localX=clientX-rect.left;
-  const tsObj=chtMainInst.timeScale();
-  const t=tsObj.coordinateToTime(localX);if(t!==null)return t;
-  const ohlcv=getOhlcv(selectedPair,chtTf);if(ohlcv.length<2)return null;
-  const lastBar=ohlcv[ohlcv.length-1];const barDur=lastBar.time-ohlcv[ohlcv.length-2].time;
-  const lastX=tsObj.timeToCoordinate(lastBar.time);if(lastX===null)return null;
-  const range=tsObj.getVisibleLogicalRange();if(!range)return null;
-  const pixPerBar=rect.width/Math.max(1,range.to-range.from);
-  return lastBar.time+Math.round((localX-lastX)/pixPerBar)*barDur;
-}
 function _onAlertInputChange(){
   const inp=document.getElementById('cht-alert-inp');if(!inp)return;
   const v=parseFloat(inp.value);if(!isNaN(v)&&v>0)_setStagingLine(v);else _removeStagingLine();
@@ -1702,21 +1585,6 @@ function _nearHline(clientY){
   for(const ref of _alertLineRefs){const ly=_priceToClientY(ref.price);if(ly!==null&&Math.abs(clientY-ly)<20)return ref;}
   return null;
 }
-// Coord-based vline detection — e.target is always the chart canvas so we can't use element proximity
-function _nearVlineByCoord(clientX){
-  if(!chtMainInst)return null;
-  const priceEl=document.getElementById('cht-price');if(!priceEl)return null;
-  const rect=priceEl.getBoundingClientRect();
-  const localX=clientX-rect.left;
-  const active=laLoad().filter(a=>a.type==='v'&&a.pair===selectedPair&&a.active);
-  for(const v of active){
-    const x=_timeToCoordExtrap(v.time);
-    if(x!==null&&Math.abs(localX-x)<18)return v;
-  }
-  return null;
-}
-function _nearVlineDiv(el){return el?el.closest('.cht-vline-div'):null;}
-
 // ── INPUT/TOUCH HANDLERS ──────────────────────────────────────────────────────
 function initDrawingSvg(){
   if(window._drawListenersAttached)return;
@@ -1729,18 +1597,14 @@ function initDrawingSvg(){
     if(!chtMainInst)return;
     const t=e.touches[0];_ts={x:t.clientX,y:t.clientY,t:Date.now()};
     if(_drawTool)return;
-    const vRef=_nearVlineByCoord(t.clientX);const hRef=_nearHline(t.clientY);
-    if(vRef||hRef){
-      e.preventDefault(); // block chart pan so long-press isn't cancelled by finger drift
+    const hRef=_nearHline(t.clientY);
+    if(hRef){
+      e.preventDefault();
       _longTimer=setTimeout(()=>{
         _longTimer=null;if(navigator.vibrate)navigator.vibrate(35);
-        if(vRef){
-          deleteAlert(vRef.id);_stagingVTs=vRef.time;_renderStagingVLine();_draggingVLine=true;
-        } else if(hRef){
-          const alerts=laLoad().filter(a=>a.id!==hRef.id);
-          laSave(alerts);pushAlertsToGitHub(alerts);_renderAlertLines();
-          _setStagingLine(hRef.price);_draggingLine=true;
-        }
+        const alerts=laLoad().filter(a=>a.id!==hRef.id);
+        laSave(alerts);pushAlertsToGitHub(alerts);_renderAlertLines();
+        _setStagingLine(hRef.price);_draggingLine=true;
       },350);
     }
   },true);
@@ -1749,14 +1613,12 @@ function initDrawingSvg(){
     if(_longTimer&&(Math.abs(e.touches[0].clientX-_ts.x)>8||Math.abs(e.touches[0].clientY-_ts.y)>8)){clearTimeout(_longTimer);_longTimer=null;}
     const t=e.touches[0];
     if(_draggingLine){const p=_toPrice(t.clientY);if(p!==null)_setStagingLine(p);e.preventDefault();return;}
-    if(_draggingVLine){const ts=_coordToTime(t.clientX);if(ts!==null){_stagingVTs=ts;_renderStagingVLine();}e.preventDefault();}
   },{passive:false,capture:true});
 
   document.addEventListener('touchend',function(e){
     if(_longTimer){clearTimeout(_longTimer);_longTimer=null;}
     if(e.target&&e.target.closest&&e.target.closest('#cht-float-del'))return;
     if(_draggingLine){_draggingLine=false;return;}
-    if(_draggingVLine){_draggingVLine=false;return;}
     _hideFloatDel();
     const t=e.changedTouches[0];
     const dx=Math.abs(t.clientX-_ts.x),dy=Math.abs(t.clientY-_ts.y);
@@ -1765,10 +1627,7 @@ function initDrawingSvg(){
     const r=_bounds();if(!r)return;
     const inChart=t.clientX>=r.left&&t.clientX<=r.right&&t.clientY>=r.top&&t.clientY<=r.bottom;
     if(_drawTool==='hline'&&inChart){const p=_toPrice(t.clientY);if(p!==null)_setStagingLine(p);_disengage();return;}
-    if(_drawTool==='vline'&&inChart){const ts=_coordToTime(t.clientX);if(ts!==null){_stagingVTs=ts;_renderStagingVLine();}_disengage();return;}
     if(!inChart)return;
-    const vRef=_nearVlineByCoord(t.clientX);
-    if(vRef){_showFloatDel(vRef.id,t.clientX,t.clientY);return;}
     const hRef=_nearHline(t.clientY);
     if(hRef)_showFloatDel(hRef.id,t.clientX,t.clientY);
   },true);
@@ -1784,18 +1643,17 @@ function initDrawingSvg(){
     const r=_bounds();if(!r)return;
     if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)return;
     if(_drawTool==='hline'){const p=_toPrice(e.clientY);if(p!==null)_setStagingLine(p);_disengage();}
-    else if(_drawTool==='vline'){const ts=_coordToTime(e.clientX);if(ts!==null){_stagingVTs=ts;_renderStagingVLine();}_disengage();}
   },true);
 }
 
 function clearDrawings(){
-  _removeStagingLine();_removeStagingVLine();
+  _removeStagingLine();
   const alerts=laLoad().filter(a=>a.pair!==selectedPair);
   laSave(alerts);pushAlertsToGitHub(alerts);
-  _renderAlertLines();_renderVLines();_hideFloatDel();
+  _renderAlertLines();_hideFloatDel();
 }
-function restoreDrawings(){_renderAlertLines();_renderVLines();}
-function renderDrawings(){_repositionVLines();}
+function restoreDrawings(){_renderAlertLines();}
+function renderDrawings(){}
 
 
 
@@ -1949,9 +1807,8 @@ async function renderChtPrice(){
   restoreDrawings(); // Recreate saved drawings on this chart
   if(_wsLastPrice&&_wsPair===selectedPair)wsUpdatePrice(_wsLastPrice);
   // Re-render drawings when chart pans/zooms
-  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(()=>{renderDrawings();_repositionVLines();}));
+  chart.timeScale().subscribeVisibleLogicalRangeChange(()=>requestAnimationFrame(()=>{renderDrawings();}));
   chart.priceScale('right').applyOptions({});
-  _renderVLines();  // Render vertical time lines
   setTimeout(renderDrawings,150);
   // OHLC HUD — updates on crosshair move
   const ohlcEl=document.getElementById('cht-ohlc');
@@ -1985,24 +1842,10 @@ function setLevelAlert(){
   if(inp&&inp.value&&!isNaN(parseFloat(inp.value)))_setStagingLine(parseFloat(inp.value));
   _commitStaging();
 }
-function deleteAlert(id){const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);_renderAlertLines();_renderVLines();pushAlertsToGitHub(alerts);}
+function deleteAlert(id){const alerts=laLoad().filter(a=>a.id!==id);laSave(alerts);_renderAlertLines();pushAlertsToGitHub(alerts);}
 
 // Frontend time-alert check (browser notification for immediate feedback)
-function checkTimeAlerts(){
-  const alerts=laLoad();let changed=false;
-  const now=Date.now()/1000;
-  alerts.forEach(a=>{
-    if(a.type!=='v'||!a.active)return;
-    if(a.time<=now){
-      a.active=false;changed=true;
-      const lbl=a.label?a.label+' · ':'';
-      const t=new Date(a.time*1000);
-      const ts=t.getUTCHours().toString().padStart(2,'0')+':'+t.getUTCMinutes().toString().padStart(2,'0')+' UTC';
-      setTimeout(()=>alert('🕐 Time Alert: '+(a.pair||'').replace('/','')+'\n'+lbl+ts),100);
-    }
-  });
-  if(changed){laSave(alerts);pushAlertsToGitHub(alerts);_renderVLines();}
-}
+function checkTimeAlerts(){/* vlines removed */}
 function checkLevelAlerts(){
   const alerts=laLoad();let changed=false;
   alerts.forEach(a=>{
