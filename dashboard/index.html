@@ -2088,8 +2088,8 @@ function copyBBPrompt(btnEl){
   t+=now.toUTCString()+' | '+dow+' | Session: '+(activeSess.length?activeSess.join(', '):'Closed')+'\n';
   t+='═'.repeat(52)+'\n\n';
 
-  t+='PRICE & BB:\n';
-  t+='  H4 close: '+close+'  |  Upper: '+bbUpper+'  |  Mid: '+bbMid+'  |  Lower: '+bbLower+'\n\n';
+  t+='PRICE:\n';
+  t+='  H4 close: '+close+'\n\n';
 
   t+='1212 MOMENTUM (custom oscillator: 0=max bearish, 50=neutral, 100=max bullish):\n';
   t+='  W1: '+fmtMom(mom.w1,null)+'\n';
@@ -2124,6 +2124,7 @@ function copyBBPrompt(btnEl){
   t+='6. Regime: does the current regime favour trend continuation or ranging/reversal?\n';
   t+='7. ADX: >25 favours continuation, <20 favours reversal.\n';
   t+='8. Setup score: >70% = strong trend alignment = favours CONTINUATION. <50% = weak alignment = favours REVERSAL. 50-70% = neutral.\n';
+  t+='9. Extended flag: YES = price has already moved beyond normal ATR range from the band mean — independently increases reversal probability regardless of trend strength.\n';
   t+='Then give a FINAL VERDICT: REVERSAL or CONTINUATION, with confidence (High/Medium/Low) and one key risk. Max 80 words.\n';
 
   navigator.clipboard.writeText(t).then(()=>{
