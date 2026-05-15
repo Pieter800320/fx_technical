@@ -1,64 +1,6 @@
 {
   "alerts": [
     {
-      "pair": "AUD/USD",
-      "direction": "bull",
-      "h1_label": "Neutral",
-      "h4_label": "Buy",
-      "d1_label": "Strong Buy",
-      "blurb": [
-        "MarketPulse",
-        "Chart alert: AUD/USD 360 pips rally at risk of a minor mean reversion decline below 0.7200 before new upleg"
-      ],
-      "levels": {
-        "support": [
-          {
-            "price": 0.70687,
-            "pips": 95.4
-          },
-          {
-            "price": 0.70591,
-            "pips": 105.0
-          },
-          {
-            "price": 0.70449,
-            "pips": 119.2
-          }
-        ],
-        "resistance": [
-          {
-            "price": 0.71862,
-            "pips": 22.1
-          },
-          {
-            "price": 0.71964,
-            "pips": 32.3
-          }
-        ],
-        "current_price": 0.71641
-      },
-      "extended": {
-        "extended": true,
-        "reasons": [
-          "Price 8.7x ATR from EMA200",
-          "10 consecutive bars beyond EMA50"
-        ],
-        "atr_dist": 8.65
-      },
-      "regime": "Risk-On",
-      "regime_confidence": "Low",
-      "adx": 60.2,
-      "atr_ok": true,
-      "conflict": false,
-      "structure": {
-        "direction": "neutral",
-        "event": "none",
-        "strength": 0.0,
-        "multiplier": 1.0
-      },
-      "timestamp": "2026-04-17T03:49:01.516339"
-    },
-    {
       "pair": "EUR/JPY",
       "direction": "bull",
       "h1_label": "Strong Buy",
@@ -3579,6 +3521,39 @@
         "multiplier": 1.0
       },
       "timestamp": "2026-05-15T13:26:30.387963"
+    },
+    {
+      "pair": "GBP/USD",
+      "direction": "bear",
+      "h1_label": "Strong Sell",
+      "h4_label": "Sell",
+      "d1_label": "Sell",
+      "blurb": [
+        "FXStreet",
+        "British Pound tumbles as UK turmoil, Iran risks lift USD"
+      ],
+      "levels": {},
+      "extended": {
+        "extended": true,
+        "reasons": [
+          "Price 5.2x ATR from EMA200",
+          "RSI oversold (22)",
+          "10 consecutive bars beyond EMA50"
+        ],
+        "atr_dist": 5.24
+      },
+      "regime": "Risk-Off",
+      "regime_confidence": "High",
+      "adx": 79.6,
+      "atr_ok": true,
+      "conflict": false,
+      "structure": {
+        "direction": "neutral",
+        "event": "none",
+        "strength": 0.0,
+        "multiplier": 1.0
+      },
+      "timestamp": "2026-05-15T17:20:41.722768"
     }
   ]
 }
