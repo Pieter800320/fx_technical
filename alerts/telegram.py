@@ -121,6 +121,94 @@ def send_trade_alert(pair: str, event: str, direction: str,
     return send_telegram("\n".join(lines))
 
 
+
+def _fmt(val, suffix="", none="—"):
+    return f"{val}{suffix}" if val is not None else none
+
+def _mom_str(mom, delta):
+    if mom is None:
+        return "—"
+    s = str(mom)
+    if delta is not None:
+        s += f" {'↓' if delta < 0 else '↑' if delta > 0 else '→'}{abs(delta)}"
+    return s
+
+def _csm_warn(label, val):
+    if val is None:
+        return ""
+    if val > 65:
+        return f"⚠️ {label} elevated ({val:.0f})"
+    if val < 35:
+        return f"⚠️ {label} weak ({val:.0f})"
+    return ""
+
+
+def send_bb_band_alert(ev: dict) -> bool:
+    """Message 1 — H4 wick touches upper or lower Bollinger Band."""
+    band    = ev["band"]
+    display = ev["display"]
+    dec     = ev["dec"]
+    q       = ev["quality"]
+
+    arrow  = "🔼" if band == "upper" else "🔽"
+    side   = "UPPER" if band == "upper" else "LOWER"
+    emoji  = q["rating_emoji"]
+
+    cw_base  = _csm_warn(ev["csm_labels"][0], ev["csm_base"])
+    cw_quote = _csm_warn(ev["csm_labels"][1], ev["csm_quote"])
+    csm_line = "  ".join(filter(None, [cw_base, cw_quote]))
+
+    adx_str = f"{ev['adx_val']:.1f} {ev['adx_dir']}" if ev["adx_val"] is not None else "—"
+
+    lines = [
+        f"{arrow} <b>{display} — {side} BB TOUCH</b>",
+        f"H4 close: <b>{ev['close']:.{dec}f}</b>   BB: {ev['upper']:.{dec}f} / {ev['lower']:.{dec}f}",
+        "",
+        f"Rating: {emoji} <b>{q['rating']}</b>  [{q['score']}/10  T2:{q['tier2']} T3:{q['tier3']}]",
+        "",
+        f"H4 MOM  {_mom_str(ev['h4_mom'], ev['h4_delta'])}    D1 MOM  {_mom_str(ev['d1_mom'], ev['d1_delta'])}",
+        f"H1 MOM  {_mom_str(ev['h1_mom'], ev['h1_delta'])}    W1 MOM  {_fmt(ev['w1_mom'])}",
+        f"Setup   {_fmt(ev['setup_pct'], '%')}     Edge    {_fmt(ev['edge'], '/10')}",
+        f"ADX     {adx_str}     Regime  {ev['regime']} ({ev['reg_conf']})",
+        f"Ext: {'✅' if ev['extended'] else '—'}   Conflict: {'✅' if ev['conflict'] else '—'}",
+    ]
+    if csm_line:
+        lines.append(csm_line)
+    lines += ["", f'📊 <a href="{DASHBOARD_URL}">{display} H4</a>']
+
+    return send_telegram("\n".join(lines))
+
+
+def send_bb_midline_alert(ev: dict) -> bool:
+    """Message 2 — H4 wick touches BB 20-SMA midline after a band touch."""
+    band    = ev["band"]
+    display = ev["display"]
+    dec     = ev["dec"]
+
+    origin = "upper" if band == "upper" else "lower"
+
+    h4_unwound = ev["h4_mom"] is not None and 45 <= ev["h4_mom"] <= 55
+    d1_unwound = ev["d1_mom"] is not None and 45 <= ev["d1_mom"] <= 55
+    if h4_unwound and d1_unwound:
+        verdict = "Momentum fully unwound. Trade complete."
+    elif h4_unwound:
+        verdict = "H4 neutral. D1 still running — watch for continuation."
+    else:
+        verdict = "Momentum still turning. Potential continuation through midline."
+
+    lines = [
+        f"⚪ <b>{display} — MIDLINE ({ev['mid']:.{dec}f})</b>",
+        f"From {origin} BB touch · +{ev['elapsed']}",
+        "",
+        f"H4 MOM  {_mom_str(ev['h4_mom'], ev['h4_delta'])}    D1 MOM  {_mom_str(ev['d1_mom'], ev['d1_delta'])}",
+        f"Setup   {_fmt(ev['setup_pct'], '%')}",
+        "",
+        verdict,
+        "",
+        f'📊 <a href="{DASHBOARD_URL}">{display} H4</a>',
+    ]
+    return send_telegram("\n".join(lines))
+
 def send_time_alert(pair: str, label: str = "", alert_time: int = 0,
                     tf: str = "") -> bool:
     """Vertical time line alert — fires when UTC time passes the marker."""
