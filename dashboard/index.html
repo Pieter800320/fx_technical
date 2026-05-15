@@ -1233,12 +1233,16 @@ function updateDrum(){
   if(!strip)return;
   const N=ranked.length,ROW_H=44;
   const CENTER_OFFSET=Math.max(0,Math.floor(strip.clientHeight/2)-Math.floor(ROW_H/2));
+  // Pre-build set of pairs with open trades for the asterisk indicator
+  const openTradePairs=new Set(tradesLoad().filter(t=>t.status==='open'||t.status==='pending').map(t=>t.pair));
   let html='';
   for(let c=0;c<DRUM_COPIES;c++){
     ranked.forEach((r,i)=>{
+      const hasTrade=openTradePairs.has(r.pair);
+      const pairLabel=r.pair.replace('/','')+(hasTrade?'<span style="color:rgba(227,179,65,0.9);font-size:13px;vertical-align:super;line-height:0;">*</span>':'');
       html+=`<div class="drum-strip-row" data-idx="${i}" data-pair="${r.pair}" style="height:${ROW_H}px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;border-bottom:1px solid rgba(0,204,51,.06);scroll-snap-align:center;">
         <span class="dsr-num" style="font-family:'VT323',monospace;font-size:11px;color:rgba(0,153,38,0.45);line-height:1;">${i+1}</span>
-        <span class="dsr-pair" style="font-family:'VT323',monospace;font-size:18px;color:#00cc44;line-height:1.1;">${r.pair.replace('/','')}</span>
+        <span class="dsr-pair" style="font-family:'VT323',monospace;font-size:18px;color:#00cc44;line-height:1.1;">${pairLabel}</span>
       </div>`;
     });
   }
@@ -1360,6 +1364,19 @@ function _lookupRaw(series,t){
   let lo=0,hi=series.length-1,res=null;
   while(lo<=hi){const mid=(lo+hi)>>1;if(series[mid].time<=t){res=series[mid].raw;lo=mid+1;}else hi=mid-1;}
   return res;
+}
+// Map a single higher-TF raw slide onto the primary OHLCV time axis.
+// Used for the higher-TF line in the 1212 oscillator sub-chart.
+function _cmpAlignSingle(higherRaw,primaryOhlcv){
+  if(!higherRaw.length)return[];
+  const out=[];
+  for(let i=25;i<primaryOhlcv.length;i++){
+    const t=primaryOhlcv[i].time;
+    const v=_lookupRaw(higherRaw,t);
+    if(v===null)continue;
+    out.push({time:t,value:_norm1212(v)});
+  }
+  return out;
 }
 function _cmpSeriesAligned(pair,primaryOhlcv){
   const d1=getOhlcv(pair,'D1'),h4=getOhlcv(pair,'H4'),h1=getOhlcv(pair,'H1'),w1=_d1toWeekly(d1);
@@ -1765,9 +1782,20 @@ async function renderChtPrice(){
         subChart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(md.map(d=>({time:d.time,value:d.signal})));
       }
     } else if(indState.osc1212){
-      // Compute TF-native and CMP series
+      // Compute TF-native, higher-TF, and CMP series
       const tfSeries=_1212SlideRaw(ohlcv).map(d=>({time:d.time,value:d.value}));
       const cmpSeries=_cmpSeriesAligned(selectedPair,ohlcv);
+      // Higher-TF line: H1→H4, H4→D1, D1→W1
+      const higherTfMap={H1:'H4',H4:'D1',D1:'W1'};
+      const higherTfKey=higherTfMap[chtTf];
+      let higherSeries=[];
+      if(higherTfKey){
+        const higherOhlcv=higherTfKey==='W1'
+          ? _d1toWeekly(getOhlcv(selectedPair,'D1'))
+          : getOhlcv(selectedPair,higherTfKey);
+        const higherRaw=_1212SlideRaw(higherOhlcv);
+        if(higherRaw.length)higherSeries=_cmpAlignSingle(higherRaw,ohlcv);
+      }
       if(tfSeries.length){
         _subChartOffset=_computeSubOffset(tfSeries[0].time,ohlcv);
         const tf0=tfSeries[0].time,tfN=tfSeries[tfSeries.length-1].time;
@@ -1777,9 +1805,11 @@ async function renderChtPrice(){
           subChart.addLineSeries({color:col,lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:false,crosshairMarkerVisible:false})
             .setData([{time:tf0,value:lvl},{time:tfN,value:lvl}]);
         });
-        // CMP composite line — dotted, thin
-        if(cmpSeries.length)subChart.addLineSeries({color:'rgba(56,139,253,0.6)',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'MOM'}).setData(cmpSeries);
-        // TF-native line — blue solid (same as RSI)
+        // CMP composite line — dotted, dim blue
+        if(cmpSeries.length)subChart.addLineSeries({color:'rgba(56,139,253,0.6)',lineWidth:1,lineStyle:LightweightCharts.LineStyle.Dashed,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:'CMP'}).setData(cmpSeries);
+        // Higher-TF line — red, slightly thinner
+        if(higherSeries.length)subChart.addLineSeries({color:'rgba(248,81,73,0.75)',lineWidth:1,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:higherTfKey}).setData(higherSeries);
+        // TF-native line — blue solid (primary)
         subChart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:true,crosshairMarkerVisible:false,title:chtTf}).setData(tfSeries);
         try{subChart.priceScale('right').applyOptions({autoScale:true,scaleMargins:{top:0.08,bottom:0.08}});}catch(e){}
       }
