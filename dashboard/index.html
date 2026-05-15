@@ -1702,6 +1702,19 @@ function _nearHline(clientY){
   for(const ref of _alertLineRefs){const ly=_priceToClientY(ref.price);if(ly!==null&&Math.abs(clientY-ly)<20)return ref;}
   return null;
 }
+// Coord-based vline detection — e.target is always the chart canvas so we can't use element proximity
+function _nearVlineByCoord(clientX){
+  if(!chtMainInst)return null;
+  const priceEl=document.getElementById('cht-price');if(!priceEl)return null;
+  const rect=priceEl.getBoundingClientRect();
+  const localX=clientX-rect.left;
+  const active=laLoad().filter(a=>a.type==='v'&&a.pair===selectedPair&&a.active);
+  for(const v of active){
+    const x=_timeToCoordExtrap(v.time);
+    if(x!==null&&Math.abs(localX-x)<18)return v;
+  }
+  return null;
+}
 function _nearVlineDiv(el){return el?el.closest('.cht-vline-div'):null;}
 
 // ── INPUT/TOUCH HANDLERS ──────────────────────────────────────────────────────
@@ -1716,14 +1729,13 @@ function initDrawingSvg(){
     if(!chtMainInst)return;
     const t=e.touches[0];_ts={x:t.clientX,y:t.clientY,t:Date.now()};
     if(_drawTool)return;
-    const vDiv=_nearVlineDiv(e.target);const hRef=_nearHline(t.clientY);
-    if(vDiv||hRef){
+    const vRef=_nearVlineByCoord(t.clientX);const hRef=_nearHline(t.clientY);
+    if(vRef||hRef){
+      e.preventDefault(); // block chart pan so long-press isn't cancelled by finger drift
       _longTimer=setTimeout(()=>{
         _longTimer=null;if(navigator.vibrate)navigator.vibrate(35);
-        if(vDiv){
-          const id=parseInt(vDiv.dataset.id);
-          const v=laLoad().find(a=>a.id===id&&a.type==='v');
-          if(v){deleteAlert(id);_stagingVTs=v.time;_renderStagingVLine();_draggingVLine=true;}
+        if(vRef){
+          deleteAlert(vRef.id);_stagingVTs=vRef.time;_renderStagingVLine();_draggingVLine=true;
         } else if(hRef){
           const alerts=laLoad().filter(a=>a.id!==hRef.id);
           laSave(alerts);pushAlertsToGitHub(alerts);_renderAlertLines();
@@ -1755,8 +1767,8 @@ function initDrawingSvg(){
     if(_drawTool==='hline'&&inChart){const p=_toPrice(t.clientY);if(p!==null)_setStagingLine(p);_disengage();return;}
     if(_drawTool==='vline'&&inChart){const ts=_coordToTime(t.clientX);if(ts!==null){_stagingVTs=ts;_renderStagingVLine();}_disengage();return;}
     if(!inChart)return;
-    const vDiv=_nearVlineDiv(e.target);
-    if(vDiv){_showFloatDel(parseInt(vDiv.dataset.id),t.clientX,t.clientY);return;}
+    const vRef=_nearVlineByCoord(t.clientX);
+    if(vRef){_showFloatDel(vRef.id,t.clientX,t.clientY);return;}
     const hRef=_nearHline(t.clientY);
     if(hRef)_showFloatDel(hRef.id,t.clientX,t.clientY);
   },true);
@@ -1789,6 +1801,13 @@ function renderDrawings(){_repositionVLines();}
 
 
 
+
+function _computeSubOffset(subFirstTs,ohlcv){
+  if(!ohlcv||ohlcv.length<2)return 0;
+  const barDur=ohlcv[1].time-ohlcv[0].time;
+  if(!barDur)return 0;
+  return Math.round((subFirstTs-ohlcv[0].time)/barDur);
+}
 
 async function renderChtPrice(){
   const wrap=document.getElementById('cht-canvas-area');
@@ -1876,7 +1895,7 @@ async function renderChtPrice(){
     if(indState.macd){
       const md=computeMACD(ohlcv);
       if(md.length){
-        _subChartOffset=ohlcv.length-md.length;
+        _subChartOffset=_computeSubOffset(md[0].time,ohlcv);
         subChart.addHistogramSeries({priceLineVisible:false,lastValueVisible:false}).setData(md.map(d=>({time:d.time,value:d.histogram,color:d.histogram>=0?'rgba(63,185,80,0.6)':'rgba(248,81,73,0.6)'})));
         subChart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(md.map(d=>({time:d.time,value:d.macd})));
         subChart.addLineSeries({color:CHT_WHITE,lineWidth:1,priceLineVisible:false,lastValueVisible:false}).setData(md.map(d=>({time:d.time,value:d.signal})));
@@ -1886,7 +1905,7 @@ async function renderChtPrice(){
       const tfSeries=_1212SlideRaw(ohlcv).map(d=>({time:d.time,value:d.value}));
       const cmpSeries=_cmpSeriesAligned(selectedPair,ohlcv);
       if(tfSeries.length){
-        _subChartOffset=ohlcv.length-tfSeries.length;
+        _subChartOffset=_computeSubOffset(tfSeries[0].time,ohlcv);
         const tf0=tfSeries[0].time,tfN=tfSeries[tfSeries.length-1].time;
         // Reference lines: 70, 50, 30
         [70,50,30].forEach(lvl=>{
@@ -1903,27 +1922,27 @@ async function renderChtPrice(){
     } else {
       const rd=computeRSI(ohlcv);
       if(rd.length){
-        _subChartOffset=ohlcv.length-rd.length;
+        _subChartOffset=_computeSubOffset(rd[0].time,ohlcv);
         const tf=rd[0].time,tl=rd[rd.length-1].time;
         [75,50,25].forEach(lvl=>subChart.addLineSeries({color:CHT_GREY,lineWidth:1,lineStyle:2,priceLineVisible:false,lastValueVisible:false}).setData([{time:tf,value:lvl},{time:tl,value:lvl}]));
         subChart.addLineSeries({color:CHT_BLUE,lineWidth:1,priceLineVisible:false,lastValueVisible:true}).setData(rd);
         try{subChart.priceScale('right').applyOptions({autoScale:false});}catch(e){}
       }
     }
-    // Sync time scale: price → sub using actual time range (not logical offsets)
+    // Sync time scale: compute offset by first-bar timestamp diff, then sync logical range
     let _raf=null;
-    chart.timeScale().subscribeVisibleLogicalRangeChange(()=>{
-      if(!chtSubInst)return;
+    chart.timeScale().subscribeVisibleLogicalRangeChange(r=>{
+      if(!r||!chtSubInst)return;
       if(_raf)cancelAnimationFrame(_raf);
       _raf=requestAnimationFrame(()=>{
-        try{const vr=chart.timeScale().getVisibleRange();if(vr)chtSubInst.timeScale().setVisibleRange(vr);}catch(e){}
+        try{chtSubInst.timeScale().setVisibleLogicalRange({from:r.from-_subChartOffset,to:r.to-_subChartOffset});}catch(e){}
       });
     });
     new ResizeObserver(()=>{if(chtSubInst)chtSubInst.applyOptions({width:subEl.clientWidth,height:subEl.clientHeight});}).observe(subEl);
   }
   const visN=Math.min(150,ohlcv.length);
   chart.timeScale().setVisibleLogicalRange({from:ohlcv.length-visN,to:ohlcv.length+2});
-  setTimeout(()=>{if(chtSubInst){try{const vr=chart.timeScale().getVisibleRange();if(vr)chtSubInst.timeScale().setVisibleRange(vr);}catch(e){}}},120);
+  setTimeout(()=>{if(chtSubInst){try{const r=chart.timeScale().getVisibleLogicalRange();if(r)chtSubInst.timeScale().setVisibleLogicalRange({from:r.from-_subChartOffset,to:r.to-_subChartOffset});}catch(e){}}},120);
   new ResizeObserver(()=>{if(chtMainInst)chtMainInst.applyOptions({width:priceEl.clientWidth,height:priceEl.clientHeight});}).observe(priceEl);
   chtMainInst=chart;
   initDrawingSvg();  // Subscribe click handler
