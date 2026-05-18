@@ -89,7 +89,8 @@ def check_trades(ohlcv: dict):
     """
     Check open/pending trades against latest H1 OHLCV bars.
     - Pending: filled when price touches entry
-    - Open: TP or SL hit on high/low of bar (not just close — avoids missed wicks)
+    - Open: TP or SL hit on high/low of bar (wick-accurate)
+    - notify_pending: dashboard already closed trade locally — just fire Telegram
     Fires Telegram and updates trade status in trades.json.
     """
     trades = load_list(TRADES_FILE)
@@ -101,11 +102,35 @@ def check_trades(ohlcv: dict):
 
     for t in trades:
         status = t.get("status")
+
+        # Dashboard closed the trade locally and flagged it — just fire Telegram
+        if status == "closed" and t.get("notify_pending"):
+            pair      = t.get("pair","")
+            direction = t.get("direction","")
+            entry     = float(t.get("entry",0))
+            sl        = float(t["sl"]) if t.get("sl") is not None else None
+            tp        = float(t["tp"]) if t.get("tp") is not None else None
+            result    = t.get("result")
+            price     = float(t.get("close_price", tp if result=="win" else sl or 0))
+            dec       = 3 if "JPY" in pair else 5
+            rr        = None
+            if sl and tp:
+                risk = abs(entry - sl)
+                rwd  = abs(tp - entry)
+                rr   = round(rwd / risk, 2) if risk > 0 else None
+            event = "tp_hit" if result == "win" else "sl_hit"
+            print(f"  [Trade] 📬 Notify-pending: {pair} {direction} {event.upper()}")
+            send_trade_alert(pair=pair, event=event, direction=direction,
+                             price=price, entry=entry, sl=sl, tp=tp, rr=rr)
+            t["notify_pending"] = False
+            changed = True
+            continue
+
         if status == "closed":
             continue
 
         pair      = t.get("pair")
-        direction = t.get("direction")   # "BUY" | "SELL"
+        direction = t.get("direction")
         entry     = t.get("entry")
         sl        = t.get("sl")
         tp        = t.get("tp")
@@ -113,27 +138,25 @@ def check_trades(ohlcv: dict):
             continue
 
         entry = float(entry)
-        sl    = float(sl)    if sl is not None else None
-        tp    = float(tp)    if tp is not None else None
+        sl    = float(sl) if sl is not None else None
+        tp    = float(tp) if tp is not None else None
 
         df = ohlcv.get(pair)
         if df is None or len(df) == 0:
             continue
 
-        # Use the latest bar's high/low/close for wick-accurate detection
-        bar     = df.iloc[-1]
-        bar_h   = float(bar["high"])
-        bar_l   = float(bar["low"])
-        bar_c   = float(bar["close"])
+        bar   = df.iloc[-1]
+        bar_h = float(bar["high"])
+        bar_l = float(bar["low"])
 
-        dec  = 3 if "JPY" in pair else 5
-        rr   = None
+        dec = 3 if "JPY" in pair else 5
+        rr  = None
         if sl and tp:
             risk = abs(entry - sl)
             rwd  = abs(tp - entry)
             rr   = round(rwd / risk, 2) if risk > 0 else None
 
-        # ── Pending → filled ──────────────────────────────────────────────────
+        # Pending → filled
         if status == "pending":
             filled = (direction == "BUY"  and bar_h >= entry) or \
                      (direction == "SELL" and bar_l <= entry)
@@ -142,13 +165,10 @@ def check_trades(ohlcv: dict):
                 t["opened"] = now_iso
                 changed = True
                 print(f"  [Trade] ⚡ {pair} {direction} FILLED at {entry:.{dec}f}")
-                send_trade_alert(
-                    pair=pair, event="filled", direction=direction,
-                    price=entry, entry=entry, sl=sl, tp=tp, rr=rr,
-                )
-                # Fall through to check TP/SL on same bar
+                send_trade_alert(pair=pair, event="filled", direction=direction,
+                                 price=entry, entry=entry, sl=sl, tp=tp, rr=rr)
 
-        # ── Open → TP or SL ───────────────────────────────────────────────────
+        # Open → TP or SL
         if t.get("status") == "open":
             tp_hit = tp is not None and (
                 (direction == "BUY"  and bar_h >= tp) or
@@ -158,30 +178,26 @@ def check_trades(ohlcv: dict):
                 (direction == "BUY"  and bar_l <= sl) or
                 (direction == "SELL" and bar_h >= sl)
             )
-
-            # If both on same bar (gap), TP takes priority
             if tp_hit:
                 t["status"]      = "closed"
                 t["result"]      = "win"
                 t["close_price"] = tp
                 t["closed"]      = now_iso
+                t["notify_pending"] = False
                 changed = True
                 print(f"  [Trade] ✅ {pair} {direction} TP HIT at {tp:.{dec}f}")
-                send_trade_alert(
-                    pair=pair, event="tp_hit", direction=direction,
-                    price=tp, entry=entry, sl=sl, tp=tp, rr=rr,
-                )
+                send_trade_alert(pair=pair, event="tp_hit", direction=direction,
+                                 price=tp, entry=entry, sl=sl, tp=tp, rr=rr)
             elif sl_hit:
                 t["status"]      = "closed"
                 t["result"]      = "loss"
                 t["close_price"] = sl
                 t["closed"]      = now_iso
+                t["notify_pending"] = False
                 changed = True
                 print(f"  [Trade] ❌ {pair} {direction} SL HIT at {sl:.{dec}f}")
-                send_trade_alert(
-                    pair=pair, event="sl_hit", direction=direction,
-                    price=sl, entry=entry, sl=sl, tp=tp, rr=rr,
-                )
+                send_trade_alert(pair=pair, event="sl_hit", direction=direction,
+                                 price=sl, entry=entry, sl=sl, tp=tp, rr=rr)
 
     if changed:
         save_json(TRADES_FILE, trades)
