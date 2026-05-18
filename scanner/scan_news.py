@@ -1076,6 +1076,15 @@ def main():
                 result["narrative"] = call_narrative(macro, result, tech_text, corr_text, momentum_text)
             except Exception as e:
                 print(f"  Claude narrative error: {e}")
+                themes_fb = result.get("themes", [])
+                usd_fb    = result.get("usd_bias", "neutral")
+                risk_fb   = result.get("risk_sentiment", "neutral")
+                driver_fb = themes_fb[0].get("theme", "No theme data") if themes_fb else "No theme data"
+                result["narrative"] = (
+                    f"DRIVER\nUSD {usd_fb}. Risk sentiment: {risk_fb}. {driver_fb}\n\n"
+                    f"MOMENTUM\nNone\n\n"
+                    f"WATCH\nNarrative generation failed this cycle — check scanner logs."
+                )
             try:
                 h4_ohlcv = h4.get("_ohlcv", {})
                 edge_composite, edge_breakdown = call_edge_scores(
