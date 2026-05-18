@@ -735,7 +735,7 @@ function buildNewsSheetContent(){
       '<div class=\\'sh-dr\\'><span class=\\'sh-dn\\'>Headlines</span><span class=\\'sh-dv\\'>${headline_count}</span></div>'+
       '<div class=\\'sh-dr\\'><span class=\\'sh-dn\\'>Since</span><span class=\\'sh-dv\\'>${sinceStr}</span></div>'+
       '</div>')">
-      <span style="font-size:var(--xs);color:var(--muted);">Market Analysis · ${updStr} · ${headline_count} headlines</span>
+      <span style="font-size:var(--xs);color:var(--muted);">Market Analysis · ${updStr} · ${headline_count} headlines${nb.stale?' · ⚠ stale':''}</span>
       <span style="font-size:var(--xs);color:var(--muted);border:1px solid var(--border);border-radius:3px;padding:1px 6px;">ℹ</span>
     </div>`;
     h+=renderStructuredNarrative(nb.narrative);
@@ -2156,20 +2156,33 @@ async function mergeTradesFromGitHub(){
   try{
     const remote=await load('trades.json');
     if(!remote||!Array.isArray(remote)){
-      // null = file doesn't exist yet (normal on first use) — not an error worth logging
-      if(remote!==null)console.warn('[Forex1212] mergeTradesFromGitHub: trades.json returned unexpected format',remote);
+      if(remote!==null)console.warn('[Forex1212] mergeTradesFromGitHub: unexpected format',remote);
       return;
     }
     const local=tradesLoad();
-    const localIds=new Set(local.map(t=>t.id));
-    // Track permanently deleted trade IDs in localStorage
     const deletedIds=new Set(JSON.parse(localStorage.getItem('fx1212_deleted_trades')||'[]'));
-    const merged=[...local];
+    const remoteMap=new Map(remote.map(t=>[t.id,t]));
+    let changed=false;
+    // Update existing local trades whose status changed on the scanner side
+    const merged=local.map(t=>{
+      if(deletedIds.has(t.id))return t;
+      const r=remoteMap.get(t.id);
+      if(!r)return t;
+      // Scanner closed a trade the dashboard still shows as open/pending
+      if(t.status!=='closed'&&r.status==='closed'){
+        changed=true;
+        return{...t,...r};  // take scanner's closed data
+      }
+      return t;
+    });
+    // Add new trades from remote not in local
     remote.forEach(t=>{
-      if(!localIds.has(t.id)&&!deletedIds.has(t.id))merged.push(t);
+      if(!deletedIds.has(t.id)&&!merged.find(m=>m.id===t.id)){
+        merged.push(t);changed=true;
+      }
     });
     merged.sort((a,b)=>b.id-a.id);
-    if(merged.length!==local.length)tradesSave(merged);
+    if(changed){tradesSave(merged);renderLog();updateDrum();}
   }catch(e){console.warn('[Forex1212] mergeTradesFromGitHub error:',e);}
 }
 // Write serializer — prevents concurrent PUTs producing 409 SHA conflicts
@@ -2497,16 +2510,16 @@ function checkTrades(){
       const openBars=bars.filter(b=>b.time>=openTs);
       for(const bar of openBars){
         if(t.direction==='BUY'){
-          if(t.tp&&bar.high>=t.tp){t.status='closed';t.result='win';t.close_price=t.tp;t.closed=new Date().toISOString();changed=true;break;}
-          if(t.sl&&bar.low<=t.sl){t.status='closed';t.result='loss';t.close_price=t.sl;t.closed=new Date().toISOString();changed=true;break;}
+          if(t.tp&&bar.high>=t.tp){t.status='closed';t.result='win';t.close_price=t.tp;t.closed=new Date().toISOString();t.notify_pending=true;changed=true;break;}
+          if(t.sl&&bar.low<=t.sl){t.status='closed';t.result='loss';t.close_price=t.sl;t.closed=new Date().toISOString();t.notify_pending=true;changed=true;break;}
         }else{
-          if(t.tp&&bar.low<=t.tp){t.status='closed';t.result='win';t.close_price=t.tp;t.closed=new Date().toISOString();changed=true;break;}
-          if(t.sl&&bar.high>=t.sl){t.status='closed';t.result='loss';t.close_price=t.sl;t.closed=new Date().toISOString();changed=true;break;}
+          if(t.tp&&bar.low<=t.tp){t.status='closed';t.result='win';t.close_price=t.tp;t.closed=new Date().toISOString();t.notify_pending=true;changed=true;break;}
+          if(t.sl&&bar.high>=t.sl){t.status='closed';t.result='loss';t.close_price=t.sl;t.closed=new Date().toISOString();t.notify_pending=true;changed=true;break;}
         }
       }
     }
   });
-  if(changed){tradesSave(trades);renderLog();updateDrum();}
+  if(changed){tradesSaveAndSync(trades);renderLog();updateDrum();}
   return changed;
 }
 
