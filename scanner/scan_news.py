@@ -1143,12 +1143,25 @@ def main():
 
     else:
         print("  Skipping Claude calls (no headlines or no API key)")
+        # Preserve previous good brief — don't overwrite with empty scan
+        out = BASE_DIR / "data" / "news_brief.json"
+        try:
+            if out.exists():
+                with open(out) as f:
+                    prev = json.load(f)
+                if prev.get("status") == "ok" and prev.get("narrative"):
+                    prev["stale"]   = True
+                    prev["stale_since"] = result["updated"]
+                    result = prev
+                    print("  Preserved previous brief (stale=True)")
+        except Exception as e:
+            print(f"  Could not read previous brief: {e}")
 
     # 5. Write — macro always included regardless of Claude success
     out = BASE_DIR / "data" / "news_brief.json"
     with open(out, "w") as f:
         json.dump(result, f, indent=2)
-    print(f"  Saved: {out} | macro keys: {list(result.get('macro', {}).keys())}")
+    print(f"  Saved: {out} | status: {result.get('status')} | stale: {result.get('stale',False)}")
     print("=== News Brief complete ===")
 
 
