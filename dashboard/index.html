@@ -507,13 +507,6 @@ function computeQAI(pair){
   let capped=raw;
   if(adxV!==null&&adxV<20)capped=Math.min(capped,45);
 
-  // ER gate — uses D1 20-bar (4-week) efficiency. Suspended when regime supports direction.
-  const erV=d1d&&d1d.er!=null?d1d.er:null;
-  const resetV=h4d&&h4d.reset_score!=null?h4d.reset_score:null;
-  const macroConviction=(regime==='Risk-Off'&&isBear)||(regime==='Risk-On'&&isBull);
-  let erGated=false;
-  if(erV!==null&&erV<0.25&&!macroConviction){capped=Math.min(capped,50);erGated=true;}
-
   // Regime cap — counter-regime trades penalised
   let capApplied=false;
   if(regime==='Risk-Off'&&isBull){const lim=isRiskPair?40:isSafeHavenPair?70:50;if(capped>lim){capped=lim;capApplied=true;}}
@@ -521,7 +514,7 @@ function computeQAI(pair){
   capped=Math.min(capped,100);
 
   const col=capped>=70?'var(--buy)':capped>=55?'var(--amber)':capped>=40?'rgba(248,140,0,.9)':'var(--sell)';
-  return{score:capped,dir:d1dir,col,comps,weights,capApplied,regime,adxGated:adxV!==null&&adxV<20,erGated,er:erV};
+  return{score:capped,dir:d1dir,col,comps,weights,capApplied,regime,adxGated:adxV!==null&&adxV<20};
 }
 function openQAISheet(){
   const pair=selectedPair,qai=computeQAI(pair);
@@ -534,7 +527,6 @@ function openQAISheet(){
     return`<div class="sh-comp"><span class="sh-comp-lbl" style="width:112px;">${labels[k]}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${v}/10</span><span class="sh-comp-wt">${wts[k]}%</span></div>`;
   }).join('');
   if(qai.adxGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--sell);">⚠ ADX Gate</span><span class="sh-dv" style="color:var(--sell);">ADX &lt;20 — capped at 45%</span></div>`;
-  if(qai.erGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ ER Gate</span><span class="sh-dv" style="color:var(--amber);">D1 ER ${qai.er!=null?qai.er.toFixed(2):'—'} — 4-week trend inefficient, capped at 50%</span></div>`;
   if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Regime Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} — counter-regime</span></div>`;
   openSheet('Setup',h,pair.replace('/',''));
 }
