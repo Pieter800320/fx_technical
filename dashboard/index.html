@@ -1326,6 +1326,7 @@ function renderDrumData(pair){
   const alertDotHtml=hasAlert?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(0,255,65,0.9);box-shadow:0 0 5px rgba(0,255,65,0.5);flex-shrink:0;margin-left:2px;vertical-align:middle;"></span>`:'';
   let h='';
 
+  const rev=computeREV(pair);
   const revDrumCol=rev.score>=65?'var(--buy)':rev.score>=40?'var(--amber)':'rgba(0,120,30,0.4)';
   h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
     <div style="display:flex;align-items:center;gap:5px;min-width:0;">
