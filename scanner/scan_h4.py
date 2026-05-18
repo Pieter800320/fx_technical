@@ -54,7 +54,7 @@ def return_autocorr(closes, n=20):
 
 
 def compute_reset_score(ohlcv_closes, period=20, direction='neutral'):
-    Mean reversion oscillator. Returns integer 0-100.
+    """Mean reversion oscillator. Returns integer 0-100.
     Directionally aware: low score = price reset toward equilibrium (good entry).
     direction='bull'    : oversold/below-mean = low score (reset, good for longs)
     direction='bear'    : overbought/above-mean = low score (reset, good for shorts)
