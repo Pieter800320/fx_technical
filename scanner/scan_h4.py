@@ -26,8 +26,34 @@ from alerts.news import get_alert_context
 from alerts.log import log_alert
 from alerts.telegram import send_bb_band_alert, send_bb_midline_alert
 
+def efficiency_ratio(closes, n=20):
+    """Kaufman Efficiency Ratio — net displacement / total path. 0=chop, 1=trend."""
+    if len(closes) < n + 1:
+        return None
+    c = closes[-(n + 1):]
+    net  = abs(c[-1] - c[0])
+    path = sum(abs(c[i] - c[i - 1]) for i in range(1, len(c)))
+    return round(net / path, 3) if path > 0 else 0.0
+
+
+def return_autocorr(closes, n=20):
+    """Lag-1 return autocorrelation over n bars. +ve=trend, ~0=noise, -ve=mean-reversion."""
+    if len(closes) < n + 2:
+        return None
+    rets = [closes[i] - closes[i - 1] for i in range(1, len(closes))]
+    rets = rets[-n:]
+    r0, r1 = rets[:-1], rets[1:]
+    if len(r0) < 3:
+        return None
+    m0 = sum(r0) / len(r0)
+    m1 = sum(r1) / len(r1)
+    num = sum((r0[i] - m0) * (r1[i] - m1) for i in range(len(r0)))
+    d0  = sum((x - m0) ** 2 for x in r0) ** 0.5
+    d1  = sum((x - m1) ** 2 for x in r1) ** 0.5
+    return round(num / (d0 * d1), 3) if d0 * d1 > 0 else 0.0
+
+
 def compute_reset_score(ohlcv_closes, period=20, direction='neutral'):
-    """
     Mean reversion oscillator. Returns integer 0-100.
     Directionally aware: low score = price reset toward equilibrium (good entry).
     direction='bull'    : oversold/below-mean = low score (reset, good for longs)
@@ -144,7 +170,10 @@ def main():
         ext_data  = is_extended(df, direction)
 
         d1_direction = d1_data.get(pair, {}).get("direction", "neutral")
-        reset_score = compute_reset_score(df["close"].tolist(), direction=d1_direction)
+        closes       = df["close"].tolist()
+        reset_score  = compute_reset_score(closes, direction=d1_direction)
+        er_val       = efficiency_ratio(closes)
+        autocorr_val = return_autocorr(closes)
 
         h4_results[pair] = {
             "score":      result["score"],
@@ -158,6 +187,8 @@ def main():
             "structure":  result.get("structure", {}),
             "adx_weight":  result.get("adx_weight", 1.0),
             "reset_score": reset_score,
+            "er":          er_val,
+            "autocorr":    autocorr_val,
             "updated":     now.isoformat(),
         }
         print(f"  {display}: {result['score']:+d} → {label}")
