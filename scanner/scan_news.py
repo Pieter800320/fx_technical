@@ -258,15 +258,7 @@ def compute_w1_regime(weekly_changes, prev_w1=None):
         "components": components,
     }
 
-    # Persistence: require 2 consecutive different readings before confirming flip
-    if prev_w1 and prev_w1.get("regime") != regime:
-        new_result["pending"]   = regime
-        new_result["confirmed"] = False
-        new_result["regime"]    = prev_w1["regime"]   # hold previous
-        new_result["score"]     = prev_w1.get("score", w1_score)
-    else:
-        new_result["confirmed"] = True
-
+    new_result["confirmed"] = True
     return new_result
 
 
