@@ -151,9 +151,9 @@ tr:last-child td{border-bottom:none;}
       <button class="ssp" id="ssp-h1" onclick="openSignalSheet('h1')"><span class="ssp-tf">H1</span><div class="ssp-pill pill-N" id="ssp-h1-pill">—</div><span class="ssp-score" id="ssp-h1-score"></span></button>
     </div>
     <div id="ind-strip">
-      <div class="ic" id="ic-d1pct"><span class="ic-val" id="ic-d1pct-val">—</span><span class="ic-lbl">MOM</span></div>
+      <div class="ic" id="ic-d1pct" onclick="openMOMSheet()" style="cursor:pointer;"><span class="ic-val" id="ic-d1pct-val">—</span><span class="ic-lbl">MOM</span></div>
       <div class="ic" onclick="openQAISheet()"><span class="ic-val" id="ic-qai-val">—</span><span class="ic-lbl">Setup</span></div>
-      <div class="ic" id="ic-edge"><span class="ic-val" id="ic-edge-val">—</span><span class="ic-lbl">Edge</span></div>
+      <div class="ic" id="ic-edge" onclick="openEdgeSheet()" style="cursor:pointer;"><span class="ic-val" id="ic-edge-val">—</span><span class="ic-lbl">Edge</span></div>
     </div>
     <div id="drawer-grid">
       <button class="dbtn" onclick="openDrawerSheet('news')">News</button>
@@ -249,26 +249,17 @@ tr:last-child td{border-bottom:none;}
     <div style="display:flex;gap:1px;border-bottom:1px solid var(--border2);">
       <button class="btn btn-muted" onclick="openIndicatorsSheet()" style="flex:1;justify-content:center;border-radius:0;border:none;padding:9px 4px;font-size:var(--xs);">⚙ Indicators</button>
     </div>
-    <!-- Row 2: two-column split — Level tools left | Analysis tools right -->
-    <div style="display:flex;border-bottom:1px solid var(--border2);">
-      <!-- Left column: Level workflow -->
-      <div style="flex:1;display:flex;flex-direction:column;gap:5px;padding:6px 8px;min-width:0;">
-        <div style="display:flex;gap:4px;align-items:center;">
-          <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);">— Level</button>
-          <button class="btn btn-muted" onclick="clearDrawings()" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);">✕ Clear</button>
-        </div>
-        <div style="display:flex;gap:4px;align-items:center;">
-          <input id="cht-alert-inp" type="number" step="0.00001" placeholder="price…" oninput="_onAlertInputChange()" style="flex:1;min-width:0;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:4px 6px;font-size:var(--xs);"/>
-          <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:4px 5px;flex-shrink:0;min-width:50px;font-size:var(--xs);">↑ Above</button>
-          <button class="btn" onclick="setLevelAlert()" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);">Set</button>
-        </div>
+    <!-- Row 2: Level tools + Analysis (merged, single button) -->
+    <div style="display:flex;flex-direction:column;border-bottom:1px solid var(--border2);">
+      <div style="display:flex;gap:4px;align-items:center;padding:6px 8px 3px;">
+        <button id="draw-btn-hline" class="btn btn-muted" onclick="setDrawTool('hline')" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);">— Level</button>
+        <button class="btn btn-muted" onclick="clearDrawings()" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);">✕ Clear</button>
+        <button id="cht-dir-btn" class="btn btn-muted" onclick="cycleAlertDir()" style="padding:4px 5px;flex-shrink:0;min-width:50px;font-size:var(--xs);">↑ Above</button>
+        <button class="btn" onclick="setLevelAlert()" style="padding:4px 8px;flex-shrink:0;font-size:var(--xs);">Set</button>
+        <button id="cht-copy-btn" class="btn" onclick="copyAnalysisPrompt(selectedPair,this)" title="Copy analysis prompt" style="padding:4px 6px;flex:1;font-size:var(--xs);justify-content:center;">⬡ Analysis</button>
       </div>
-      <!-- Vertical divider -->
-      <div style="width:1px;background:var(--border2);flex-shrink:0;"></div>
-      <!-- Right column: Analysis -->
-      <div style="display:flex;flex-direction:column;gap:5px;padding:6px 8px;justify-content:center;align-items:stretch;width:88px;flex-shrink:0;">
-        <button id="cht-copy-btn" class="btn" onclick="copyChartPrompt(selectedPair,this)" title="Copy pair analysis prompt" style="padding:4px 6px;font-size:var(--xs);justify-content:center;">⬡ Analysis</button>
-        <button id="cht-bb-btn" class="btn" onclick="copyBBPrompt(this)" title="Copy BB band touch analysis prompt" style="padding:4px 6px;font-size:var(--xs);justify-content:center;">◎ BB</button>
+      <div style="padding:0 8px 6px;">
+        <input id="cht-alert-inp" type="number" step="0.00001" placeholder="price…" oninput="_onAlertInputChange()" style="width:100%;box-sizing:border-box;background:#0d1117;border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text);padding:4px 6px;font-size:var(--xs);"/>
       </div>
     </div>
     <!-- Active alerts — shown on chart as amber lines, deleted by long-press -->
@@ -331,6 +322,7 @@ function goNav(name){
   if(name==='journal')renderLog();
 }
 function closed(){const n=new Date(),d=n.getUTCDay(),h=n.getUTCHours();return d===6||(d===0&&h<22)||(d===5&&h>=22);}
+function preOpen(){const n=new Date(),d=n.getUTCDay(),h=n.getUTCHours();return d===0&&h>=18&&h<22;}
 function minsUntil(t){const now=new Date();const cur=now.getUTCHours()*60+now.getUTCMinutes();const tgt=t*60;const diff=tgt>cur?tgt-cur:(1440-cur+tgt);if(diff<=0||diff>=1440)return null;const h=Math.floor(diff/60),m=diff%60;return h>0?h+'h '+(m>0?m+'m':''):m+'m';}
 function pillAbbr(lbl){if(!lbl||lbl==='N/A')return'—';const l=lbl.toLowerCase();if(l==='strong buy')return'SB';if(l==='buy')return'B';if(l==='strong sell')return'SS';if(l==='sell')return'S';if(l==='conflict')return'CF';return'N';}
 function fmt2(v){return v!==null?(v>=0?'+':'')+v.toFixed(2)+'%':'—';}
@@ -538,6 +530,117 @@ function openQAISheet(){
   if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Regime Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} — counter-regime</span></div>`;
   openSheet('Setup',h,pair.replace('/',''));
 }
+function openMOMSheet(){
+  const pair=selectedPair,s=compute1212(pair);
+  const vt="font-family:'VT323',monospace;";
+  const tileRow=(tf,val,dlt)=>{
+    const gp=Math.abs(dlt||0)>=10,bdr=gp?'rgba(0,220,55,0.75)':'rgba(0,80,20,0.2)',sh=gp?'box-shadow:0 0 6px rgba(0,220,55,0.25);':'';
+    const vc=val>=65?'var(--buy)':val>=35?BRIGHT:'var(--sell)';
+    const lbl=val>=70?'Bullish':val>=55?'Leaning Bull':val>=45?'Neutral':val>=30?'Leaning Bear':'Bearish';
+    const lc=val>=65?'var(--buy)':val>=35?'var(--muted)':'var(--sell)';
+    return`<div class="sh-dr" style="border:1px solid ${bdr};border-radius:4px;margin:3px var(--pad);${sh}"><span class="sh-dn" style="font-weight:700;">${tf}</span><span class="sh-dv"><span style="${vt}font-size:20px;color:${vc};">${val}</span>${_1212Delta(dlt)}<span style="color:${lc};font-size:var(--xs);margin-left:8px;">${lbl}</span></span></div>`;
+  };
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">1212 Composite</span><span class="sh-kpi-val" style="${vt}font-size:26px;color:${BRIGHT};">${s.cmp}</span></div>`;
+  h+=`<div class="sh-hdr">Timeframes</div>`;
+  h+=tileRow('W1',s.w1,s.dw1);h+=tileRow('D1',s.d1,s.dd1);h+=tileRow('H4',s.h4,s.dh4);h+=tileRow('H1',s.h1,s.dh1);
+  h+=`<div class="sh-hdr">Guide</div>`;
+  h+=`<div class="sh-dr"><span class="sh-dn">Scale</span><span class="sh-dv">0 = max bearish · 50 = neutral · 100 = max bullish</span></div>`;
+  h+=`<div class="sh-dr"><span class="sh-dn">Delta (Δ)</span><span class="sh-dv">Change vs prior bar. Pill glows when |Δ| ≥ 10</span></div>`;
+  h+=`<div class="sh-dr"><span class="sh-dn">CMP</span><span class="sh-dv">ATR-weighted composite of all 4 timeframes</span></div>`;
+  openSheet('1212 Momentum',h,pair.replace('/',''));
+}
+function openEdgeSheet(){
+  const pair=selectedPair,edge=getEdgeScore(pair),eb=getEdgeBreakdown(pair);
+  const vt="font-family:'VT323',monospace;";
+  const edgeCol=edge===null?'var(--muted)':edge>=8?'var(--buy)':edge>=6?'var(--amber)':'var(--sell)';
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Edge Score</span><span class="sh-kpi-val" style="${vt}font-size:26px;color:${edgeCol};">${edge!==null?edge+'/10':'—'}</span></div>`;
+  h+=`<div class="sh-hdr">Components</div>`;
+  if(eb){
+    const eRow=(lbl,val,max,desc)=>{
+      const pct=Math.round(val/max*100);
+      const col=val>=max?'var(--buy)':val>=max*0.5?'var(--amber)':'var(--sell)';
+      return`<div class="sh-comp"><span class="sh-comp-lbl" style="width:120px;">${lbl}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${val}/${max}</span></div>`;
+    };
+    h+=eRow('News Catalyst',eb.news||0,5);
+    h+=eRow('Regime Fit',eb.regime||0,3);
+    h+=eRow('Session',eb.session||0,2);
+    h+=eRow('ATR Contraction',eb.atr||0,1);
+    h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--muted);">Total raw / 11, displayed as min(10,raw)</span><span class="sh-dv">${(eb.news||0)+(eb.regime||0)+(eb.session||0)+(eb.atr||0)}/11</span></div>`;
+  }else{
+    h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--muted);">No breakdown — run scan_news.py</span><span class="sh-dv">—</span></div>`;
+  }
+  h+=`<div class="sh-hdr">What Each Component Measures</div>`;
+  h+=`<div class="sh-dr"><span class="sh-dn">News (0–5)</span><span class="sh-dv">Haiku AI: 24h directional catalyst strength</span></div>`;
+  h+=`<div class="sh-dr"><span class="sh-dn">Regime (0–3)</span><span class="sh-dv">Python: environment supports trade direction</span></div>`;
+  h+=`<div class="sh-dr"><span class="sh-dn">Session (0–2)</span><span class="sh-dv">Python: pair in primary liquidity window</span></div>`;
+  h+=`<div class="sh-dr"><span class="sh-dn">ATR (0–1)</span><span class="sh-dv">Python: ATR &lt; 85% prior avg → reversal energy</span></div>`;
+  openSheet('Edge Score',h,pair.replace('/',''));
+}
+function copyAnalysisPrompt(pair,btnEl){
+  if(!D.h4||!D.h1)return;
+  pair=pair||selectedPair;
+  const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],dow=days[now.getUTCDay()];
+  const activeSess=getActiveSessions();
+  const h4d=D.h4&&D.h4[pair],h1d=D.h1&&D.h1[pair],d1d=D.d1&&D.d1[pair];
+  const qai=computeQAI(pair),edge=getEdgeScore(pair),mom=compute1212(pair);
+  const regime=(D.regime&&D.regime.final_regime&&D.regime.final_regime.regime)||(D.regime&&D.regime.regime)||'Unknown';
+  const[base,quote]=pair.split('/');
+  const csm=D.csm&&D.csm.rankings||{},csmH4r=D.csm&&D.csm.h4_rankings||{};
+  const adxV=h4d&&h4d.raw?h4d.raw.adx.toFixed(1):'—';
+  const isExtended=!!(h4d&&h4d.extended);
+  const atrPct=d1d&&d1d.atr_percentile!==undefined?d1d.atr_percentile:null;
+  const dec=pair.includes('JPY')?3:5;
+  const close=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
+  const bbU=h4d&&h4d.raw&&h4d.raw.bb_upper?h4d.raw.bb_upper:null;
+  const bbL=h4d&&h4d.raw&&h4d.raw.bb_lower?h4d.raw.bb_lower:null;
+  const bbM=h4d&&h4d.raw&&h4d.raw.bb_mid?h4d.raw.bb_mid:null;
+  // Auto-detect scenario
+  const momConflict=mom.dh4!==null&&mom.dd1!==null&&Math.sign(mom.dh4||0)!==Math.sign(mom.dd1||0)&&Math.abs(mom.dh4||0)>=5&&Math.abs(mom.dd1||0)>=5;
+  const isBB=isExtended||(atrPct!==null&&atrPct<=30)||(momConflict&&qai.score<55);
+  let t='';
+  t+=now.toUTCString()+' | '+dow+' | Session: '+(activeSess.length?activeSess.join(', '):'Closed')+'\n';
+  t+=pair+' — '+(isBB?'BB REVERSAL SETUP':'TREND / MOMENTUM SETUP')+'\n\n';
+  t+='CONTEXT:\n';
+  t+='  Close: '+(close?close.toFixed(dec):'—');
+  if(bbU&&bbL&&bbM)t+='  |  BB: '+bbL.toFixed(dec)+' / '+bbM.toFixed(dec)+' / '+bbU.toFixed(dec);
+  t+='\n';
+  t+='  Setup: '+(qai.score>0?qai.score+'%':'—')+'  |  Edge: '+(edge!=null?edge+'/10':'—')+'  |  ADX: '+adxV+'\n';
+  t+='  Extended: '+(isExtended?'YES':'no')+'  |  ATR%ile: '+(atrPct!==null?atrPct:'—')+'  |  Regime: '+regime+'\n';
+  t+='  D1: '+(d1d?d1d.label:'—')+'  |  H4: '+(h4d?h4d.label:'—')+'  |  H1: '+(h1d?h1d.label:'—')+'\n\n';
+  t+='1212 MOMENTUM (0=bearish · 50=neutral · 100=bullish · Δ=change vs prior bar):\n';
+  [['W1',mom.w1,mom.dw1],['D1',mom.d1,mom.dd1],['H4',mom.h4,mom.dh4],['H1',mom.h1,mom.dh1]].forEach(([tf,v,d])=>{
+    t+='  '+tf+': '+v+(d!=null?' Δ'+(d>=0?'+':'')+d:'')+'\n';
+  });
+  t+='\n';
+  t+='CSM RANKINGS (0=weakest · 100=strongest):\n';
+  t+='  '+base+': D1='+(csm[base]||0).toFixed(0)+'  H4='+(csmH4r[base]||0).toFixed(0)+'\n';
+  t+='  '+quote+': D1='+(csm[quote]||0).toFixed(0)+'  H4='+(csmH4r[quote]||0).toFixed(0)+'\n\n';
+  if(isBB){
+    t+='DETECTED: BB REVERSAL. Score these 9 factors (YES/NO + 1-line note each):\n';
+    t+='1. MOM delta divergence: H4 and D1 deltas pointing in OPPOSITE directions?\n';
+    t+='2. MOM levels: D1 near 50 while H4 is extended (>70 or <30)?\n';
+    t+='3. W1 context: weekly MOM disagrees with band touch direction?\n';
+    t+='4. Pill alignment: D1/H4/H1 labels conflicting?\n';
+    t+='5. CSM: H4 CSM cross-TF conflict on base or quote currency?\n';
+    t+='6. Regime: does regime oppose continuation in this direction?\n';
+    t+='7. ADX: <20 = reversal likely · >25 = continuation likely\n';
+    t+='8. Setup: <55% = reversal aligned · >70% = trend aligned\n';
+    t+='9. Extended/ATR: flag active or ATR compressed?\n';
+    t+='\nFINAL: REVERSAL or CONTINUATION? Probability 1–5. Direction + key level in ≤35 words.\n';
+  }else{
+    t+='DETECTED: TREND TRADE. Assess these 5 factors:\n';
+    t+='1. TF alignment: D1, H4, H1 all pointing same direction?\n';
+    t+='2. MOM confluence: H4 and D1 MOM trending same way with matching deltas?\n';
+    t+='3. Regime: does current environment support this direction?\n';
+    t+='4. CSM: is '+base+' stronger than '+quote+' across D1 and H4?\n';
+    t+='5. Entry: pullback to EMA, not extended, ADX above 20?\n';
+    t+='\nFINAL: TRADE or SKIP? Quality 1–5. Direction, entry zone, SL concept in ≤35 words.\n';
+  }
+  navigator.clipboard.writeText(t).then(()=>{
+    const btn=btnEl||document.getElementById('cht-copy-btn');
+    if(btn){const s={bg:btn.style.background,col:btn.style.color,bc:btn.style.borderColor,tx:btn.textContent};btn.style.background='rgba(0,200,50,0.3)';btn.style.color='rgba(0,220,55,0.9)';btn.style.borderColor='rgba(0,200,50,0.5)';btn.textContent='Copied!';setTimeout(()=>{btn.style.background=s.bg;btn.style.color=s.col;btn.style.borderColor=s.bc;btn.textContent=s.tx;},2000);}
+  }).catch(()=>{});
+}
 function computeRateDiff(pair){
   if(!D.rates)return null;
   const[base,quote]=pair.split('/'),_rm=getRatesMap();
@@ -720,6 +823,7 @@ function renderStructuredNarrative(text){
 function buildPairSheetContent(pair){
   const h1d=D.h1&&D.h1[pair],h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
   const csm=D.csm&&D.csm.rankings||{};
+  const csmH4=D.csm&&D.csm.h4_rankings||{};
   const[base,quote]=pair.split('/');
   const qai=computeQAI(pair),rd=computeRateDiff(pair);
   const regime=(D.regime&&D.regime.final_regime&&D.regime.final_regime.regime)||(D.regime&&D.regime.regime)||'Unknown';
@@ -731,6 +835,8 @@ function buildPairSheetContent(pair){
   const resetRaw=h4d&&h4d.reset_score!==undefined?h4d.reset_score:null;
   const rdVal=rd?(rd.diff>0?'+':'')+rd.diff+'bps '+(rd.direction==='widening'?'↑':rd.direction==='narrowing'?'↓':'→'):'—';
   const edge=getEdgeScore(pair),edgeCol=edge===null?'var(--muted)':edge>=8?'var(--buy)':edge>=6?'var(--amber)':'var(--sell)';
+  const s1212=compute1212(pair);
+  const vt2="font-family:'VT323',monospace;";
   let h=`<div class="sh-kpi"><div style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:var(--lg);font-weight:700;color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Setup</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span style="font-size:var(--lg);font-weight:700;color:${edgeCol};">${edge!==null?edge+'/10':'—'}</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Edge</span></div></div>`;
   h+=hdr('Technical');
   h+=row('D1',d1d?d1d.label:'No data',scoreCol(d1d?d1d.label:''));
@@ -739,6 +845,12 @@ function buildPairSheetContent(pair){
   h+=row('ADX',adx?adx.toFixed(0):'—',adx===null?'var(--muted)':adx>=25?'var(--buy)':adx>=20?'var(--amber)':'var(--sell)');
   h+=row('ATR %ile',atrPct===null?'—':atrPct+(atrPct>=70?' Hi':atrPct<=30?' Lo':' Mid'),atrPct===null?'var(--muted)':atrPct>=70?'var(--sell)':atrPct<=30?'var(--buy)':'var(--muted)');
   h+=row('Reset',resetRaw===null?'—':resetRaw+(resetRaw>=50?' Uncoiled':resetRaw>=35?' Settling':' Coiled'),resetRaw===null?'var(--muted)':resetRaw>=50?'var(--buy)':resetRaw>=35?'var(--amber)':'var(--muted)');
+  h+=hdr('1212 Momentum');
+  h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:4px var(--pad) 8px;">`+[['W1',s1212.w1,s1212.dw1],['D1',s1212.d1,s1212.dd1],['H4',s1212.h4,s1212.dh4],['H1',s1212.h1,s1212.dh1]].map(([tf,val,dlt])=>{
+    const gp=Math.abs(dlt||0)>=10,bdr=gp?'rgba(0,220,55,0.7)':'rgba(0,80,20,0.2)',sh=gp?'box-shadow:0 0 5px rgba(0,220,55,0.25);':'';
+    const vc=val>=65?'var(--buy)':val>=35?BRIGHT:'var(--sell)';
+    return`<div style="text-align:center;border:1px solid ${bdr};border-radius:3px;padding:4px 2px;${sh}"><div style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;">${tf}</div><div style="${vt2}font-size:18px;color:${vc};">${val}</div><div style="height:14px;display:flex;align-items:center;justify-content:center;">${_1212Delta(dlt)}</div></div>`;
+  }).join('')+`</div>`;
   h+=hdr('Fundamental');
   const h4regStr=D.regime&&D.regime.h4&&D.regime.h4.regime?D.regime.h4.regime:null;
   const regDiverging=h4regStr&&h4regStr!==regime;
@@ -747,19 +859,32 @@ function buildPairSheetContent(pair){
   h+=row('Rate Diff',rdVal,rd?(rd.diff>0?'var(--buy)':rd.diff<0?'var(--sell)':'var(--muted)'):'var(--muted)');
   h+=hdr('Sentiment');
   const csmBase=csm[base]||0,csmQuote=csm[quote]||0;
-  h+=row('CSM',base+' '+csmBase.toFixed(0)+' · '+quote+' '+csmQuote.toFixed(0),Math.abs(csmBase-csmQuote)>=20?'var(--buy)':Math.abs(csmBase-csmQuote)>=10?'var(--amber)':'var(--muted)');
+  const csmH4Base=csmH4[base]||0,csmH4Quote=csmH4[quote]||0;
+  h+=row('CSM D1',base+' '+csmBase.toFixed(0)+' · '+quote+' '+csmQuote.toFixed(0),Math.abs(csmBase-csmQuote)>=20?'var(--buy)':Math.abs(csmBase-csmQuote)>=10?'var(--amber)':'var(--muted)');
+  if(csmH4Base||csmH4Quote)h+=row('CSM H4',base+' '+csmH4Base.toFixed(0)+' · '+quote+' '+csmH4Quote.toFixed(0),Math.abs(csmH4Base-csmH4Quote)>=20?'var(--buy)':Math.abs(csmH4Base-csmH4Quote)>=10?'var(--amber)':'var(--muted)');
   h+=`<div style="padding:8px var(--pad);"><button class="btn" onclick="copyChartPrompt('${pair}',this)">Copy Prompt</button></div>`;
   return h;
 }
 function buildSessionsContent(){
-  const isClosed=closed(),h=new Date().getUTCHours();
+  const isClosed2=closed(),isPreOpen2=preOpen();
+  const nowUTC3=new Date(),h=nowUTC3.getUTCHours();
   const act=Object.entries(SESS).filter(([,[s,e]])=>s>e?(h>=s||h<e):(h>=s&&h<e)).map(([n])=>n);
-  return Object.entries(SESS).map(([name,[start,end]])=>{
-    const isActive=!isClosed&&act.includes(name);
+  let banner='';
+  if(isClosed2&&!isPreOpen2){
+    banner=`<div style="padding:16px var(--pad);text-align:center;background:rgba(0,40,10,0.4);border-bottom:1px solid var(--border2);"><span style="font-size:var(--md);font-weight:700;color:rgba(0,100,30,0.5);text-transform:uppercase;letter-spacing:.08em;">Market Closed</span><div style="font-size:var(--xs);color:var(--muted);margin-top:4px;">Opens Sunday 22:00 UTC</div></div>`;
+  }else if(isPreOpen2){
+    const _minsTo=(22*60)-(nowUTC3.getUTCHours()*60+nowUTC3.getUTCMinutes());
+    const _hh=Math.floor(Math.max(0,_minsTo)/60),_mm=Math.max(0,_minsTo)%60;
+    const _cd=`${_hh}:${String(_mm).padStart(2,'0')}`;
+    banner=`<div style="padding:14px var(--pad);text-align:center;background:rgba(0,40,10,0.3);border-bottom:1px solid var(--border2);"><span style="font-size:var(--sm);color:rgba(0,200,50,0.7);text-transform:uppercase;letter-spacing:.06em;">Market Opens in </span><span style="font-family:'VT323',monospace;font-size:22px;color:rgba(0,220,55,0.88);">${_cd}</span></div>`;
+  }
+  const rows=Object.entries(SESS).map(([name,[start,end]])=>{
+    const isActive=!isClosed2&&act.includes(name);
     const t=isActive?minsUntil(end):minsUntil(start);
-    const timeStr=isActive?(t?'ACTIVE · closes '+t:'ACTIVE'):(t?'opens '+t:'—');
+    const timeStr=isActive?(t?'ACTIVE · closes '+t:'ACTIVE'):(t&&!isClosed2?'opens '+t:'—');
     return`<div style="display:flex;align-items:center;padding:10px var(--pad);border-bottom:1px solid var(--border2);"><span style="flex:1;font-size:var(--md);font-weight:700;color:${isActive?'var(--text)':'var(--muted)'};">${name}</span><span style="font-size:var(--sm);font-weight:600;color:${isActive?'var(--accent)':'var(--muted)'};">${timeStr}</span></div>`;
   }).join('');
+  return banner+rows;
 }
 function buildLiveContent(){
   const isWeekend=closed();
@@ -1113,7 +1238,7 @@ function renderDrumData(pair){
     const abbr=SESS_ABBR[name];
     const minsLeft=e>nowMins?e-nowMins:(e+1440-nowMins);
     const hh=Math.floor(minsLeft/60),mm=minsLeft%60;
-    const timeStr=hh>0?`${hh}h${mm>0?mm+'m':''}`:`${mm}m`;
+    const timeStr=`${hh}:${String(mm).padStart(2,'0')}`;
     return{abbr,timeStr,fits:pairSess.includes(abbr)};
   }).filter(Boolean);
   const cooldown=D.alertCooldown&&D.alertCooldown[pair];
@@ -1143,8 +1268,8 @@ function renderDrumData(pair){
   h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
     <div style="display:flex;align-items:center;gap:5px;min-width:0;">
       <span style="${vt}font-size:22px;color:#00ff55;letter-spacing:.01em;text-shadow:0 0 8px rgba(0,255,65,0.4);">${pair.replace('/','')}</span>${alertDotHtml}
-      <span style="${vt}font-size:12px;color:${pctColor(d1Pct)};">${pctFmt(d1Pct)}</span>
-      ${d5Pct!==null?`<span style="${vt}font-size:12px;color:${pctColor(d5Pct)};">${pctFmt(d5Pct)}</span>`:''}
+      <span style="${vt}font-size:14px;color:${pctColor(d1Pct)};">${pctFmt(d1Pct)}</span>
+      ${d5Pct!==null?`<span style="${vt}font-size:14px;color:${pctColor(d5Pct)};">${pctFmt(d5Pct)}</span>`:''}
     </div>
     <div style="text-align:right;flex-shrink:0;line-height:1;padding-left:6px;">
       <div style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Setup</div>
@@ -1189,9 +1314,19 @@ function renderDrumData(pair){
   h+=bar('Edge',edge!==null?Math.round(edge/10*100):0,edge!==null?edge+'/10':'—','');
 
   // Zone 4: Sessions + regime (committed)
-  const sessParts=sessSegments.length>0
-    ?sessSegments.map(s=>`<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,200,50,0.75);">${s.fits?'*':''}${s.abbr}<span style="font-size:9px;"> ${s.timeStr}</span></span>`).join(`<span style="color:rgba(0,80,20,0.3);font-size:10px;margin:0 2px;">·</span>`)
-    :`<span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:rgba(0,80,20,0.3);">—</span>`;
+  const _isMktClosed=closed(),_isPreOpen=preOpen();
+  let sessParts;
+  if(_isMktClosed&&!_isPreOpen){
+    sessParts=`<span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:rgba(0,80,20,0.4);text-transform:uppercase;">MKT CLOSED</span>`;
+  }else if(_isPreOpen){
+    const _nowU=new Date(),_minsTo=(22*60)-(_nowU.getUTCHours()*60+_nowU.getUTCMinutes());
+    const _hh2=Math.floor(Math.max(0,_minsTo)/60),_mm2=Math.max(0,_minsTo)%60;
+    sessParts=`<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,200,50,0.75);">Opens </span><span style="${vt}font-size:14px;color:${BRIGHT};">${_hh2}:${String(_mm2).padStart(2,'0')}</span>`;
+  }else{
+    sessParts=sessSegments.length>0
+      ?sessSegments.map(s=>`<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,200,50,0.75);">${s.fits?'*':''}${s.abbr}</span><span style="${vt}font-size:14px;color:${BRIGHT};"> ${s.timeStr}</span>`).join(`<span style="color:rgba(0,80,20,0.3);font-size:10px;margin:0 2px;">·</span>`)
+      :`<span style="font-size:9px;font-weight:700;letter-spacing:.06em;color:rgba(0,80,20,0.3);">—</span>`;
+  }
   const regPart=regLabel?`<span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,200,50,0.75);margin-left:auto;flex-shrink:0;padding-left:6px;">${regLabel}</span>`:'';
   h+=`<div style="display:flex;align-items:center;gap:4px;margin-bottom:8px;">${sessParts}${regPart}</div>`;
 
@@ -1706,6 +1841,11 @@ function _nearHline(clientY){
   for(const ref of _alertLineRefs){const ly=_priceToClientY(ref.price);if(ly!==null&&Math.abs(clientY-ly)<20)return ref;}
   return null;
 }
+function _nearStagingLine(clientY){
+  if(_stagingPrice===null)return false;
+  const ly=_priceToClientY(_stagingPrice);
+  return ly!==null&&Math.abs(clientY-ly)<22;
+}
 // ── INPUT/TOUCH HANDLERS ──────────────────────────────────────────────────────
 function initDrawingSvg(){
   if(window._drawListenersAttached)return;
@@ -1718,15 +1858,10 @@ function initDrawingSvg(){
     if(!chtMainInst)return;
     const t=e.touches[0];_ts={x:t.clientX,y:t.clientY,t:Date.now()};
     if(_drawTool)return;
-    const hRef=_nearHline(t.clientY);
-    if(hRef){
+    // Long-press on AMBER staging line → drag mode (committed grey lines are immovable)
+    if(_nearStagingLine(t.clientY)){
       e.preventDefault();
-      _longTimer=setTimeout(()=>{
-        _longTimer=null;if(navigator.vibrate)navigator.vibrate(35);
-        const alerts=laLoad().filter(a=>a.id!==hRef.id);
-        laSave(alerts);pushAlertsToGitHub(alerts);_renderAlertLines();
-        _setStagingLine(hRef.price);_draggingLine=true;
-      },350);
+      _longTimer=setTimeout(()=>{_longTimer=null;if(navigator.vibrate)navigator.vibrate(30);_draggingLine=true;},300);
     }
   },true);
 
@@ -1753,8 +1888,8 @@ function initDrawingSvg(){
     if(hRef)_showFloatDel(hRef.id,t.clientX,t.clientY);
   },true);
 
-  // Note: passive:false on mousemove needed for drag-to-reposition; exits immediately when no drag active.
-  document.addEventListener('mousedown',function(e){if(!chtMainInst||_drawTool)return;if(_nearHline(e.clientY))_mouseDown=true;},true);
+  // Mouse drag on AMBER staging line only (committed lines immovable)
+  document.addEventListener('mousedown',function(e){if(!chtMainInst||_drawTool)return;if(_nearStagingLine(e.clientY))_mouseDown=true;},true);
   document.addEventListener('mousemove',function(e){if(!_mouseDown)return;const p=_toPrice(e.clientY);if(p!==null)_setStagingLine(p);e.preventDefault();},{passive:false,capture:true});
   document.addEventListener('mouseup',function(){_mouseDown=false;},true);
   document.addEventListener('click',function(e){
