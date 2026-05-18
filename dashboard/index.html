@@ -508,9 +508,13 @@ function computeQAI(pair){
   if(adxV!==null&&adxV<20)capped=Math.min(capped,45);
 
   // ER gate — churning market caps score at 50
+  // Suspended when macro regime supports the trade direction AND pair is coiling (Reset < 35)
   const erV=h4d&&h4d.er!=null?h4d.er:null;
+  const resetV=h4d&&h4d.reset_score!=null?h4d.reset_score:null;
+  const macroConviction=(regime==='Risk-Off'&&isBear)||(regime==='Risk-On'&&isBull);
+  const coiling=resetV!==null&&resetV<35;
   let erGated=false;
-  if(erV!==null&&erV<0.25&&!(adxV!==null&&adxV<20)){capped=Math.min(capped,50);erGated=true;}
+  if(erV!==null&&erV<0.25&&!macroConviction&&!coiling){capped=Math.min(capped,50);erGated=true;}
 
   // Regime cap — counter-regime trades penalised
   let capApplied=false;
@@ -532,7 +536,7 @@ function openQAISheet(){
     return`<div class="sh-comp"><span class="sh-comp-lbl" style="width:112px;">${labels[k]}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${v}/10</span><span class="sh-comp-wt">${wts[k]}%</span></div>`;
   }).join('');
   if(qai.adxGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--sell);">⚠ ADX Gate</span><span class="sh-dv" style="color:var(--sell);">ADX &lt;20 — capped at 45%</span></div>`;
-  if(qai.erGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ ER Gate</span><span class="sh-dv" style="color:var(--amber);">ER ${qai.er!=null?qai.er.toFixed(2):'—'} — market churning, capped at 50%</span></div>`;
+  if(qai.erGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ ER Gate</span><span class="sh-dv" style="color:var(--amber);">ER ${qai.er!=null?qai.er.toFixed(2):'—'} — path churning, no macro/coil override</span></div>`;
   if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Regime Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} — counter-regime</span></div>`;
   openSheet('Setup',h,pair.replace('/',''));
 }
@@ -575,15 +579,20 @@ function copyAnalysisPrompt(pair,btnEl){
   if(!D.h4||!D.h1)return;
   pair=pair||selectedPair;
   const now=new Date(),days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],dow=days[now.getUTCDay()];
+  const hh=String(now.getUTCHours()).padStart(2,'0'),mm=String(now.getUTCMinutes()).padStart(2,'0');
   const activeSess=getActiveSessions();
   const h4d=D.h4&&D.h4[pair],h1d=D.h1&&D.h1[pair],d1d=D.d1&&D.d1[pair];
-  const qai=computeQAI(pair),edge=getEdgeScore(pair),mom=compute1212(pair);
+  const edge=getEdgeScore(pair),mom=compute1212(pair);
   const regime=(D.regime&&D.regime.final_regime&&D.regime.final_regime.regime)||(D.regime&&D.regime.regime)||'Unknown';
+  const regConf=(D.regime&&D.regime.final_regime&&D.regime.final_regime.confidence)||'';
   const[base,quote]=pair.split('/');
   const csm=D.csm&&D.csm.rankings||{},csmH4r=D.csm&&D.csm.h4_rankings||{};
-  const adxV=h4d&&h4d.raw?h4d.raw.adx.toFixed(1):'—';
+  const adxV=h4d&&h4d.raw?parseFloat(h4d.raw.adx):null;
+  const adxStr=adxV!==null?adxV.toFixed(1):'—';
+  const adxNote=adxV!==null?(adxV>=55?' [mature — assess exhaustion]':adxV>=30?' [active]':' [weak]'):'';
   const isExtended=!!(h4d&&h4d.extended);
   const atrPct=d1d&&d1d.atr_percentile!==undefined?d1d.atr_percentile:null;
+  const resetRaw=h4d&&h4d.reset_score!=null?h4d.reset_score:null;
   const dec=pair.includes('JPY')?3:5;
   const close=h1d&&h1d.raw?parseFloat(h1d.raw.close):null;
   const bbU=h4d&&h4d.raw&&h4d.raw.bb_upper?h4d.raw.bb_upper:null;
@@ -591,48 +600,56 @@ function copyAnalysisPrompt(pair,btnEl){
   const bbM=h4d&&h4d.raw&&h4d.raw.bb_mid?h4d.raw.bb_mid:null;
   const er=h4d&&h4d.er!=null?h4d.er:null;
   const autocorr=h4d&&h4d.autocorr!=null?h4d.autocorr:null;
-  // Auto-detect scenario
+  const erNote=er!==null?(er>=0.45?' trending':er>=0.25?' transitional':' churning — path inefficient'):'';
+  const acNote=autocorr!==null?(autocorr>=0.15?' momentum':autocorr<=-0.15?' mean-reverting':' neutral'):'';
+  const rateDiff=computeRateDiff(pair);
+  const rateStr=rateDiff?rateDiff.diff+'bps ('+rateDiff.base+' '+rateDiff.baseRate.toFixed(2)+'% / '+rateDiff.quote+' '+rateDiff.quoteRate.toFixed(2)+'%)':'—';
+  // Scenario detection
   const momConflict=mom.dh4!==null&&mom.dd1!==null&&Math.sign(mom.dh4||0)!==Math.sign(mom.dd1||0)&&Math.abs(mom.dh4||0)>=5&&Math.abs(mom.dd1||0)>=5;
-  const isBB=isExtended||(atrPct!==null&&atrPct<=30)||(momConflict&&qai.score<55)||(er!==null&&er<0.25)||(autocorr!==null&&autocorr<-0.15);
+  const isBB=isExtended||(atrPct!==null&&atrPct<=30)||(momConflict&&(h4d&&h4d.score||0)<55)||(er!==null&&er<0.25&&autocorr!==null&&autocorr<-0.1);
+  const d=v=>v!=null?(v>=0?'+':'')+v:'—';
   let t='';
-  t+=now.toUTCString()+' | '+dow+' | Session: '+(activeSess.length?activeSess.join(', '):'Closed')+'\n';
-  t+=pair+' — '+(isBB?'BB REVERSAL SETUP':'TREND / MOMENTUM SETUP')+'\n\n';
-  t+='CONTEXT:\n';
-  t+='  Close: '+(close?close.toFixed(dec):'—');
-  if(bbU&&bbL&&bbM)t+='  |  BB: '+bbL.toFixed(dec)+' / '+bbM.toFixed(dec)+' / '+bbU.toFixed(dec);
-  t+='\n';
-  t+='  Setup: '+(qai.score>0?qai.score+'%':'—')+'  |  Edge: '+(edge!=null?edge+'/10':'—')+'  |  ADX: '+adxV+'\n';
-  t+='  Extended: '+(isExtended?'YES':'no')+'  |  ATR%ile: '+(atrPct!==null?atrPct:'—')+'  |  Regime: '+regime+'\n';
-  t+='  ER: '+(er!==null?er.toFixed(2)+' ('+(er>=0.45?'Trending':er>=0.25?'Trans':'Churning')+')':'—')+'  |  Autocorr: '+(autocorr!==null?autocorr.toFixed(2)+' ('+(autocorr>=0.15?'Momentum':autocorr<=-0.15?'Mean-Rev':'Neutral')+')':'—')+'\n';
-  t+='  D1: '+(d1d?d1d.label:'—')+'  |  H4: '+(h4d?h4d.label:'—')+'  |  H1: '+(h1d?h1d.label:'—')+'\n\n';
-  t+='1212 MOMENTUM (0=bearish · 50=neutral · 100=bullish · Δ=change vs prior bar):\n';
-  [['W1',mom.w1,mom.dw1],['D1',mom.d1,mom.dd1],['H4',mom.h4,mom.dh4],['H1',mom.h1,mom.dh1]].forEach(([tf,v,d])=>{
-    t+='  '+tf+': '+v+(d!=null?' Δ'+(d>=0?'+':'')+d:'')+'\n';
-  });
-  t+='\n';
-  t+='CSM RANKINGS (0=weakest · 100=strongest):\n';
-  t+='  '+base+': D1='+(csm[base]||0).toFixed(0)+'  H4='+(csmH4r[base]||0).toFixed(0)+'\n';
-  t+='  '+quote+': D1='+(csm[quote]||0).toFixed(0)+'  H4='+(csmH4r[quote]||0).toFixed(0)+'\n\n';
+  t+=`${pair} — ${isBB?'BB REVERSAL':'TREND'} ANALYSIS\n`;
+  t+=`${dow} ${hh}:${mm} UTC | ${activeSess.length?activeSess.join(' / '):'Between sessions'}\n`;
+  t+=`Close: ${close?close.toFixed(dec):'—'}`;
+  if(bbU&&bbL&&bbM)t+=`  BB: ${bbL.toFixed(dec)} / ${bbM.toFixed(dec)} / ${bbU.toFixed(dec)}`;
+  t+='\n\n';
+  // Layer 1: Macro
+  t+=`MACRO — the WHY of this trade:\n`;
+  t+=`  Regime:  ${regime} ${regConf}\n`;
+  t+=`  CSM D1:  ${base} ${(csm[base]||0).toFixed(0)} / ${quote} ${(csm[quote]||0).toFixed(0)}`;
+  const csmDiff=Math.abs((csm[base]||0)-(csm[quote]||0));
+  t+=`  [divergence: ${csmDiff>=60?'strong':csmDiff>=30?'moderate':'weak'}]\n`;
+  t+=`  CSM H4:  ${base} ${(csmH4r[base]||0).toFixed(0)} / ${quote} ${(csmH4r[quote]||0).toFixed(0)}\n`;
+  t+=`  Edge:    ${edge!=null?edge+'/10':'—'}\n`;
+  t+=`  Rate:    ${rateStr}\n\n`;
+  // Layer 2: Structural
+  t+=`STRUCTURAL — is the trend valid:\n`;
+  t+=`  D1: ${d1d?d1d.label:'—'}  |  MOM D1: ${mom.d1} Δ${d(mom.dd1)}  |  MOM W1: ${mom.w1} Δ${d(mom.dw1)}\n`;
+  t+=`  ADX: ${adxStr}${adxNote}\n`;
+  t+=`  Extended: ${isExtended?'YES — overextended, reversal risk':'no'}\n\n`;
+  // Layer 3: Entry timing
+  t+=`ENTRY TIMING — is the entry ready:\n`;
+  t+=`  H4: ${h4d?h4d.label:'—'}  |  MOM H4: ${mom.h4} Δ${d(mom.dh4)}\n`;
+  t+=`  H1: ${h1d?h1d.label:'—'}  |  MOM H1: ${mom.h1} Δ${d(mom.dh1)}\n`;
+  t+=`  ER: ${er!==null?er.toFixed(2):'—'}${erNote}  |  Autocorr: ${autocorr!==null?autocorr.toFixed(2):'—'}${acNote}\n`;
+  t+=`  Reset: ${resetRaw!==null?resetRaw:'—'}  |  ATR%ile: ${atrPct!==null?atrPct:'—'}\n\n`;
+  // Task
   if(isBB){
-    t+='DETECTED: BB REVERSAL. Score these 9 factors (YES/NO + 1-line note each):\n';
-    t+='1. MOM delta divergence: H4 and D1 deltas pointing in OPPOSITE directions?\n';
-    t+='2. MOM levels: D1 near 50 while H4 is extended (>70 or <30)?\n';
-    t+='3. W1 context: weekly MOM disagrees with band touch direction?\n';
-    t+='4. Pill alignment: D1/H4/H1 labels conflicting?\n';
-    t+='5. CSM: H4 CSM cross-TF conflict on base or quote currency?\n';
-    t+='6. Regime: does regime oppose continuation in this direction?\n';
-    t+='7. ADX: <20 = reversal likely · >25 = continuation likely\n';
-    t+='8. Setup: <55% = reversal aligned · >70% = trend aligned\n';
-    t+='9. Extended/ATR: flag active or ATR compressed?\n';
-    t+='\nFINAL: REVERSAL or CONTINUATION? Probability 1–5. Direction + key level in ≤35 words.\n';
+    t+=`TASK — BB reversal / continuation assessment. ≤150 words. Use this structure:\n\n`;
+    t+=`VERDICT: REVERSAL or CONTINUATION (conviction 1–5)\n`;
+    t+=`EVIDENCE: the 2–3 factors with most weight in this verdict\n`;
+    t+=`REGIME FIT: does ${regime} support or oppose band-touch direction?\n`;
+    t+=`CSM FIT: does currency strength cross-TF support reversal or continuation?\n`;
+    t+=`TRIGGER: specific price action or indicator to confirm entry\n`;
+    t+=`RISK: what invalidates this verdict\n`;
   }else{
-    t+='DETECTED: TREND TRADE. Assess these 5 factors:\n';
-    t+='1. TF alignment: D1, H4, H1 all pointing same direction?\n';
-    t+='2. MOM confluence: H4 and D1 MOM trending same way with matching deltas?\n';
-    t+='3. Regime: does current environment support this direction?\n';
-    t+='4. CSM: is '+base+' stronger than '+quote+' across D1 and H4?\n';
-    t+='5. Entry: pullback to EMA, not extended, ADX above 20?\n';
-    t+='\nFINAL: TRADE or SKIP? Quality 1–5. Direction, entry zone, SL concept in ≤35 words.\n';
+    t+=`TASK — trade assessment. ≤150 words. Use this structure:\n\n`;
+    t+=`STATE: macro conviction (strong / moderate / weak / conflicted) + entry (ready / forming / not yet / counter-trend)\n`;
+    t+=`DOMINANT SIGNAL: the single factor with most conviction weight\n`;
+    t+=`TENSION: what contradicts or delays — identify the specific gap between macro and micro\n`;
+    t+=`TRIGGER: the specific condition that confirms this entry (H4 label / MOM level / ER threshold)\n`;
+    t+=`RISK: one specific risk — mature trend exhaustion / mean-reversion / counter-regime\n`;
   }
   navigator.clipboard.writeText(t).then(()=>{
     const btn=btnEl||document.getElementById('cht-copy-btn');
