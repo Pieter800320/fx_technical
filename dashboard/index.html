@@ -507,6 +507,11 @@ function computeQAI(pair){
   let capped=raw;
   if(adxV!==null&&adxV<20)capped=Math.min(capped,45);
 
+  // ER gate — churning market caps score at 50
+  const erV=h4d&&h4d.er!=null?h4d.er:null;
+  let erGated=false;
+  if(erV!==null&&erV<0.25&&!(adxV!==null&&adxV<20)){capped=Math.min(capped,50);erGated=true;}
+
   // Regime cap — counter-regime trades penalised
   let capApplied=false;
   if(regime==='Risk-Off'&&isBull){const lim=isRiskPair?40:isSafeHavenPair?70:50;if(capped>lim){capped=lim;capApplied=true;}}
@@ -514,7 +519,7 @@ function computeQAI(pair){
   capped=Math.min(capped,100);
 
   const col=capped>=70?'var(--buy)':capped>=55?'var(--amber)':capped>=40?'rgba(248,140,0,.9)':'var(--sell)';
-  return{score:capped,dir:d1dir,col,comps,weights,capApplied,regime,adxGated:adxV!==null&&adxV<20};
+  return{score:capped,dir:d1dir,col,comps,weights,capApplied,regime,adxGated:adxV!==null&&adxV<20,erGated,er:erV};
 }
 function openQAISheet(){
   const pair=selectedPair,qai=computeQAI(pair);
@@ -527,53 +532,43 @@ function openQAISheet(){
     return`<div class="sh-comp"><span class="sh-comp-lbl" style="width:112px;">${labels[k]}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${v}/10</span><span class="sh-comp-wt">${wts[k]}%</span></div>`;
   }).join('');
   if(qai.adxGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--sell);">⚠ ADX Gate</span><span class="sh-dv" style="color:var(--sell);">ADX &lt;20 — capped at 45%</span></div>`;
+  if(qai.erGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ ER Gate</span><span class="sh-dv" style="color:var(--amber);">ER ${qai.er!=null?qai.er.toFixed(2):'—'} — market churning, capped at 50%</span></div>`;
   if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Regime Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} — counter-regime</span></div>`;
   openSheet('Setup',h,pair.replace('/',''));
 }
 function openMOMSheet(){
   const pair=selectedPair,s=compute1212(pair);
-  const vt="font-family:'VT323',monospace;";
-  const tileRow=(tf,val,dlt)=>{
-    const gp=Math.abs(dlt||0)>=10,bdr=gp?'rgba(0,220,55,0.75)':'rgba(0,80,20,0.2)',sh=gp?'box-shadow:0 0 6px rgba(0,220,55,0.25);':'';
-    const vc=val>=65?'var(--buy)':val>=35?BRIGHT:'var(--sell)';
-    const lbl=val>=70?'Bullish':val>=55?'Leaning Bull':val>=45?'Neutral':val>=30?'Leaning Bear':'Bearish';
-    const lc=val>=65?'var(--buy)':val>=35?'var(--muted)':'var(--sell)';
-    return`<div class="sh-dr" style="border:1px solid ${bdr};border-radius:4px;margin:3px var(--pad);${sh}"><span class="sh-dn" style="font-weight:700;">${tf}</span><span class="sh-dv"><span style="${vt}font-size:20px;color:${vc};">${val}</span>${_1212Delta(dlt)}<span style="color:${lc};font-size:var(--xs);margin-left:8px;">${lbl}</span></span></div>`;
+  const momRow=(tf,val,dlt)=>{
+    const col=val>=65?'var(--buy)':val>=35?'var(--amber)':'var(--sell)';
+    const arr=dlt===null||dlt===undefined?'':dlt>0?'↑':dlt<0?'↓':'→';
+    const arrCol=!dlt?'var(--muted)':dlt>0?'var(--buy)':'var(--sell)';
+    return`<div class="sh-comp"><span class="sh-comp-lbl">${tf}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${val}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${val}</span><span class="sh-comp-wt" style="color:${arrCol};">${arr}</span></div>`;
   };
-  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">1212 Composite</span><span class="sh-kpi-val" style="${vt}font-size:26px;color:${BRIGHT};">${s.cmp}</span></div>`;
-  h+=`<div class="sh-hdr">Timeframes</div>`;
-  h+=tileRow('W1',s.w1,s.dw1);h+=tileRow('D1',s.d1,s.dd1);h+=tileRow('H4',s.h4,s.dh4);h+=tileRow('H1',s.h1,s.dh1);
-  h+=`<div class="sh-hdr">Guide</div>`;
-  h+=`<div class="sh-dr"><span class="sh-dn">Scale</span><span class="sh-dv">0 = max bearish · 50 = neutral · 100 = max bullish</span></div>`;
-  h+=`<div class="sh-dr"><span class="sh-dn">Delta (Δ)</span><span class="sh-dv">Change vs prior bar. Pill glows when |Δ| ≥ 10</span></div>`;
-  h+=`<div class="sh-dr"><span class="sh-dn">CMP</span><span class="sh-dv">ATR-weighted composite of all 4 timeframes</span></div>`;
+  const cmpCol=s.cmp>=65?'var(--buy)':s.cmp>=35?'var(--amber)':'var(--sell)';
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">1212 Composite</span><span class="sh-kpi-val" style="color:${cmpCol};">${s.cmp}</span></div>`;
+  h+=momRow('W1',s.w1,s.dw1);h+=momRow('D1',s.d1,s.dd1);h+=momRow('H4',s.h4,s.dh4);h+=momRow('H1',s.h1,s.dh1);
+  h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--muted);">Bar fills to value (0–100). Arrow = Δ vs prior bar.</span></div>`;
   openSheet('1212 Momentum',h,pair.replace('/',''));
 }
 function openEdgeSheet(){
   const pair=selectedPair,edge=getEdgeScore(pair),eb=getEdgeBreakdown(pair);
-  const vt="font-family:'VT323',monospace;";
   const edgeCol=edge===null?'var(--muted)':edge>=8?'var(--buy)':edge>=6?'var(--amber)':'var(--sell)';
-  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Edge Score</span><span class="sh-kpi-val" style="${vt}font-size:26px;color:${edgeCol};">${edge!==null?edge+'/10':'—'}</span></div>`;
-  h+=`<div class="sh-hdr">Components</div>`;
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Edge Score</span><span class="sh-kpi-val" style="color:${edgeCol};">${edge!==null?edge+'/10':'—'}</span></div>`;
   if(eb){
-    const eRow=(lbl,val,max,desc)=>{
+    const eRow=(lbl,val,max)=>{
       const pct=Math.round(val/max*100);
       const col=val>=max?'var(--buy)':val>=max*0.5?'var(--amber)':'var(--sell)';
-      return`<div class="sh-comp"><span class="sh-comp-lbl" style="width:120px;">${lbl}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${val}/${max}</span></div>`;
+      return`<div class="sh-comp"><span class="sh-comp-lbl" style="width:112px;">${lbl}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${val}/${max}</span><span class="sh-comp-wt">${max}</span></div>`;
     };
-    h+=eRow('News Catalyst',eb.news||0,5);
+    h+=eRow('News',eb.news||0,5);
     h+=eRow('Regime Fit',eb.regime||0,3);
     h+=eRow('Session',eb.session||0,2);
-    h+=eRow('ATR Contraction',eb.atr||0,1);
-    h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--muted);">Total raw / 11, displayed as min(10,raw)</span><span class="sh-dv">${(eb.news||0)+(eb.regime||0)+(eb.session||0)+(eb.atr||0)}/11</span></div>`;
+    h+=eRow('ATR',eb.atr||0,1);
+    const raw=(eb.news||0)+(eb.regime||0)+(eb.session||0)+(eb.atr||0);
+    h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--muted);">Raw total (capped at 10)</span><span class="sh-dv">${raw}/11</span></div>`;
   }else{
     h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--muted);">No breakdown — run scan_news.py</span><span class="sh-dv">—</span></div>`;
   }
-  h+=`<div class="sh-hdr">What Each Component Measures</div>`;
-  h+=`<div class="sh-dr"><span class="sh-dn">News (0–5)</span><span class="sh-dv">Haiku AI: 24h directional catalyst strength</span></div>`;
-  h+=`<div class="sh-dr"><span class="sh-dn">Regime (0–3)</span><span class="sh-dv">Python: environment supports trade direction</span></div>`;
-  h+=`<div class="sh-dr"><span class="sh-dn">Session (0–2)</span><span class="sh-dv">Python: pair in primary liquidity window</span></div>`;
-  h+=`<div class="sh-dr"><span class="sh-dn">ATR (0–1)</span><span class="sh-dv">Python: ATR &lt; 85% prior avg → reversal energy</span></div>`;
   openSheet('Edge Score',h,pair.replace('/',''));
 }
 function copyAnalysisPrompt(pair,btnEl){
@@ -594,9 +589,11 @@ function copyAnalysisPrompt(pair,btnEl){
   const bbU=h4d&&h4d.raw&&h4d.raw.bb_upper?h4d.raw.bb_upper:null;
   const bbL=h4d&&h4d.raw&&h4d.raw.bb_lower?h4d.raw.bb_lower:null;
   const bbM=h4d&&h4d.raw&&h4d.raw.bb_mid?h4d.raw.bb_mid:null;
+  const er=h4d&&h4d.er!=null?h4d.er:null;
+  const autocorr=h4d&&h4d.autocorr!=null?h4d.autocorr:null;
   // Auto-detect scenario
   const momConflict=mom.dh4!==null&&mom.dd1!==null&&Math.sign(mom.dh4||0)!==Math.sign(mom.dd1||0)&&Math.abs(mom.dh4||0)>=5&&Math.abs(mom.dd1||0)>=5;
-  const isBB=isExtended||(atrPct!==null&&atrPct<=30)||(momConflict&&qai.score<55);
+  const isBB=isExtended||(atrPct!==null&&atrPct<=30)||(momConflict&&qai.score<55)||(er!==null&&er<0.25)||(autocorr!==null&&autocorr<-0.15);
   let t='';
   t+=now.toUTCString()+' | '+dow+' | Session: '+(activeSess.length?activeSess.join(', '):'Closed')+'\n';
   t+=pair+' — '+(isBB?'BB REVERSAL SETUP':'TREND / MOMENTUM SETUP')+'\n\n';
@@ -606,6 +603,7 @@ function copyAnalysisPrompt(pair,btnEl){
   t+='\n';
   t+='  Setup: '+(qai.score>0?qai.score+'%':'—')+'  |  Edge: '+(edge!=null?edge+'/10':'—')+'  |  ADX: '+adxV+'\n';
   t+='  Extended: '+(isExtended?'YES':'no')+'  |  ATR%ile: '+(atrPct!==null?atrPct:'—')+'  |  Regime: '+regime+'\n';
+  t+='  ER: '+(er!==null?er.toFixed(2)+' ('+(er>=0.45?'Trending':er>=0.25?'Trans':'Churning')+')':'—')+'  |  Autocorr: '+(autocorr!==null?autocorr.toFixed(2)+' ('+(autocorr>=0.15?'Momentum':autocorr<=-0.15?'Mean-Rev':'Neutral')+')':'—')+'\n';
   t+='  D1: '+(d1d?d1d.label:'—')+'  |  H4: '+(h4d?h4d.label:'—')+'  |  H1: '+(h1d?h1d.label:'—')+'\n\n';
   t+='1212 MOMENTUM (0=bearish · 50=neutral · 100=bullish · Δ=change vs prior bar):\n';
   [['W1',mom.w1,mom.dw1],['D1',mom.d1,mom.dd1],['H4',mom.h4,mom.dh4],['H1',mom.h1,mom.dh1]].forEach(([tf,v,d])=>{
@@ -744,6 +742,9 @@ function buildNewsSheetContent(){
   } else if(!nb||nb.status==='unavailable'){
     h+=`<div class="sh-hdr">Market Analysis</div>`;
     h+=`<div style="padding:10px var(--pad);font-size:var(--sm);color:var(--muted);border-bottom:1px solid var(--border2);">Not available yet — runs 4x daily at 06/10/14/18 UTC.</div>`;
+  } else {
+    h+=`<div class="sh-hdr">Market Analysis</div>`;
+    h+=`<div style="padding:10px var(--pad);font-size:var(--sm);color:var(--muted);border-bottom:1px solid var(--border2);">Narrative unavailable this cycle — themes shown below.</div>`;
   }
   if(nb&&nb.themes&&nb.themes.length){
     h+=`<div class="sh-hdr">News Themes</div>`;
@@ -845,12 +846,12 @@ function buildPairSheetContent(pair){
   h+=row('ADX',adx?adx.toFixed(0):'—',adx===null?'var(--muted)':adx>=25?'var(--buy)':adx>=20?'var(--amber)':'var(--sell)');
   h+=row('ATR %ile',atrPct===null?'—':atrPct+(atrPct>=70?' Hi':atrPct<=30?' Lo':' Mid'),atrPct===null?'var(--muted)':atrPct>=70?'var(--sell)':atrPct<=30?'var(--buy)':'var(--muted)');
   h+=row('Reset',resetRaw===null?'—':resetRaw+(resetRaw>=50?' Uncoiled':resetRaw>=35?' Settling':' Coiled'),resetRaw===null?'var(--muted)':resetRaw>=50?'var(--buy)':resetRaw>=35?'var(--amber)':'var(--muted)');
-  h+=hdr('1212 Momentum');
-  h+=`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin:4px var(--pad) 8px;">`+[['W1',s1212.w1,s1212.dw1],['D1',s1212.d1,s1212.dd1],['H4',s1212.h4,s1212.dh4],['H1',s1212.h1,s1212.dh1]].map(([tf,val,dlt])=>{
-    const gp=Math.abs(dlt||0)>=10,bdr=gp?'rgba(0,220,55,0.7)':'rgba(0,80,20,0.2)',sh=gp?'box-shadow:0 0 5px rgba(0,220,55,0.25);':'';
-    const vc=val>=65?'var(--buy)':val>=35?BRIGHT:'var(--sell)';
-    return`<div style="text-align:center;border:1px solid ${bdr};border-radius:3px;padding:4px 2px;${sh}"><div style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;">${tf}</div><div style="${vt2}font-size:18px;color:${vc};">${val}</div><div style="height:14px;display:flex;align-items:center;justify-content:center;">${_1212Delta(dlt)}</div></div>`;
-  }).join('')+`</div>`;
+  const cmpVal=s1212.cmp,cmpCol=cmpVal>=65?'var(--buy)':cmpVal>=35?'var(--amber)':'var(--sell)';
+  h+=row('MOM CMP',cmpVal,cmpCol);
+  const erVal=h4d&&h4d.er!=null?h4d.er:null;
+  const acVal=h4d&&h4d.autocorr!=null?h4d.autocorr:null;
+  if(erVal!==null){const ec=erVal>=0.45?'var(--buy)':erVal>=0.25?'var(--amber)':'var(--sell)';h+=row('ER',erVal.toFixed(2)+(erVal>=0.45?' Trending':erVal>=0.25?' Trans':'Ranging'),ec);}
+  if(acVal!==null){const ac=acVal>=0.15?'var(--buy)':acVal<=-0.15?'var(--sell)':'var(--muted)';h+=row('Autocorr',acVal.toFixed(2)+(acVal>=0.15?' Momentum':acVal<=-0.15?' Mean-Rev':' Neutral'),ac);}
   h+=hdr('Fundamental');
   const h4regStr=D.regime&&D.regime.h4&&D.regime.h4.regime?D.regime.h4.regime:null;
   const regDiverging=h4regStr&&h4regStr!==regime;
