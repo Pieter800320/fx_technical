@@ -1326,8 +1326,7 @@ function renderDrumData(pair){
   const alertDotHtml=hasAlert?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(0,255,65,0.9);box-shadow:0 0 5px rgba(0,255,65,0.5);flex-shrink:0;margin-left:2px;vertical-align:middle;"></span>`:'';
   let h='';
 
-  // Zone 1: pair + dot + D1% + D5%  |  CONT./REV. dual top-right
-  const rev=computeREV(pair);
+  const revDrumCol=rev.score>=65?'var(--buy)':rev.score>=40?'var(--amber)':'rgba(0,120,30,0.4)';
   h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
     <div style="display:flex;align-items:center;gap:5px;min-width:0;">
       <span style="${vt}font-size:22px;color:#00ff55;letter-spacing:.01em;text-shadow:0 0 8px rgba(0,255,65,0.4);">${pair.replace('/','')}</span>${alertDotHtml}
@@ -1342,7 +1341,7 @@ function renderDrumData(pair){
       <span style="font-size:11px;color:rgba(0,80,20,0.4);padding-bottom:1px;">/</span>
       <div style="text-align:center;line-height:1;">
         <div style="font-size:8px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Rev.</div>
-        <span style="${vt}font-size:18px;color:${rev.col}">${rev.score}</span>
+        <span style="${vt}font-size:18px;color:${revDrumCol}">${rev.score}</span>
       </div>
     </div>
   </div>`;
