@@ -507,14 +507,12 @@ function computeQAI(pair){
   let capped=raw;
   if(adxV!==null&&adxV<20)capped=Math.min(capped,45);
 
-  // ER gate — churning market caps score at 50
-  // Suspended when macro regime supports the trade direction AND pair is coiling (Reset < 35)
-  const erV=h4d&&h4d.er!=null?h4d.er:null;
+  // ER gate — uses D1 20-bar (4-week) efficiency. Suspended when regime supports direction.
+  const erV=d1d&&d1d.er!=null?d1d.er:null;
   const resetV=h4d&&h4d.reset_score!=null?h4d.reset_score:null;
   const macroConviction=(regime==='Risk-Off'&&isBear)||(regime==='Risk-On'&&isBull);
-  const coiling=resetV!==null&&resetV<35;
   let erGated=false;
-  if(erV!==null&&erV<0.25&&!macroConviction&&!coiling){capped=Math.min(capped,50);erGated=true;}
+  if(erV!==null&&erV<0.25&&!macroConviction){capped=Math.min(capped,50);erGated=true;}
 
   // Regime cap — counter-regime trades penalised
   let capApplied=false;
@@ -536,7 +534,7 @@ function openQAISheet(){
     return`<div class="sh-comp"><span class="sh-comp-lbl" style="width:112px;">${labels[k]}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${v}/10</span><span class="sh-comp-wt">${wts[k]}%</span></div>`;
   }).join('');
   if(qai.adxGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--sell);">⚠ ADX Gate</span><span class="sh-dv" style="color:var(--sell);">ADX &lt;20 — capped at 45%</span></div>`;
-  if(qai.erGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ ER Gate</span><span class="sh-dv" style="color:var(--amber);">ER ${qai.er!=null?qai.er.toFixed(2):'—'} — path churning, no macro/coil override</span></div>`;
+  if(qai.erGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ ER Gate</span><span class="sh-dv" style="color:var(--amber);">D1 ER ${qai.er!=null?qai.er.toFixed(2):'—'} — 4-week trend inefficient, capped at 50%</span></div>`;
   if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Regime Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} — counter-regime</span></div>`;
   openSheet('Setup',h,pair.replace('/',''));
 }
@@ -598,15 +596,17 @@ function copyAnalysisPrompt(pair,btnEl){
   const bbU=h4d&&h4d.raw&&h4d.raw.bb_upper?h4d.raw.bb_upper:null;
   const bbL=h4d&&h4d.raw&&h4d.raw.bb_lower?h4d.raw.bb_lower:null;
   const bbM=h4d&&h4d.raw&&h4d.raw.bb_mid?h4d.raw.bb_mid:null;
-  const er=h4d&&h4d.er!=null?h4d.er:null;
+  const erH4=h4d&&h4d.er!=null?h4d.er:null;
+  const erD1=d1d&&d1d.er!=null?d1d.er:null;
   const autocorr=h4d&&h4d.autocorr!=null?h4d.autocorr:null;
-  const erNote=er!==null?(er>=0.45?' trending':er>=0.25?' transitional':' churning — path inefficient'):'';
+  const erD1Note=erD1!==null?(erD1>=0.45?' trending':erD1>=0.25?' transitional':' ranging — 4wk trend inefficient'):'';
+  const erH4Note=erH4!==null?(erH4>=0.45?' trending':erH4>=0.25?' transitional':' churning — entry not clean'):'';
   const acNote=autocorr!==null?(autocorr>=0.15?' momentum':autocorr<=-0.15?' mean-reverting':' neutral'):'';
   const rateDiff=computeRateDiff(pair);
   const rateStr=rateDiff?rateDiff.diff+'bps ('+rateDiff.base+' '+rateDiff.baseRate.toFixed(2)+'% / '+rateDiff.quote+' '+rateDiff.quoteRate.toFixed(2)+'%)':'—';
-  // Scenario detection
+  // Scenario detection — uses H4 ER for compression detection (correct)
   const momConflict=mom.dh4!==null&&mom.dd1!==null&&Math.sign(mom.dh4||0)!==Math.sign(mom.dd1||0)&&Math.abs(mom.dh4||0)>=5&&Math.abs(mom.dd1||0)>=5;
-  const isBB=isExtended||(atrPct!==null&&atrPct<=30)||(momConflict&&(h4d&&h4d.score||0)<55)||(er!==null&&er<0.25&&autocorr!==null&&autocorr<-0.1);
+  const isBB=isExtended||(atrPct!==null&&atrPct<=30)||(momConflict&&(h4d&&h4d.score||0)<55)||(erH4!==null&&erH4<0.25&&autocorr!==null&&autocorr<-0.1);
   const d=v=>v!=null?(v>=0?'+':'')+v:'—';
   let t='';
   t+=`${pair} — ${isBB?'BB REVERSAL':'TREND'} ANALYSIS\n`;
@@ -627,12 +627,13 @@ function copyAnalysisPrompt(pair,btnEl){
   t+=`STRUCTURAL — is the trend valid:\n`;
   t+=`  D1: ${d1d?d1d.label:'—'}  |  MOM D1: ${mom.d1} Δ${d(mom.dd1)}  |  MOM W1: ${mom.w1} Δ${d(mom.dw1)}\n`;
   t+=`  ADX: ${adxStr}${adxNote}\n`;
+  t+=`  D1 ER: ${erD1!==null?erD1.toFixed(2):'—'}${erD1Note}  (4-week trend efficiency)\n`;
   t+=`  Extended: ${isExtended?'YES — overextended, reversal risk':'no'}\n\n`;
   // Layer 3: Entry timing
   t+=`ENTRY TIMING — is the entry ready:\n`;
   t+=`  H4: ${h4d?h4d.label:'—'}  |  MOM H4: ${mom.h4} Δ${d(mom.dh4)}\n`;
   t+=`  H1: ${h1d?h1d.label:'—'}  |  MOM H1: ${mom.h1} Δ${d(mom.dh1)}\n`;
-  t+=`  ER: ${er!==null?er.toFixed(2):'—'}${erNote}  |  Autocorr: ${autocorr!==null?autocorr.toFixed(2):'—'}${acNote}\n`;
+  t+=`  ER (3d): ${erH4!==null?erH4.toFixed(2):'—'}${erH4Note}  |  Autocorr: ${autocorr!==null?autocorr.toFixed(2):'—'}${acNote}\n`;
   t+=`  Reset: ${resetRaw!==null?resetRaw:'—'}  |  ATR%ile: ${atrPct!==null?atrPct:'—'}\n\n`;
   // Task
   if(isBB){
@@ -865,9 +866,11 @@ function buildPairSheetContent(pair){
   h+=row('Reset',resetRaw===null?'—':resetRaw+(resetRaw>=50?' Uncoiled':resetRaw>=35?' Settling':' Coiled'),resetRaw===null?'var(--muted)':resetRaw>=50?'var(--buy)':resetRaw>=35?'var(--amber)':'var(--muted)');
   const cmpVal=s1212.cmp,cmpCol=cmpVal>=65?'var(--buy)':cmpVal>=35?'var(--amber)':'var(--sell)';
   h+=row('MOM CMP',cmpVal,cmpCol);
-  const erVal=h4d&&h4d.er!=null?h4d.er:null;
+  const erH4=h4d&&h4d.er!=null?h4d.er:null;
+  const erD1=d1d&&d1d.er!=null?d1d.er:null;
   const acVal=h4d&&h4d.autocorr!=null?h4d.autocorr:null;
-  if(erVal!==null){const ec=erVal>=0.45?'var(--buy)':erVal>=0.25?'var(--amber)':'var(--sell)';h+=row('ER',erVal.toFixed(2)+(erVal>=0.45?' Trending':erVal>=0.25?' Trans':'Ranging'),ec);}
+  if(erD1!==null){const ec=erD1>=0.45?'var(--buy)':erD1>=0.25?'var(--amber)':'var(--sell)';h+=row('ER (4wk)',erD1.toFixed(2)+(erD1>=0.45?' Trending':erD1>=0.25?' Trans':' Ranging'),ec);}
+  if(erH4!==null){const ec=erH4>=0.45?'var(--buy)':erH4>=0.25?'var(--amber)':'var(--sell)';h+=row('ER (3d)',erH4.toFixed(2)+(erH4>=0.45?' Trending':erH4>=0.25?' Trans':' Ranging'),ec);}
   if(acVal!==null){const ac=acVal>=0.15?'var(--buy)':acVal<=-0.15?'var(--sell)':'var(--muted)';h+=row('Autocorr',acVal.toFixed(2)+(acVal>=0.15?' Momentum':acVal<=-0.15?' Mean-Rev':' Neutral'),ac);}
   h+=hdr('Fundamental');
   const h4regStr=D.regime&&D.regime.h4&&D.regime.h4.regime?D.regime.h4.regime:null;
