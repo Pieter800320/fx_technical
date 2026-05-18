@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from config.pairs import PAIRS, pair_display, REGIME_EXTRA_PAIRS
 from scanner.fetch import fetch_all_pairs
 from scanner.score import score_pair, atr_percentile
+from scanner.scan_h4 import efficiency_ratio, return_autocorr
 from scanner.csm import compute_currency_strength, compute_currency_strength_h4, MAJOR_PAIRS, STRENGTH_PAIRS, CSM_EXTRA_PAIRS
 from scanner.regime import classify_regime
 from scanner.conviction import compute_conviction
@@ -82,6 +83,7 @@ def main():
         filter_note = "" if result["filter_ok"] else f" ⚠️ {', '.join(result['filter_reasons'])}"
         print(f"  {display}: {result['score']:+d} → {result['label']}{filter_note}")
 
+        closes = df["close"].tolist()
         d1_results[pair] = {
             "score":          result["score"],
             "label":          result["label"],
@@ -93,6 +95,8 @@ def main():
             "structure":      result.get("structure", {}),
             "adx_weight":     result.get("adx_weight", 1.0),
             "atr_percentile": atr_percentile(df),
+            "er":             efficiency_ratio(closes, n=20),
+            "autocorr":       return_autocorr(closes, n=20),
             "updated":        now.isoformat(),
         }
 
