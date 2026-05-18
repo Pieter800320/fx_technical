@@ -152,7 +152,8 @@ tr:last-child td{border-bottom:none;}
     </div>
     <div id="ind-strip">
       <div class="ic" id="ic-d1pct" onclick="openMOMSheet()" style="cursor:pointer;"><span class="ic-val" id="ic-d1pct-val">—</span><span class="ic-lbl">MOM</span></div>
-      <div class="ic" onclick="openQAISheet()"><span class="ic-val" id="ic-qai-val">—</span><span class="ic-lbl">Setup</span></div>
+      <div class="ic" onclick="openQAISheet()"><span class="ic-val" id="ic-qai-val">—</span><span class="ic-lbl">Cont.</span></div>
+      <div class="ic" onclick="openREVSheet()" style="cursor:pointer;"><span class="ic-val" id="ic-rev-val" style="color:var(--muted);">—</span><span class="ic-lbl">Rev.</span></div>
       <div class="ic" id="ic-edge" onclick="openEdgeSheet()" style="cursor:pointer;"><span class="ic-val" id="ic-edge-val">—</span><span class="ic-lbl">Edge</span></div>
     </div>
     <div id="drawer-grid">
@@ -520,7 +521,7 @@ function openQAISheet(){
   const pair=selectedPair,qai=computeQAI(pair);
   const labels={align:'TF Alignment',entry:'Entry Position',csm:'CSM Divergence',regime:'Regime Fit',rate:'Rate Differential',session:'Session Fit'};
   const wts={align:35,entry:23,csm:16,regime:13,rate:5,session:8};
-  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Setup Score</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Continuation Score</span><span class="sh-kpi-val" style="color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span></div>`;
   h+=Object.keys(labels).map(k=>{
     const v=qai.comps[k],pct=v*10;
     const col=pct>=70?'var(--buy)':pct>=40?'var(--amber)':'var(--sell)';
@@ -528,7 +529,7 @@ function openQAISheet(){
   }).join('');
   if(qai.adxGated)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--sell);">⚠ ADX Gate</span><span class="sh-dv" style="color:var(--sell);">ADX &lt;20 — capped at 45%</span></div>`;
   if(qai.capApplied)h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--amber);">⚠ Regime Cap</span><span class="sh-dv" style="color:var(--amber);">${qai.regime} — counter-regime</span></div>`;
-  openSheet('Setup',h,pair.replace('/',''));
+  openSheet('Continuation',h,pair.replace('/',''));
 }
 function openMOMSheet(){
   const pair=selectedPair,s=compute1212(pair);
@@ -649,8 +650,48 @@ function copyAnalysisPrompt(pair,btnEl){
     if(btn){const s={bg:btn.style.background,col:btn.style.color,bc:btn.style.borderColor,tx:btn.textContent};btn.style.background='rgba(0,200,50,0.3)';btn.style.color='rgba(0,220,55,0.9)';btn.style.borderColor='rgba(0,200,50,0.5)';btn.textContent='Copied!';setTimeout(()=>{btn.style.background=s.bg;btn.style.color=s.col;btn.style.borderColor=s.bc;btn.textContent=s.tx;},2000);}
   }).catch(()=>{});
 }
+// ── REVERSAL SCORE — companion to Continuation. Fully independent. ──────────
+// To remove: delete computeREV(), openREVSheet(), and all rev.* display refs.
+function computeREV(pair){
+  const h4d=D.h4&&D.h4[pair],d1d=D.d1&&D.d1[pair];
+  const mom=compute1212(pair);
+  const[base,quote]=pair.split('/');
+  const csm=D.csm&&D.csm.rankings||{},csmH4r=D.csm&&D.csm.h4_rankings||{};
+  const isExtended=!!(h4d&&h4d.extended);
+  const extPts=isExtended?25:0;
+  const atrPct=d1d&&d1d.atr_percentile!=null?d1d.atr_percentile:null;
+  const atrPts=atrPct===null?0:atrPct<=20?20:atrPct<=30?14:atrPct<=40?7:0;
+  const dConflict=mom.dh4!=null&&mom.dd1!=null&&Math.sign(mom.dh4||0)!==Math.sign(mom.dd1||0)&&Math.abs(mom.dh4||0)>=5&&Math.abs(mom.dd1||0)>=5;
+  const lvlConflict=mom.h4!=null&&mom.d1!=null&&((mom.h4>60&&mom.d1<40)||(mom.h4<40&&mom.d1>60));
+  const momPts=dConflict?20:lvlConflict?12:0;
+  const ac=h4d&&h4d.autocorr!=null?h4d.autocorr:null;
+  const acPts=ac===null?0:ac<=-0.20?15:ac<=-0.15?10:ac<=-0.05?4:0;
+  const adxV=h4d&&h4d.raw?h4d.raw.adx:null;
+  const adxPts=adxV===null?0:adxV<15?10:adxV<20?7:adxV<25?3:0;
+  const bD1=csm[base]||0,qD1=csm[quote]||0,bH4=csmH4r[base]||0,qH4=csmH4r[quote]||0;
+  const csmConflict=(bD1>qD1)!==(bH4>qH4)&&Math.abs(bD1-qD1)>20&&Math.abs(bH4-qH4)>20;
+  const csmPts=csmConflict?10:0;
+  const score=Math.min(100,extPts+atrPts+momPts+acPts+adxPts+csmPts);
+  const col=score>=65?'var(--buy)':score>=40?'var(--amber)':'var(--muted)';
+  return{score,col,detail:{extPts,atrPts,momPts,acPts,adxPts,csmPts,isExtended,atrPct,dConflict,lvlConflict,ac,adxV,csmConflict}};
+}
+function openREVSheet(){
+  const pair=selectedPair,rev=computeREV(pair),d=rev.detail;
+  const sRow=(lbl,pts,max,note)=>{
+    const pct=Math.round(pts/max*100),col=pts>=max?'var(--buy)':pts>0?'var(--amber)':'var(--muted)';
+    return`<div class="sh-comp"><span class="sh-comp-lbl" style="width:116px;">${lbl}</span><div style="flex:1;height:3px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:${col};border-radius:2px;"></div></div><span class="sh-comp-val" style="color:${col};">${pts}/${max}</span><span class="sh-comp-wt" style="font-size:8px;">${note}</span></div>`;
+  };
+  let h=`<div class="sh-kpi"><span class="sh-kpi-lbl">Reversal Score</span><span class="sh-kpi-val" style="color:${rev.col};">${rev.score}%</span></div>`;
+  h+=sRow('Extended',d.extPts,25,d.isExtended?'YES':'no');
+  h+=sRow('ATR Compress',d.atrPts,20,d.atrPct!=null?d.atrPct+'%ile':'—');
+  h+=sRow('MOM Conflict',d.momPts,20,d.dConflict?'Δ split':d.lvlConflict?'level split':'—');
+  h+=sRow('Autocorr',d.acPts,15,d.ac!=null?d.ac.toFixed(2):'—');
+  h+=sRow('ADX Weak',d.adxPts,10,d.adxV!=null?d.adxV.toFixed(1):'—');
+  h+=sRow('CSM TF Split',d.csmPts,10,d.csmConflict?'D1≠H4':'aligned');
+  h+=`<div class="sh-dr"><span class="sh-dn" style="color:var(--muted);">≥65 good reversal · &lt;40 conditions absent</span></div>`;
+  openSheet('Reversal',h,pair.replace('/',''));
+}
 function computeRateDiff(pair){
-  if(!D.rates)return null;
   const[base,quote]=pair.split('/'),_rm=getRatesMap();
   const br=_rm[base],qr=_rm[quote];if(!br||!qr)return null;
   return{diff:Math.round((br.rate-qr.rate)*100),baseRate:br.rate,quoteRate:qr.rate,baseBank:br.bank,quoteBank:qr.bank,direction:'stable',base,quote};
@@ -681,6 +722,8 @@ function renderIndStrip(pair){
   // Setup
   const qai=computeQAI(pair),qv=document.getElementById('ic-qai-val');
   if(qv){qv.textContent=qai.score>0?qai.score+'%':'—';qv.style.color=qai.col;}
+  const rev=computeREV(pair),rv=document.getElementById('ic-rev-val');
+  if(rv){rv.textContent=rev.score+'%';rv.style.color=rev.col;}
   // Edge — with breakdown tooltip if available
   const edge=getEdgeScore(pair);
   const eb=getEdgeBreakdown(pair);
@@ -848,7 +891,13 @@ function buildPairSheetContent(pair){
   const edge=getEdgeScore(pair),edgeCol=edge===null?'var(--muted)':edge>=8?'var(--buy)':edge>=6?'var(--amber)':'var(--sell)';
   const s1212=compute1212(pair);
   const vt2="font-family:'VT323',monospace;";
-  let h=`<div class="sh-kpi"><div style="display:flex;flex-direction:column;gap:2px;"><span style="font-size:var(--lg);font-weight:700;color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Setup</span></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span style="font-size:var(--lg);font-weight:700;color:${edgeCol};">${edge!==null?edge+'/10':'—'}</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Edge</span></div></div>`;
+  const rev=computeREV(pair);
+  let h=`<div class="sh-kpi">
+    <div style="display:flex;flex-direction:column;gap:2px;cursor:pointer;" onclick="openQAISheet()"><span style="font-size:var(--lg);font-weight:700;color:${qai.col};">${qai.score>0?qai.score+'%':'—'}</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Cont.</span></div>
+    <div style="font-size:18px;color:rgba(0,80,20,0.3);align-self:center;">/</div>
+    <div style="display:flex;flex-direction:column;gap:2px;cursor:pointer;" onclick="openREVSheet()"><span style="font-size:var(--lg);font-weight:700;color:${rev.col};">${rev.score}%</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Rev.</span></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;"><span style="font-size:var(--lg);font-weight:700;color:${edgeCol};">${edge!==null?edge+'/10':'—'}</span><span style="font-size:var(--xs);color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">Edge</span></div>
+  </div>`;
   h+=hdr('Technical');
   h+=row('D1',d1d?d1d.label:'No data',scoreCol(d1d?d1d.label:''));
   h+=row('H4',h4d?h4d.label:'No data',scoreCol(h4d?h4d.label:''));
@@ -1277,16 +1326,24 @@ function renderDrumData(pair){
   const alertDotHtml=hasAlert?`<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:rgba(0,255,65,0.9);box-shadow:0 0 5px rgba(0,255,65,0.5);flex-shrink:0;margin-left:2px;vertical-align:middle;"></span>`:'';
   let h='';
 
-  // Zone 1: pair + dot + D1% + D5%  |  Setup% top-right
+  // Zone 1: pair + dot + D1% + D5%  |  CONT./REV. dual top-right
+  const rev=computeREV(pair);
   h+=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
     <div style="display:flex;align-items:center;gap:5px;min-width:0;">
       <span style="${vt}font-size:22px;color:#00ff55;letter-spacing:.01em;text-shadow:0 0 8px rgba(0,255,65,0.4);">${pair.replace('/','')}</span>${alertDotHtml}
       <span style="${vt}font-size:14px;color:${pctColor(d1Pct)};">${pctFmt(d1Pct)}</span>
       ${d5Pct!==null?`<span style="${vt}font-size:14px;color:${pctColor(d5Pct)};">${pctFmt(d5Pct)}</span>`:''}
     </div>
-    <div style="text-align:right;flex-shrink:0;line-height:1;padding-left:6px;">
-      <div style="font-size:9px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.06em;">Setup</div>
-      <span style="${vt}font-size:22px;color:${BRIGHT};${glowShadow(qai.score)}">${qai.score>0?qai.score+'%':'—'}</span>
+    <div style="display:flex;align-items:flex-end;gap:4px;flex-shrink:0;padding-left:4px;">
+      <div style="text-align:center;line-height:1;">
+        <div style="font-size:8px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Cont.</div>
+        <span style="${vt}font-size:18px;color:${BRIGHT};${glowShadow(qai.score)}">${qai.score>0?qai.score:'—'}</span>
+      </div>
+      <span style="font-size:11px;color:rgba(0,80,20,0.4);padding-bottom:1px;">/</span>
+      <div style="text-align:center;line-height:1;">
+        <div style="font-size:8px;color:rgba(0,200,50,0.75);font-weight:700;text-transform:uppercase;letter-spacing:.05em;">Rev.</div>
+        <span style="${vt}font-size:18px;color:${rev.col}">${rev.score}</span>
+      </div>
     </div>
   </div>`;
 
