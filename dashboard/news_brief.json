@@ -1,18 +1,18 @@
 {
   "status": "ok",
-  "updated": "2026-05-25T01:57:33.004419+00:00",
+  "updated": "2026-05-25T10:08:23.739915+00:00",
   "macro": {
     "vix": {
-      "value": 16.700000762939453,
-      "change": -0.059999,
-      "change_pct": -0.36,
+      "value": 16.690000534057617,
+      "change": -0.01,
+      "change_pct": -0.06,
       "label": "VIX",
       "invert": true
     },
     "dxy": {
-      "value": 99.31999969482422,
-      "change": 0.129997,
-      "change_pct": 0.13,
+      "value": 98.99299621582031,
+      "change": -0.327003,
+      "change_pct": -0.33,
       "label": "DXY",
       "invert": false
     },
@@ -32,22 +32,22 @@
     },
     "wti": {
       "value": 96.5999984741211,
-      "change": 0.25,
-      "change_pct": 0.26,
+      "change": 0.0,
+      "change_pct": 0.0,
       "label": "WTI Oil",
       "invert": false
     },
     "gold": {
       "value": 4523.2001953125,
-      "change": -16.599609,
-      "change_pct": -0.37,
+      "change": 2.200195,
+      "change_pct": 0.05,
       "label": "Gold",
       "invert": false
     },
     "silver": {
       "value": 76.1989974975586,
-      "change": -0.215004,
-      "change_pct": -0.28,
+      "change": 0.306,
+      "change_pct": 0.4,
       "label": "Silver",
       "invert": false
     },
@@ -59,94 +59,124 @@
       "invert": false
     },
     "btc": {
-      "value": 76106.7421875,
-      "change": -566.625,
-      "change_pct": -0.74,
+      "value": 77526.0078125,
+      "change": 544.882812,
+      "change_pct": 0.71,
       "label": "Bitcoin",
       "invert": false
     },
     "copper": {
       "value": 6.379000186920166,
-      "change": 0.122,
-      "change_pct": 1.95,
+      "change": 0.037,
+      "change_pct": 0.58,
       "label": "Copper",
       "invert": false
     }
   },
-  "narrative": "DRIVER\nUSD is fading on H4 CSM (44 vs D1 100), a 56-point divergence that is the single most critical signal in this session, while CHF (H4 100 vs D1 33) and AUD (H4 70 vs D1 31) are both accelerating hard against the dominant risk-off D1 regime, driven by copper up 1.95% and S&P 500 extending gains. USDCHF sells directly express CHF acceleration, AUDUSD and AUDJPY express AUD strength with AUDUSD-AUDJPY correlation at 0.89 confirming the cluster, and NZDUSD amplifies via 0.88 correlation to AUDUSD with NZD H4 CSM also printing 62. CADJPY is the live counter-trade: H4 Strong Sell at -6 with CAD ranked dead last on H4 CSM at 0, directly conflicting the D1 neutral read.\n\nMOMENTUM\nGaining: None\nFading: None\n\nWATCH\nCopper extends above 6.40 triggering further AUDUSD H4 buying toward next resistance as commodity bid confirms AUD acceleration\nUSDCAD D1 Strong Buy H4 Buy alignment risks breakout if CAD weakness deepens, watch for confirmation above current range\nNZDJPY H4 Strong Buy at +4 activates on any JPY softening, copper and S&P holding positive is the trigger condition",
+  "narrative": "DRIVER\nNZD leads H4 CSM at 100 with AUD close behind at 88, both accelerating hard against D1 baselines in a Risk-Off High regime that is being overridden by US-Iran peace deal news collapsing the USD proxy to 0 on H4. AUDJPY is the cleanest expression given the 0.90 AUDUSD correlation amplifying AUD strength into JPY weakness, with NZDUSD and NZDJPY confirming the same cluster move. CHF fading from D1 100 to H4 77 means USDCHF H4 Strong Sell is losing its structural anchor and should not be treated as a primary vehicle.\n\nMOMENTUM\nGaining: AUDJPY CMP 55 with H4 rising and D1 steady, USDJPY D1 at 86 rising sharply though H4 fading to 51\nFading: GBPUSD CMP 41 with both D1 and H4 decelerating, NZDUSD CMP 39 with D1 and H4 both falling, NZDJPY CMP 47 with H4 dropping sharply\n\nWATCH\nAny confirmed Hormuz shipping lane reopening headline hits USDCAD directly, CAD accelerating on H4 CSM points to further USDCAD upside reversal failure\nECB speaker reiterating rate path triggers EURUSD, EUR H4 CSM accelerating from 0 to 66 makes a break above D1 sell resistance the key level to watch\nFed speaker adding policy clarity drives USDJPY, D1 momentum at 86 rising means a hawkish signal extends the D1 buy toward new highs",
   "edge_scores": {
-    "EURUSD": 5,
+    "EURUSD": 6,
     "GBPUSD": 5,
-    "USDJPY": 7,
+    "USDJPY": 4,
     "USDCHF": 7,
-    "AUDUSD": 5,
+    "AUDUSD": 2,
     "USDCAD": 4,
-    "NZDUSD": 5,
-    "EURJPY": 2,
-    "GBPJPY": 3,
-    "AUDJPY": 4,
-    "NZDJPY": 4,
+    "NZDUSD": 4,
+    "EURJPY": 7,
+    "GBPJPY": 7,
+    "AUDJPY": 2,
+    "NZDJPY": 2,
     "CADJPY": 5
   },
   "themes": [
     {
-      "theme": "Risk-On Sentiment from Geopolitical De-escalation",
+      "theme": "US-Iran peace deal hopes driving risk-on sentiment",
       "currencies": [
-        "USD"
+        "USD",
+        "JPY",
+        "CHF"
       ],
       "direction": "bearish",
-      "confidence": "medium"
+      "confidence": "high"
     },
     {
-      "theme": "Technology Sector Rotation and AI Stock Volatility",
+      "theme": "Oil price collapse on Hormuz reopening expectations",
       "currencies": [
-        "USD"
+        "USD",
+        "CAD",
+        "AUD"
       ],
-      "direction": "neutral",
-      "confidence": "medium"
+      "direction": "bearish",
+      "confidence": "high"
     },
     {
-      "theme": "Commodity Price Pressures - Agricultural Weakness",
+      "theme": "ECB inflation fighting rhetoric supporting Euro",
       "currencies": [
-        "USD"
+        "EUR"
       ],
       "direction": "bullish",
-      "confidence": "low"
+      "confidence": "medium"
     },
     {
-      "theme": "Mixed Equity Market Signals with Earnings Volatility",
+      "theme": "RBI intervention supporting Indian Rupee",
       "currencies": [
-        "USD"
+        "INR"
+      ],
+      "direction": "bullish",
+      "confidence": "medium"
+    },
+    {
+      "theme": "Japanese fiscal stimulus offsetting BoJ concerns",
+      "currencies": [
+        "JPY"
       ],
       "direction": "neutral",
       "confidence": "medium"
     },
     {
-      "theme": "Inflation and Cost-of-Living Concerns Persist",
+      "theme": "Fed policy ambiguity clouding Dollar outlook",
       "currencies": [
         "USD"
       ],
       "direction": "bearish",
-      "confidence": "low"
+      "confidence": "medium"
+    },
+    {
+      "theme": "Safe-haven flows to CHF and JPY reversing",
+      "currencies": [
+        "CHF",
+        "JPY"
+      ],
+      "direction": "bearish",
+      "confidence": "high"
+    },
+    {
+      "theme": "Commodity currencies underperforming amid weak oil",
+      "currencies": [
+        "CAD",
+        "AUD"
+      ],
+      "direction": "bearish",
+      "confidence": "medium"
     }
   ],
-  "usd_bias": "neutral",
+  "usd_bias": "bearish",
   "risk_sentiment": "risk-on",
-  "key_observation": "Headlines show risk-on mood from Iran peace hopes supporting equities, but dominated by idiosyncratic equity stories rather than macro FX drivers. No significant central bank, economic data, or currency-specific news. Agricultural commodity weakness suggests modest USD strength. Technology sector internally conflicted with Google-Nvidia dynamics creating sector rotation rather than directional conviction.",
-  "watch": "Equity market follow-through on geopolitical optimism. Tech sector earnings quality and AI narrative sustainability. Agricultural commodity trends for commodity currency implications. Absence of Asian economic calendar may reduce FX volatility overnight.",
-  "headline_count": 16,
+  "key_observation": "Strong risk-on mood driven by US-Iran peace deal hopes is pressuring safe-haven currencies and the USD broadly. Oil collapse to two-week lows is particularly damaging to commodity-linked currencies. ECB inflation rhetoric provides some EUR support despite broader USD weakness.",
+  "watch": "Resolution of Iran negotiations, oil price stabilization levels, Fed communications on rate path, ECB rate decision implications, BoJ intervention necessity",
+  "headline_count": 40,
   "edge_breakdown": {
     "EURUSD": {
       "news": 3,
-      "regime": 0,
+      "regime": 1,
       "session": 2,
       "atr": 0,
-      "raw": 5,
-      "final": 5
+      "raw": 6,
+      "final": 6
     },
     "GBPUSD": {
-      "news": 3,
-      "regime": 0,
+      "news": 2,
+      "regime": 1,
       "session": 2,
       "atr": 0,
       "raw": 5,
@@ -154,80 +184,80 @@
     },
     "USDJPY": {
       "news": 3,
-      "regime": 2,
-      "session": 2,
+      "regime": 1,
+      "session": 0,
       "atr": 0,
-      "raw": 7,
-      "final": 7
+      "raw": 4,
+      "final": 4
     },
     "USDCHF": {
-      "news": 3,
-      "regime": 2,
+      "news": 4,
+      "regime": 1,
       "session": 2,
       "atr": 0,
       "raw": 7,
       "final": 7
     },
     "AUDUSD": {
-      "news": 3,
-      "regime": 0,
-      "session": 2,
+      "news": 1,
+      "regime": 1,
+      "session": 0,
       "atr": 0,
-      "raw": 5,
-      "final": 5
+      "raw": 2,
+      "final": 2
     },
     "USDCAD": {
-      "news": 2,
-      "regime": 0,
-      "session": 2,
+      "news": 3,
+      "regime": 1,
+      "session": 0,
       "atr": 0,
       "raw": 4,
       "final": 4
     },
     "NZDUSD": {
       "news": 3,
-      "regime": 0,
-      "session": 2,
+      "regime": 1,
+      "session": 0,
       "atr": 0,
-      "raw": 5,
-      "final": 5
+      "raw": 4,
+      "final": 4
     },
     "EURJPY": {
-      "news": 2,
-      "regime": 0,
+      "news": 4,
+      "regime": 1,
+      "session": 2,
+      "atr": 0,
+      "raw": 7,
+      "final": 7
+    },
+    "GBPJPY": {
+      "news": 4,
+      "regime": 1,
+      "session": 2,
+      "atr": 0,
+      "raw": 7,
+      "final": 7
+    },
+    "AUDJPY": {
+      "news": 1,
+      "regime": 1,
       "session": 0,
       "atr": 0,
       "raw": 2,
       "final": 2
     },
-    "GBPJPY": {
-      "news": 3,
-      "regime": 0,
-      "session": 0,
-      "atr": 0,
-      "raw": 3,
-      "final": 3
-    },
-    "AUDJPY": {
-      "news": 2,
-      "regime": 2,
-      "session": 0,
-      "atr": 0,
-      "raw": 4,
-      "final": 4
-    },
     "NZDJPY": {
-      "news": 2,
-      "regime": 2,
+      "news": 1,
+      "regime": 1,
       "session": 0,
       "atr": 0,
-      "raw": 4,
-      "final": 4
+      "raw": 2,
+      "final": 2
     },
     "CADJPY": {
-      "news": 3,
-      "regime": 0,
-      "session": 2,
+      "news": 4,
+      "regime": 1,
+      "session": 0,
       "atr": 0,
       "raw": 5,
       "final": 5
